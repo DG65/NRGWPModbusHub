@@ -67,8 +67,9 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
   geprüft, aber keine ausreichend konkrete/verlässliche Registerkarte gefunden bzw. Zeit
   gefehlt, sie zu verifizieren. Bewusst nicht mit geratenen Adressen aufgenommen. Nächste
   Kandidaten, sobald sich dafür Zeit/ein Tester findet.
-- **Kein Forum-Hinweis-Panel** — noch kein Thread (Muster WPHub: folgt, sobald es einen
-  gibt, nicht mit einer Phantasie-URL vorgezogen).
+- ~~Kein Forum-Hinweis-Panel~~ — erledigt 18.09.2026: Thread ist live
+  (https://community.symcon.de/t/modul-nrg-stack-wpmodbushub-lokale-modbus-anbindung-fuer-waermepumpen-mehrerer-hersteller-nibe-stiebel-eltron-lg-samsung/144421),
+  Panel `ForumHint()`/`AckForumHint()` verlinkt (0.1.2).
 - **Kein News-Panel-Inhalt über die Erstversion hinaus** — analog zu MeterHubDiscoverys
   Regel "kein News-Panel ohne echten Inhalt".
 

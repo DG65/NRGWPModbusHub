@@ -138,6 +138,9 @@ class WPModbusHub extends IPSModule
         $this->RegisterAttributeBoolean('PurposeIntroGone', false);
         $this->RegisterAttributeString('SeenNews', '');
         $this->RegisterAttributeInteger('LastSeenAt', 0);
+        // Einmalig dismissible Forum-Hinweis (SUITE.md "Einheitliche Formular-
+        // Optik", Forumsthread seit 18.09.2026 live), siehe ForumHint().
+        $this->RegisterAttributeBoolean('ForumHintGone', false);
 
         $this->RegisterTimer('WPMBHUB_UpdateTimer', 0, 'WPMBHUB_Update($_IPS[\'TARGET\']);');
     }
@@ -216,6 +219,11 @@ class WPModbusHub extends IPSModule
             ]);
         }
 
+        $forumHint = $this->ForumHint();
+        if ($forumHint !== null) {
+            $form['elements'][] = $forumHint;
+        }
+
         $form['elements'][] = $this->LicenseHint();
 
         return json_encode($form);
@@ -265,6 +273,38 @@ class WPModbusHub extends IPSModule
     {
         $this->WriteAttributeBoolean('PurposeIntroGone', true);
         $this->UpdateFormField('PurposeIntroPanel', 'visible', false);
+    }
+
+    // Forumsthread seit 18.09.2026 live (Dietmar).
+    private const FORUM_THREAD_URL = 'https://community.symcon.de/t/modul-nrg-stack-wpmodbushub-lokale-modbus-anbindung-fuer-waermepumpen-mehrerer-hersteller-nibe-stiebel-eltron-lg-samsung/144421';
+
+    /**
+     * Symcon-Forum-Hinweis -- SUITE.md "Einheitliche Formular-Optik", nach den
+     * Fachpanels, vor "Über dieses Modul". Einmalig dismissible, kein
+     * Versionsbezug (Muster WPHub ForumHint()/AckForumHint()).
+     */
+    private function ForumHint(): ?array
+    {
+        if ($this->ReadAttributeBoolean('ForumHintGone')) {
+            return null;
+        }
+        return [
+            'type'     => 'ExpansionPanel',
+            'name'     => 'ForumHintPanel',
+            'expanded' => true,
+            'caption'  => '💬  Feedback im Symcon-Forum',
+            'items'    => [
+                ['type' => 'Label', 'caption' => 'Fragen, Fehler oder Erfahrungsberichte zu NIBE, Stiebel Eltron, LG oder Samsung -- dafür gibt es den WPModbusHub-Forumsthread.'],
+                ['type' => 'Button', 'caption' => 'Zum Forums-Thread', 'onClick' => "echo '" . self::FORUM_THREAD_URL . "';", 'link' => true],
+                ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBHUB_AckForumHint($id);'],
+            ],
+        ];
+    }
+
+    public function AckForumHint(): void
+    {
+        $this->WriteAttributeBoolean('ForumHintGone', true);
+        $this->UpdateFormField('ForumHintPanel', 'visible', false);
     }
 
     // Zeigt auf beta (erster Store-Release-Branch, siehe SUITE.md-Stolperfalle
