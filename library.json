@@ -1,0 +1,12 @@
+{
+    "id": "{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}",
+    "author": "DG65",
+    "name": "NRG-Stack WPModbusHub",
+    "url": "https://github.com/DG65/NRGWPModbusHub",
+    "version": "0.1.0",
+    "build": 1,
+    "date": 1789603200,
+    "compatibility": {
+        "version": "9.0"
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "id": "{E878B4D4-8E98-4E89-AE21-8636262EBC55}",
+    "library": "{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}",
+    "name": "WPModbusHub",
+    "type": 3,
+    "vendor": "",
+    "aliases": [
+        "NRG-Stack WPModbusHub",
+        "Wärmepumpe Modbus (Multi-Hersteller)"
+    ],
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "WPMBHUB"
+}

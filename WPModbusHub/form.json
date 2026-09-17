@@ -1,0 +1,121 @@
+{
+    "elements": [
+        {
+            "type": "ExpansionPanel",
+            "caption": "📖 Dokumentation & Hilfe",
+            "expanded": false,
+            "items": [
+                {
+                    "type": "Label",
+                    "name": "VersionInfo",
+                    "caption": "ℹ️ WPModbusHub Version -- lokale Modbus-Anbindung für Wärmepumpen mehrerer Hersteller."
+                },
+                {
+                    "type": "Label",
+                    "caption": "Liest eine Wärmepumpe direkt per Modbus TCP im lokalen Netz aus -- ohne Internet, ohne Herstellerkonto. Details: https://github.com/DG65/NRGWPModbusHub"
+                },
+                {
+                    "type": "Label",
+                    "caption": "Ablauf: 1. Hersteller wählen → 2. IP-Adresse (bzw. IP des Modbus-Gateways) und Port eintragen → 3. Übernehmen → 4. „WPModbusHub aktiv“ einschalten und erneut übernehmen."
+                },
+                {
+                    "type": "Button",
+                    "caption": "🔄 Übernehmen erzwingen (ohne Formularänderung)",
+                    "confirm": "Wirklich ApplyChanges() erzwingen? Praktisch direkt nach einem Modul-Update über die Modulverwaltung.",
+                    "onClick": "IPS_ApplyChanges($id); echo '✅ ApplyChanges() ausgeführt.';"
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "name": "GeneralPanel",
+            "caption": "🔧 Allgemein",
+            "expanded": true,
+            "items": [
+                {
+                    "type": "CheckBox",
+                    "name": "WPMBHUB_Active",
+                    "caption": "WPModbusHub aktiv"
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "WPMBHUB_Interval",
+                    "caption": "Aktualisierungsintervall (Sekunden)",
+                    "minimum": 30,
+                    "maximum": 600,
+                    "suffix": " s"
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "name": "ConnectionPanel",
+            "caption": "🔌 Wärmepumpe (Modbus TCP)",
+            "expanded": true,
+            "items": [
+                {
+                    "type": "Select",
+                    "name": "Manufacturer",
+                    "caption": "Hersteller",
+                    "options": [
+                        {"caption": "NIBE (S-Serie, z. B. S1155/S1255/S2125)", "value": "nibe"},
+                        {"caption": "Stiebel Eltron (ISG-Gateway, WPMsystem/WPM3/WPM3i/LWZ)", "value": "stiebeleltron"},
+                        {"caption": "LG Therma V", "value": "lg"},
+                        {"caption": "Samsung EHS (über MIM-B19N-Zubehörmodul)", "value": "samsung"}
+                    ],
+                    "onChange": "WPMBHUB_OnChangeManufacturer($id, $Manufacturer);"
+                },
+                {
+                    "type": "Label",
+                    "name": "ManufacturerConfidence",
+                    "caption": ""
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        {
+                            "type": "ValidationTextBox",
+                            "name": "Host",
+                            "caption": "IP-Adresse (Wärmepumpe bzw. Modbus-Gateway)"
+                        },
+                        {
+                            "type": "PopupButton",
+                            "caption": "Wo finde ich die IP-Adresse?",
+                            "width": "460px",
+                            "popup": {
+                                "caption": "Wo finde ich die IP-Adresse?",
+                                "items": [
+                                    {
+                                        "type": "Label",
+                                        "caption": "Bei NIBE S-Serie und Stiebel Eltron (ISG) ist das die IP-Adresse der Wärmepumpe/des Gateways selbst im lokalen Netz -- unter „Modbus TCP/IP“ in deren eigenem Menü sichtbar/einstellbar. Bei LG und Samsung ist es die IP-Adresse des dazwischengeschalteten Modbus-Gateways (z. B. ein RS485-zu-Ethernet-Adapter oder das offizielle MIM-B19N-Modul mit eigenem TCP-Zugang)."
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "Port",
+                    "caption": "Port",
+                    "minimum": 1,
+                    "maximum": 65535
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "UnitId",
+                    "caption": "Unit-ID / Slave-ID",
+                    "minimum": 1,
+                    "maximum": 247
+                }
+            ]
+        }
+    ],
+    "status": [
+        {
+            "code": 201,
+            "icon": "error",
+            "caption": "Wärmepumpe nicht erreichbar -- IP-Adresse/Port/Unit-ID prüfen"
+        }
+    ]
+}

@@ -1,0 +1,5 @@
+# Changelog — NRG-Stack WPModbusHub
+
+## 0.1.0 (Build 1) — 17.09.2026
+
+- **Erster Stand.** Lokale Modbus-TCP-Anbindung für Wärmepumpen, dritter Baustein der Wärmepumpen-Vertikale neben WPHub (Cloud) und HeishaMon (lokal, nur Panasonic). Eine Instanz = eine Wärmepumpe, Hersteller-Auswahl schaltet das Registerprofil um. Vier Hersteller ab Start: **NIBE** (S-Serie, offizielle Referenz-Registerkarte aus Home Assistants NIBE-Integration), **Stiebel Eltron** (ISG-Gateway, direkt aus dem offiziellen Stiebel-PDF), **LG Therma V** (community-gepflegte Registerkarte) und **Samsung EHS** (über das offizielle MIM-B19N-Zubehörmodul, community-gepflegte Registerkarte). `WPMBHUB_ModbusTcpClient` 1:1 aus MeterHub portiert (bewährter Modbus-TCP-Kern, eine Verbindung je Lesezyklus). Vertrag `WPMBHUB_GetFunctions()` kompatibel zu WPHub/HeishaMon (`Type=>'heatpump'`, contractVersion 1.15, dieselben Feldnamen). **Bewusst nur lesend, an keinem Hersteller hardwareverifiziert** — jede Registerkarte trägt einen eigenen Herkunfts-/Vertrauenshinweis im Formular. Ausgelesen werden aktuell nur Temperaturen, keine Leistungs-/Energiezähler. 47 Tests.
