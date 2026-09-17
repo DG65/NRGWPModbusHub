@@ -74,8 +74,9 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
 
 ## Branch-Modell
 
-`ems-integration` als aktiver Entwicklungsbranch (verbundweit identischer Name), analog zu
-allen anderen NRG-Stack-Modulen. Noch kein `beta`/`main`.
+`ems-integration` bleibt der aktive Entwicklungsbranch. Seit 18.09.2026 existiert zusätzlich
+`beta` (erster Store-Release-Branch) — wird nur bei Bedarf von `ems-integration`
+nachgezogen, kein automatischer Gleichlauf. `main` existiert für dieses Repo noch nicht.
 
 ## Verbund-Manifest SUITE.md
 
