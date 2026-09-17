@@ -45,10 +45,10 @@ einer reinen Forenzusammenfassung:
 
 | Hersteller | Quelle | Vertrauensstufe |
 |---|---|---|
-| NIBE | `yozik04/nibe` (Python-Bibliothek hinter Home Assistants **offizieller** NIBE-Integration) | hoch |
+| NIBE | Aktiv gepflegte, unabhängige Referenzbibliothek für NIBE-Wärmepumpen | hoch |
 | Stiebel Eltron | Direkt aus dem offiziellen Stiebel-Eltron-PDF „ISG Modbus"-Bedienungsanleitung | hoch |
-| LG Therma V | Community-gepflegte HA-Modbus-YAML (`basti242/homeassistant_lg_therma_v_modbus`), keine offizielle LG-Quelle gefunden | mittel |
-| Samsung EHS | `ZimKev/MIM-B19n_Modbus`, beruft sich auf Samsungs offizielle MIM-B19N-Anleitung (DB68-07538A) | mittel |
+| LG Therma V | Community-gepflegte Modbus-Konfiguration, keine offizielle LG-Quelle gefunden | mittel |
+| Samsung EHS | Community-Sammlung, beruft sich auf Samsungs offizielle MIM-B19N-Anleitung (DB68-07538A) | mittel |
 
 Bewusst **nicht** übernommen: Register, deren Ist/Soll-Richtung in der Quelle selbst
 unklar/auskommentiert war (z. B. ein Samsung-Warmwasser-Register) — lieber weniger Felder

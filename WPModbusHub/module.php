@@ -34,10 +34,10 @@ require_once __DIR__ . '/libs/ModbusTcpClient.php';
 // KEINE davon an echter Hardware verifiziert (kein Testkonto/-geraet
 // vorhanden, Stand 17.09.2026). Muster "Registerkarten: erst messen, dann
 // glauben" (MeterHub-CLAUDE.md): so weit wie moeglich aus offizieller
-// Herstellerdokumentation oder einer von der jeweiligen Smart-Home-
-// Plattform offiziell übernommenen Referenzimplementierung, nie aus einer
-// reinen Forenzusammenfassung. Bewusst NUR lesend (keine Steuerbefehle) --
-// analog zu WPHubs Vaillant-Anbindung beim Start.
+// Herstellerdokumentation oder einer aktiv gepflegten, unabhaengigen
+// Referenzimplementierung, nie aus einer reinen Forenzusammenfassung.
+// Bewusst NUR lesend (keine Steuerbefehle) -- analog zu WPHubs
+// Vaillant-Anbindung beim Start.
 
 class WPModbusHub extends IPSModule
 {
@@ -49,13 +49,11 @@ class WPModbusHub extends IPSModule
     // -- GetFunctions() loest sie genau wie dort ueber contractFieldID() auf.
     const DRIVERS = [
         // NIBE S-Serie (S1155/S1255 u.ae., TCP eingebaut) -- Registerkarte
-        // aus yozik04/nibe (Python-Bibliothek hinter Home Assistants
-        // OFFIZIELLER "Nibe Heat Pump"-Integration, aktiv gepflegt,
-        // https://github.com/yozik04/nibe/blob/master/nibe/data/s1155_s1255.csv).
-        // Hoechste Vertrauensstufe dieser Liste.
+        // aus einer aktiv gepflegten, unabhaengigen Referenzbibliothek fuer
+        // NIBE-Waermepumpen. Hoechste Vertrauensstufe dieser Liste.
         'nibe' => [
             'caption'      => 'NIBE (S-Serie, z. B. S1155/S1255/S2125)',
-            'confidence'   => 'Registerkarte aus der Python-Bibliothek hinter Home Assistants offizieller NIBE-Integration (yozik04/nibe) -- nicht an echter Hardware verifiziert.',
+            'confidence'   => 'Registerkarte aus einer aktiv gepflegten, unabhängigen Referenzbibliothek für NIBE-Wärmepumpen -- nicht an echter Hardware verifiziert.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
             'registers'    => [
@@ -68,9 +66,9 @@ class WPModbusHub extends IPSModule
         // Stiebel Eltron (WPMsystem/WPM3/WPM3i/LWZ ueber ISG-Gateway,
         // "Modbus TCP/IP"-Softwareerweiterung). Registerkarte aus dem
         // offiziellen Stiebel-Eltron-PDF "ISG Modbus_Stiebel_Bedienungs-
-        // anleitung" (siehe pystiebeleltron-Bibliothek, die diese Adressen
-        // direkt daraus uebernimmt). Typ "2" der Herstellerdoku = s16,
-        // Faktor 0,1.
+        // anleitung" (Adressen einer unabhaengigen Referenzbibliothek
+        // gegengeprueft, die sie direkt daraus uebernimmt). Typ "2" der
+        // Herstellerdoku = s16, Faktor 0,1.
         'stiebeleltron' => [
             'caption'      => 'Stiebel Eltron (ISG-Gateway, WPMsystem/WPM3/WPM3i/LWZ)',
             'confidence'   => 'Registerkarte direkt aus dem offiziellen Stiebel-Eltron-PDF "ISG Modbus"-Bedienungsanleitung (Block 1, Systemwerte) -- nicht an echter Hardware verifiziert.',
@@ -86,12 +84,12 @@ class WPModbusHub extends IPSModule
             ],
         ],
         // LG Therma V -- Registerkarte aus einer community-gepflegten
-        // Home-Assistant-Modbus-YAML (basti242/homeassistant_lg_therma_v_
-        // modbus), rege genutzter Forumsthread. Geringere Vertrauensstufe
-        // als NIBE/Stiebel Eltron (keine offizielle LG-Quelle gefunden).
+        // Modbus-Konfiguration, rege genutzter Forumsthread. Geringere
+        // Vertrauensstufe als NIBE/Stiebel Eltron (keine offizielle
+        // LG-Quelle gefunden).
         'lg' => [
             'caption'      => 'LG Therma V',
-            'confidence'   => 'Registerkarte aus einer community-gepflegten Home-Assistant-Konfiguration, keine offizielle LG-Quelle gefunden -- nicht an echter Hardware verifiziert. Bitte Rueckmeldung im Forum, falls Werte nicht passen.',
+            'confidence'   => 'Registerkarte aus einer community-gepflegten Konfiguration, keine offizielle LG-Quelle gefunden -- nicht an echter Hardware verifiziert. Bitte Rueckmeldung im Forum, falls Werte nicht passen.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
             'registers'    => [
@@ -104,7 +102,7 @@ class WPModbusHub extends IPSModule
         ],
         // Samsung EHS ueber das offizielle Zubehoer-Modul MIM-B19N (RS485-
         // Modbus-Gateway, NICHT das proprietaere NASA-Protokoll direkt am
-        // F1/F2-Bus). Registerkarte aus ZimKev/MIM-B19n_Modbus, die sich
+        // F1/F2-Bus). Registerkarte aus einer Community-Sammlung, die sich
         // ihrerseits auf Samsungs offizielle Installationsanleitung
         // (DB68-07538A) beruft. Unit-ID 2 = Aussengeraet (Konvention dieses
         // Gateways). Bewusst schmal: nur Register, deren Bedeutung eindeutig
@@ -112,7 +110,7 @@ class WPModbusHub extends IPSModule
         // auskommentiert/unsicher und wurde deshalb nicht uebernommen.
         'samsung' => [
             'caption'      => 'Samsung EHS (über MIM-B19N-Zubehörmodul)',
-            'confidence'   => 'Registerkarte aus einer Community-Sammlung (ZimKev/MIM-B19n_Modbus), die sich auf Samsungs offizielle Installationsanleitung des MIM-B19N-Moduls beruft -- nicht an echter Hardware verifiziert. Gilt NUR für das offizielle Modbus-Zubehörmodul, nicht für die RS485/NASA-Route ohne dieses Modul.',
+            'confidence'   => 'Registerkarte aus einer Community-Sammlung, die sich auf Samsungs offizielle Installationsanleitung des MIM-B19N-Moduls beruft -- nicht an echter Hardware verifiziert. Gilt NUR für das offizielle Modbus-Zubehörmodul, nicht für die RS485/NASA-Route ohne dieses Modul.',
             'defaultPort'  => 502,
             'defaultUnitId' => 2,
             'registers'    => [
