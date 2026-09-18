@@ -72,15 +72,25 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
 - **Proxon** (Zimmermann Lüftungs- und Wärmesysteme GmbH & Co. KG, eigenständiger
   Hersteller, weit verbreitet in deutschen Fertighäusern über Einbaupartner wie
   WeberHaus/Fingerhaus — KEIN Rebrand eines bereits unterstuetzten Herstellers,
-  18.09.2026 recherchiert nach Forumsanfrage "Ghostraider"). Modbus (nativ RS485 an
-  Port X6 der FWT-Lüftungs-/Wärmepumpenzentrale, Slave-ID 41) sitzt an der FWT
-  1.x/2.0-Einheit, dazu separat eine Trinkwasser-Wärmepumpe T300. Zimmermann hat
-  offenbar offizielle Modbus-Doku ("Kurzbeschreibung GLT-Schnittstelle FWT2.0" +
-  Registerliste als Excel), aber NICHT oeffentlich online -- nur auf Kundenanfrage,
-  kursiert informell in einem Home-Assistant-Forumsthread. Bewusst NICHT von dort
-  uebernommen (unklare Weitergabeberechtigung einer als kundenexklusiv markierten
-  Herstellerdoku) -- Forumsnutzer gebeten, die Datei selbst bei Zimmermann anzufragen
-  oder seine eigene laufende Registerliste zu teilen.
+  18.09.2026 recherchiert nach Forumsanfrage "Ghostraider"). Modbus sitzt an der
+  FWT-Lüftungs-/Wärmepumpenzentrale (Modelle 1.x/2.0), dazu separat eine
+  Trinkwasser-Wärmepumpe T300. Zimmermanns offizielle Modbus-Doku ("Kurzbeschreibung
+  GLT-Schnittstelle FWT2.0" + Registerliste als Excel) ist NICHT oeffentlich online,
+  nur auf Kundenanfrage -- bewusst NICHT aus einer informell im Netz kursierenden
+  Kopie uebernommen (unklare Weitergabeberechtigung).
+  **Update 18.09.2026:** Ghostraider IST Proxon-Kunde und hat die offizielle Excel
+  bereits selbst (legitim von Zimmermann) -- deutlich ergiebiger als erwartet, ~250
+  Variablen (Kompressor, Ventile, Druecke, Diagnose, Raumtemperaturen je Zimmer,
+  volle Steuerung, nicht nur Temperaturen). Er wurde um einen kleinen Ausschnitt
+  (nur die Standardfelder: Aussentemp, Vorlauf/Ruecklauf, Warmwasser Ist/Soll)
+  gebeten statt der ganzen Datei -- passt besser zur v1-Linie "erst Temperaturen,
+  keine Steuerbefehle" und respektiert die Kundenexklusivitaet der Vollversion.
+  **Offene Architekturfrage, noch nicht geklaert:** Ghostraider liest ueber einen
+  SERIELLEN COM-Port (COM7, 19200 Baud) aus, nicht Modbus TCP -- WPMBHUB_ModbusTcpClient
+  spricht nur TCP-Sockets. Ob bei ihm ein RS485-zu-Ethernet-Adapter dahinterhaengt
+  (dann passt das bestehende Modul direkt) oder ein lokaler USB-RS485-Dongle (dann
+  braeuchte es eine neue serielle Transportart, deutlich groesserer Umbau als nur
+  eine Registerkarte) -- Antwort steht aus.
 - ~~Kein Forum-Hinweis-Panel~~ — erledigt 18.09.2026: Thread ist live
   (https://community.symcon.de/t/modul-nrg-stack-wpmodbushub-lokale-modbus-anbindung-fuer-waermepumpen-mehrerer-hersteller-nibe-stiebel-eltron-lg-samsung/144421),
   Panel `ForumHint()`/`AckForumHint()` verlinkt (0.1.2).
