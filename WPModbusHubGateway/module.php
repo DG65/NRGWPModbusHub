@@ -146,7 +146,7 @@ class WPModbusHubGateway extends IPSModule
             'caption'  => '👋  Wozu dieses Modul?',
             'items'    => [
                 ['type' => 'Label', 'caption' => 'WPModbusHubGateway liest Wärmepumpen über Symcons eingebautes ModBus-Gateway aus -- dieselben Herstellerregisterkarten wie WPModbusHub, aber ohne eigene Netzwerkverbindung. Sinnvoll, wenn die Wärmepumpe per RS485 (Modbus RTU) an einem seriellen Anschluss hängt, z. B. einem USB-RS485-Dongle am Symcon-Host.'],
-                ['type' => 'Label', 'caption' => 'Bewusst nur lesend (keine Steuerbefehle) und Stand heute an keiner echten Anlage über diesen Weg verifiziert -- Rückmeldungen sind sehr willkommen, siehe Hinweis unten.'],
+                ['type' => 'Label', 'caption' => 'Bewusst nur lesend (keine Steuerbefehle). Der Weg über das ModBus-Gateway ist bislang an einer echten Anlage bestätigt (Proxon T300 per USB-RS485), für die übrigen Hersteller über diesen Weg noch nicht -- Rückmeldungen sind sehr willkommen, siehe Hinweis unten.'],
                 ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBGW_AckPurposeIntro($id);'],
             ],
         ];

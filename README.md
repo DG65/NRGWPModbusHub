@@ -1,7 +1,7 @@
 # WPModbusHub — lokale Modbus-Anbindung für Wärmepumpen (IP-Symcon)
 
 ![Symcon](https://img.shields.io/badge/Symcon-PHPModul-blue)
-![Modul Version](https://img.shields.io/badge/Modul_Version-0.5.0-blue)
+![Modul Version](https://img.shields.io/badge/Modul_Version-0.5.1-blue)
 ![Symcon Version](https://img.shields.io/badge/Symcon_Version-9.0%2B-blue)
 ![License](https://img.shields.io/badge/License-PolyForm_Noncommercial_1.0.0-lightgrey)
 [![Check Style](https://github.com/DG65/NRGWPModbusHub/actions/workflows/check-style.yml/badge.svg)](https://github.com/DG65/NRGWPModbusHub/actions/workflows/check-style.yml)
@@ -22,11 +22,11 @@ Eine Instanz = eine Wärmepumpe. Eine Hersteller-Auswahl im Formular schaltet au
 Zwei Module in einer Bibliothek, gleiche Registerkarten, gleicher Vertrag, nur der Transport unterscheidet sich:
 
 - **WPModbusHub** — eigene Modbus-TCP-Verbindung (IP-Adresse, Port, Unit-ID im Formular). Für Wärmepumpen mit Netzwerkanschluss oder einen RS485-zu-Ethernet-Adapter im Modus „Modbus TCP zu RTU“.
-- **WPModbusHubGateway** — hängt als Kind an Symcons eingebautem **ModBus Gateway**. Damit geht auch **RS485/Modbus RTU direkt an einem seriellen Anschluss** (z. B. USB-RS485-Dongle am Symcon-Host): `Serial Port → ModBus Gateway → WPModbusHubGateway`. Slave-/Geräte-ID stellst du am ModBus Gateway ein, Baudrate/Parität am Serial Port. Knopf „Verbindung testen“ und `WPMBGW_ReadRaw($id, $function, $adresse, $anzahl)` helfen bei der Inbetriebnahme (nur lesend). **Noch an keiner echten Anlage über diesen Weg getestet.**
+- **WPModbusHubGateway** — hängt als Kind an Symcons eingebautem **ModBus Gateway**. Damit geht auch **RS485/Modbus RTU direkt an einem seriellen Anschluss** (z. B. USB-RS485-Dongle am Symcon-Host): `Serial Port → ModBus Gateway → WPModbusHubGateway`. Slave-/Geräte-ID stellst du am ModBus Gateway ein, Baudrate/Parität am Serial Port. Knopf „Verbindung testen“ und `WPMBGW_ReadRaw($id, $function, $adresse, $anzahl)` helfen bei der Inbetriebnahme (nur lesend). **An einer echten Anlage bestätigt** (Proxon T300 über USB-RS485-Dongle, 19.09.2026), für die übrigen Hersteller über diesen Weg noch nicht.
 
 ## Status
 
-Stand 0.5.0 (19.09.2026) — **bewusst nur lesend** (keine Steuerbefehle) und **bei keinem der sieben Hersteller vollständig an echter Hardware verifiziert** (bei Waterkotte sind fünf Temperaturregister durch eine laufende Anlage gegengeprüft). Die Registerkarten stammen so weit wie möglich aus offizieller Herstellerdokumentation oder einer von der jeweiligen Smart-Home-Plattform offiziell übernommenen Referenzimplementierung:
+Stand 0.5.1 (19.09.2026) — **bewusst nur lesend** (keine Steuerbefehle) und **bei keinem der sieben Hersteller vollständig an echter Hardware verifiziert** (bei Waterkotte sind fünf Temperaturregister durch eine laufende Anlage gegengeprüft). Die Registerkarten stammen so weit wie möglich aus offizieller Herstellerdokumentation oder einer von der jeweiligen Smart-Home-Plattform offiziell übernommenen Referenzimplementierung:
 
 - **NIBE** (S-Serie, z. B. S1155/S1255/S2125) — Registerkarte aus einer aktiv gepflegten, unabhängigen Referenzbibliothek für NIBE-Wärmepumpen.
 - **Stiebel Eltron** (ISG-Gateway, WPMsystem/WPM3/WPM3i/LWZ) — Registerkarte direkt aus dem offiziellen Stiebel-Eltron-PDF „ISG Modbus"-Bedienungsanleitung.

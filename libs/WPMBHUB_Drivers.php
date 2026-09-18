@@ -174,15 +174,16 @@ class WPMBHUB_Drivers
         // 41, 19200 Baud, 8E1), NICHT Modbus TCP. Zwei Wege:
         //   a) WPModbusHubGateway (empfohlen bei USB-RS485-Dongle am Symcon-
         //      Host): Serial Port -> ModBus Gateway (Geraete-ID 41, Modus RTU)
-        //      -> Instanz. Das Gateway-Schema wurde gegen den Rohcode des
-        //      offiziellen Symcon-Referenzmoduls (SymconBC) verifiziert, an
-        //      einer echten Proxon aber noch NICHT getestet.
+        //      -> Instanz. Schema gegen den Rohcode des offiziellen Symcon-
+        //      Referenzmoduls (SymconBC) verifiziert UND am 19.09.2026 an einer
+        //      echten Proxon T300 (USB-RS485, Nutzer Ghostraider) bestaetigt:
+        //      Antwort 0x04021310 = Function 4, 2 Byte, 4880 -> 48,8 °C.
         //   b) WPModbusHub (TCP) mit einem RS485-zu-Ethernet-Gateway im
         //      "Modbus TCP zu RTU"-Gatewaymodus (echte Protokollumsetzung inkl.
         //      MBAP-Header, NICHT nur rohes Byte-Tunneling).
         'proxon' => [
             'caption'      => 'Proxon T300 (Zimmermann, Trinkwasser-Wärmepumpe)',
-            'confidence'   => 'Nur zwei Register aus Zimmermanns eigener Kunden-Excel für die T300-Warmwasser-Wärmepumpe übernommen, deren Skalierung eindeutig ist -- nicht an echter Hardware verifiziert. Proxon spricht nativ Modbus RTU über RS485: mit USB-RS485-Dongle am Symcon-Host das Modul WPModbusHubGateway (über Symcons ModBus-Gateway) verwenden, mit Modbus-TCP-Weg ein RS485-zu-Ethernet-Gateway im „Modbus TCP zu RTU“-Modus. Die FWT-Lüftungszentrale (Zu-/Abluft, kein Vorlauf/Rücklauf) ist bewusst nicht enthalten.',
+            'confidence'   => 'Nur zwei Register aus Zimmermanns eigener Kunden-Excel für die T300-Warmwasser-Wärmepumpe übernommen, deren Skalierung eindeutig ist -- Warmwasser Ist (4x0882) wurde über WPModbusHubGateway an einer laufenden Proxon abgelesen (plausibler Wert, Gegenprüfung mit dem Display steht aus), Warmwasser Soll noch nicht. Proxon spricht nativ Modbus RTU über RS485: mit USB-RS485-Dongle am Symcon-Host das Modul WPModbusHubGateway (über Symcons ModBus-Gateway) verwenden, mit Modbus-TCP-Weg ein RS485-zu-Ethernet-Gateway im „Modbus TCP zu RTU“-Modus. Die FWT-Lüftungszentrale (Zu-/Abluft, kein Vorlauf/Rücklauf) ist bewusst nicht enthalten.',
             'defaultPort'  => 502,
             'defaultUnitId' => 41,
             'registers'    => [

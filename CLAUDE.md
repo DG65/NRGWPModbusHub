@@ -175,6 +175,20 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
   T20/T21-Tankfühler für die noch offene Offset-Formel). Unverändert offen: FWT-Zentrale,
   T20/T21-Skalierung.
 
+  **Update 19.09.2026 (fünfter Nachtrag) -- Gateway-Weg LIVE an einer echten Proxon
+  bestätigt.** Ghostraider (T300, USB-RS485, Serial Port -> ModBus Gateway, Geräte-ID 41):
+  "Verbindung testen" lieferte Antwort `0x04021310` (Function 4, 2 Byte, 4880) -> Warmwasser
+  48,8 °C, Kopf passt. Damit ist das Gateway-Schema erstmals an echter Hardware bestätigt
+  (nicht nur gegen SymconBC gelesen). Register 4x0813 (T20 unten) roh 1412 bei Display 41,3 °C:
+  `°C = Roh/10 - 100` ergibt 41,2 -- Offset-Hypothese für Input-Register mit Offset-Spalte -100
+  damit für POSITIVE Werte bestätigt (ein Wertepaar, 0,1 Abweichung). Noch nicht bestätigt: die
+  Bias-Kodierung bei negativen Werten (z. B. Verdampfer T5/T6 im Winter), Warmwasser Soll
+  (3x2000) und der Vergleich von 4x0882 mit dem Display. Deshalb T20/T21/T9 weiterhin NICHT im
+  Profil. Nächster Schritt, wenn Ghostraider Lust hat: zweites Wertepaar T21 + Vergleich
+  4x0882 vs. Display + 3x2000 per `WPMBGW_ReadRaw($id, 3, 2000, 1)`; dann T20/T21 als eigene
+  Idents (`WarmwasserUnten`/`WarmwasserMitte`, Vertrag kennt sie nicht) mit neuem optionalem
+  `'offset' => -100` im Registerschema aufnehmen.
+
 - ~~Kein Forum-Hinweis-Panel~~ — erledigt 18.09.2026: Thread ist live
   (https://community.symcon.de/t/modul-nrg-stack-wpmodbushub-lokale-modbus-anbindung-fuer-waermepumpen-mehrerer-hersteller-nibe-stiebel-eltron-lg-samsung/144421),
   Panel `ForumHint()`/`AckForumHint()` verlinkt (0.1.2).

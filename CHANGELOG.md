@@ -1,5 +1,9 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.5.1 (Build 9) — 19.09.2026
+
+- **WPModbusHubGateway an einer echten Anlage bestätigt.** Proxon-Nutzer „Ghostraider“ hat „Verbindung testen“ an einer T300 über USB-RS485 (Serial Port → ModBus Gateway, Geräte-ID 41) ausgeführt: Antwort `0x04021310` = Function 4, 2 Datenbytes, 4880 → Warmwasser 48,8 °C, Kopfprüfung „ja“. Damit sind Anfrageschema, Antwortkopf und Dekodierung über den Gateway-Weg live bestätigt, nicht mehr nur gegen das Referenzmodul gelesen. Zusätzlich `WPMBGW_ReadRaw` genutzt: Register 4x0813 (T20 Behälter unten) roh 1412, Display 41,3 °C — passt zur Arbeitshypothese °C = Roh/10 − 100 (41,2 °C, 0,1 Abweichung durch Messzeitpunkt). Nur ein Wertepaar bei positiver Temperatur, deshalb sind die Offset-Register (T20/T21 …) noch nicht im Profil. Nur Hinweistexte und Doku geändert.
+
 ## 0.5.0 (Build 8) — 19.09.2026
 
 - **Neues Modul „WPModbusHubGateway“: Wärmepumpen über Symcons eingebautes ModBus-Gateway.** Statt einer eigenen Modbus-TCP-Socketverbindung hängt die Instanz als Kind an einem ModBus-Gateway im Objektbaum (`Serial Port → ModBus Gateway → WPModbusHubGateway`). Damit ist **RS485/Modbus RTU an einem seriellen Anschluss** möglich (z. B. USB-RS485-Dongle am Symcon-Host), ohne dass das Modul selbst einen COM-Port öffnen muss. Auslöser: Proxon-Nutzer „Ghostraider“. Alle sieben Hersteller stehen darüber zur Verfügung, die Registerkarten sind geteilt.
