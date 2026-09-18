@@ -3,7 +3,8 @@
 require_once __DIR__ . '/libs/ModbusTcpClient.php';
 
 // NRG-Stack WPModbusHub -- lokale Modbus-TCP-Anbindung fuer Waermepumpen
-// mehrerer Hersteller (NIBE, Stiebel Eltron, LG, Samsung EHS ueber MIM-B19n).
+// mehrerer Hersteller (NIBE, Stiebel Eltron, LG, Samsung EHS ueber MIM-B19n,
+// Waterkotte EcoTouch).
 // Dritter Baustein der Waermepumpen-Vertikale im Verbund, neben WPHub
 // (Cloud, mehrere Hersteller) und HeishaMon (lokal, nur Panasonic):
 //
@@ -41,7 +42,7 @@ require_once __DIR__ . '/libs/ModbusTcpClient.php';
 
 class WPModbusHub extends IPSModule
 {
-    const NEWS_VERSION = '0.1.0';
+    const NEWS_VERSION = '0.2.0';
 
     // Registerprofile je Hersteller. Jedes Feld: [regType('input'|'holding'),
     // addr(0-basierte Modbus-Wire-Adresse), scale(Divisor), signed(bool)].
@@ -117,6 +118,32 @@ class WPModbusHub extends IPSModule
                 'Aussentemperatur'    => ['regType' => 'holding', 'addr' => 13, 'scale' => 10, 'signed' => true],
                 'Vorlauftemperatur'   => ['regType' => 'holding', 'addr' => 66, 'scale' => 10, 'signed' => true],
                 'Ruecklauftemperatur' => ['regType' => 'holding', 'addr' => 65, 'scale' => 10, 'signed' => true],
+            ],
+        ],
+        // Waterkotte (EcoTouch-Regler, eingebaute Modbus/TCP-Schnittstelle,
+        // Port 502 fest). Registerkarte direkt aus Waterkottes eigenem PDF
+        // "Software Technische Information -- Modbus/TCP" (Firmware 01.07.xx,
+        // 07.2017): hoechste Vertrauensstufe dieser Liste, gleichauf mit
+        // Stiebel Eltron. BMS-Analogadresse 1-5000 = Modbus/TCP-Registeradresse
+        // 1:1 (Holding Registers, FC03), Werte vorzeichenbehaftet mit Faktor
+        // 10 -- passt ohne Anpassung ins bestehende Registerprofil-Schema.
+        // "Soll"-Felder bewusst auf die vom Regler selbst berechneten,
+        // read-only Zielwerte gelegt (A31/A37 "geforderte Temperatur"), nicht
+        // auf die BMS-Vorgabe-Register A32/A38 -- dieses Modul schreibt nicht.
+        'waterkotte' => [
+            'caption'      => 'Waterkotte (EcoTouch-Regler)',
+            'confidence'   => 'Registerkarte direkt aus Waterkottes eigenem PDF "Software Technische Information -- Modbus/TCP" (Firmware 01.07.xx) -- nicht an echter Hardware verifiziert.',
+            'defaultPort'  => 502,
+            'defaultUnitId' => 1,
+            'registers'    => [
+                'Aussentemperatur'    => ['regType' => 'holding', 'addr' => 1,  'scale' => 10, 'signed' => true],
+                'Ruecklauftemperatur' => ['regType' => 'holding', 'addr' => 11, 'scale' => 10, 'signed' => true],
+                'Vorlauftemperatur'   => ['regType' => 'holding', 'addr' => 12, 'scale' => 10, 'signed' => true],
+                'Speichertemperatur'  => ['regType' => 'holding', 'addr' => 16, 'scale' => 10, 'signed' => true],
+                'Warmwasser'          => ['regType' => 'holding', 'addr' => 19, 'scale' => 10, 'signed' => true],
+                'WarmwasserSoll'      => ['regType' => 'holding', 'addr' => 37, 'scale' => 10, 'signed' => true],
+                'Zone1Ist'            => ['regType' => 'holding', 'addr' => 30, 'scale' => 10, 'signed' => true],
+                'Zone1Soll'           => ['regType' => 'holding', 'addr' => 31, 'scale' => 10, 'signed' => true],
             ],
         ],
     ];
@@ -213,7 +240,7 @@ class WPModbusHub extends IPSModule
                 'caption'  => '🆕 Neu in Version ' . self::NEWS_VERSION,
                 'expanded' => true,
                 'items'    => [
-                    ['type' => 'Label', 'caption' => '• Erste Version: lokale Modbus-TCP-Anbindung fuer NIBE, Stiebel Eltron, LG Therma V und Samsung EHS (ueber MIM-B19N).'],
+                    ['type' => 'Label', 'caption' => '• Fünfter Hersteller: Waterkotte (EcoTouch-Regler) -- Registerkarte direkt aus Waterkottes eigenem Modbus/TCP-PDF, inklusive Pufferspeichertemperatur.'],
                     ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBHUB_AckNews($id);'],
                 ],
             ]);
@@ -294,7 +321,7 @@ class WPModbusHub extends IPSModule
             'expanded' => true,
             'caption'  => '💬  Feedback im Symcon-Forum',
             'items'    => [
-                ['type' => 'Label', 'caption' => 'Fragen, Fehler oder Erfahrungsberichte zu NIBE, Stiebel Eltron, LG oder Samsung -- dafür gibt es den WPModbusHub-Forumsthread.'],
+                ['type' => 'Label', 'caption' => 'Fragen, Fehler oder Erfahrungsberichte zu NIBE, Stiebel Eltron, LG, Samsung oder Waterkotte -- dafür gibt es den WPModbusHub-Forumsthread.'],
                 ['type' => 'Button', 'caption' => 'Zum Forums-Thread', 'onClick' => "echo '" . self::FORUM_THREAD_URL . "';", 'link' => true],
                 ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBHUB_AckForumHint($id);'],
             ],
@@ -407,6 +434,7 @@ class WPModbusHub extends IPSModule
             'Ruecklauftemperatur' => 'Rücklauftemperatur',
             'Warmwasser'          => 'Warmwasser',
             'WarmwasserSoll'      => 'Warmwasser Sollwert',
+            'Speichertemperatur'  => 'Pufferspeichertemperatur',
             'Zone1Ist'            => 'Heizzone 1 Isttemperatur',
             'Zone1Soll'           => 'Heizzone 1 Solltemperatur',
         ] as $ident => $caption) {
@@ -471,7 +499,7 @@ class WPModbusHub extends IPSModule
             'dhwTargetTempID'      => $this->contractFieldID('WarmwasserSoll'),
             'mainInletTempID'      => $this->contractFieldID('Ruecklauftemperatur'),
             'mainOutletTempID'     => $this->contractFieldID('Vorlauftemperatur'),
-            'bufferTempID'         => 0,
+            'bufferTempID'         => $this->contractFieldID('Speichertemperatur'),
             'quietModeID'          => 0,
             'ecoComfortModeID'     => 0,
             'holidayTimerID'       => 0,

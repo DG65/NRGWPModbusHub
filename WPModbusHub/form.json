@@ -61,7 +61,8 @@
                         {"caption": "NIBE (S-Serie, z. B. S1155/S1255/S2125)", "value": "nibe"},
                         {"caption": "Stiebel Eltron (ISG-Gateway, WPMsystem/WPM3/WPM3i/LWZ)", "value": "stiebeleltron"},
                         {"caption": "LG Therma V", "value": "lg"},
-                        {"caption": "Samsung EHS (über MIM-B19N-Zubehörmodul)", "value": "samsung"}
+                        {"caption": "Samsung EHS (über MIM-B19N-Zubehörmodul)", "value": "samsung"},
+                        {"caption": "Waterkotte (EcoTouch-Regler)", "value": "waterkotte"}
                     ],
                     "onChange": "WPMBHUB_OnChangeManufacturer($id, $Manufacturer);"
                 },
@@ -87,7 +88,7 @@
                                 "items": [
                                     {
                                         "type": "Label",
-                                        "caption": "Bei NIBE S-Serie und Stiebel Eltron (ISG) ist das die IP-Adresse der Wärmepumpe/des Gateways selbst im lokalen Netz -- unter „Modbus TCP/IP“ in deren eigenem Menü sichtbar/einstellbar. Bei LG und Samsung ist es die IP-Adresse des dazwischengeschalteten Modbus-Gateways (z. B. ein RS485-zu-Ethernet-Adapter oder das offizielle MIM-B19N-Modul mit eigenem TCP-Zugang)."
+                                        "caption": "Bei NIBE S-Serie, Stiebel Eltron (ISG) und Waterkotte (EcoTouch) ist das die IP-Adresse der Wärmepumpe/des Reglers selbst im lokalen Netz -- unter „Modbus TCP/IP“ bzw. im Netzwerkmenü des Reglers sichtbar/einstellbar. Bei LG und Samsung ist es die IP-Adresse des dazwischengeschalteten Modbus-Gateways (z. B. ein RS485-zu-Ethernet-Adapter oder das offizielle MIM-B19N-Modul mit eigenem TCP-Zugang)."
                                     }
                                 ]
                             }

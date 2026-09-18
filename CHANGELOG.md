@@ -1,5 +1,9 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.2.0 (Build 4) — 18.09.2026
+
+- **Fünfter Hersteller: Waterkotte (EcoTouch-Regler).** Registerkarte direkt aus Waterkottes eigenem PDF „Software Technische Information — Modbus/TCP" (Firmware 01.07.xx, 07.2017) — höchste Vertrauensstufe dieser Liste, gleichauf mit Stiebel Eltron (offizielles Herstellerdokument statt Community-Quelle). Ausgelesen werden Außen-, Vorlauf-, Rücklauf- und Warmwassertemperatur sowie erstmals eine **Pufferspeichertemperatur** (`Speichertemperatur`, neues generisches Feld, verdrahtet auf `bufferTempID` im Vertrag — nicht Waterkotte-spezifisch, künftige Hersteller mit Pufferspeicher können es mitnutzen) und Heizzone 1 Ist/Soll. „Soll"-Felder bewusst auf die vom Regler selbst berechneten, lesbaren Zielwerte gelegt (nicht auf die separaten BMS-Vorgabe-Register), da dieses Modul nur liest.
+
 ## 0.1.2 (Build 3) — 18.09.2026
 
 - **Forum-Hinweis-Panel verlinkt den echten Vorstellungsthread.** Der Thread ist seit heute live (Dietmar). Neues, einmalig dismissibles Panel „💬 Feedback im Symcon-Forum" (Muster WPHub), eingehängt zwischen den Fachpanels und „🧡 Über dieses Modul". 6 neue Tests.

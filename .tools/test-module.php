@@ -359,6 +359,26 @@ $fakeSamsung->values = [
 $valuesSamsung = $readRegisters->invoke($mod, WPModbusHub::DRIVERS['samsung']['registers'], $fakeSamsung);
 check('Samsung: Vorlauf-/Ruecklauftemperatur korrekt', ($valuesSamsung['Vorlauftemperatur'] ?? null) === 39.0 && ($valuesSamsung['Ruecklauftemperatur'] ?? null) === 33.0);
 
+// Waterkotte: alles Holding-Register, BMS-Analogadresse = Modbus-Adresse 1:1
+// (offizielles Waterkotte-PDF), inkl. Pufferspeichertemperatur.
+$fakeWaterkotte = new FakeModbusClient('192.168.1.54', 502, 1);
+$fakeWaterkotte->values = [
+    'holding:1'  => 82,  // Aussentemperatur 8.2°C
+    'holding:11' => 320, // Ruecklauf 32.0°C
+    'holding:12' => 355, // Vorlauf 35.5°C
+    'holding:16' => 410, // Speichertemperatur 41.0°C
+    'holding:19' => 480, // Warmwasser Ist 48.0°C
+    'holding:37' => 500, // Warmwasser Soll 50.0°C
+    'holding:30' => 210, // Zone1 Ist 21.0°C
+    'holding:31' => 215, // Zone1 Soll 21.5°C
+];
+$valuesWaterkotte = $readRegisters->invoke($mod, WPModbusHub::DRIVERS['waterkotte']['registers'], $fakeWaterkotte);
+check('Waterkotte: alle acht Felder korrekt dekodiert', $valuesWaterkotte === [
+    'Aussentemperatur' => 8.2, 'Ruecklauftemperatur' => 32.0, 'Vorlauftemperatur' => 35.5,
+    'Speichertemperatur' => 41.0, 'Warmwasser' => 48.0, 'WarmwasserSoll' => 50.0,
+    'Zone1Ist' => 21.0, 'Zone1Soll' => 21.5,
+], json_encode($valuesWaterkotte));
+
 // Teilausfall: ein Register liefert null, die uebrigen bleiben nutzbar.
 $fakePartial = new FakeModbusClient('192.168.1.50', 502, 1);
 $fakePartial->values = ['input:1' => 75, 'input:8' => 485];
@@ -403,6 +423,14 @@ check('Nicht erreichbar: alter Temperaturwert bleibt stehen (kein Reset)', ($GLO
 $functionsUnreachable = $mod->GetFunctions();
 check('GetFunctions() nach Ausfall: reachable=false', ($functionsUnreachable[0]['reachable'] ?? null) === false);
 
+// Waterkotte-Werte (mit Speichertemperatur) durchreichen -> bufferTempID muss
+// auf die echte Pufferspeicher-Variable zeigen (generisches Feld, nicht nur
+// fuer Waterkotte gedacht).
+$maintainVars->invoke($mod, $valuesWaterkotte, true);
+check('Speichertemperatur-Variable gesetzt', ($GLOBALS['ips']['variables']['Speichertemperatur']['value'] ?? null) === 41.0);
+$functionsWaterkotte = $mod->GetFunctions();
+check('GetFunctions(): bufferTempID zeigt auf Speichertemperatur', ($functionsWaterkotte[0]['bufferTempID'] ?? 0) === $GLOBALS['ips']['variables']['Speichertemperatur']['id']);
+
 // ---------------------------------------------------------------------------
 echo "Block 4: Update() -- Zusammenspiel Modbus-Client + Status\n";
 // ---------------------------------------------------------------------------
@@ -446,7 +474,7 @@ function findFormElement(array $items, string $name): ?array
 $GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
 $form = json_decode($mod->GetConfigurationForm(), true);
 $manufacturerSelect = findFormElement($form['elements'], 'Manufacturer');
-check('Formular hat ein Hersteller-Select mit vier Optionen', $manufacturerSelect !== null && count($manufacturerSelect['options']) === 4);
+check('Formular hat ein Hersteller-Select mit fünf Optionen', $manufacturerSelect !== null && count($manufacturerSelect['options']) === 5);
 
 $licenseHint = end($form['elements']);
 check('"Über dieses Modul" steht ganz unten', ($licenseHint['caption'] ?? '') === '🧡  Über dieses Modul');

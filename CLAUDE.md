@@ -49,6 +49,7 @@ einer reinen Forenzusammenfassung:
 | Stiebel Eltron | Direkt aus dem offiziellen Stiebel-Eltron-PDF „ISG Modbus"-Bedienungsanleitung | hoch |
 | LG Therma V | Community-gepflegte Modbus-Konfiguration, keine offizielle LG-Quelle gefunden | mittel |
 | Samsung EHS | Community-Sammlung, beruft sich auf Samsungs offizielle MIM-B19N-Anleitung (DB68-07538A) | mittel |
+| Waterkotte | Direkt aus Waterkottes eigenem PDF „Software Technische Information -- Modbus/TCP" (Firmware 01.07.xx, 07.2017), von Dietmar besorgt | hoch |
 
 Bewusst **nicht** übernommen: Register, deren Ist/Soll-Richtung in der Quelle selbst
 unklar/auskommentiert war (z. B. ein Samsung-Warmwasser-Register) — lieber weniger Felder
@@ -70,14 +71,41 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
 - ~~Kein Forum-Hinweis-Panel~~ — erledigt 18.09.2026: Thread ist live
   (https://community.symcon.de/t/modul-nrg-stack-wpmodbushub-lokale-modbus-anbindung-fuer-waermepumpen-mehrerer-hersteller-nibe-stiebel-eltron-lg-samsung/144421),
   Panel `ForumHint()`/`AckForumHint()` verlinkt (0.1.2).
-- **Kein News-Panel-Inhalt über die Erstversion hinaus** — analog zu MeterHubDiscoverys
-  Regel "kein News-Panel ohne echten Inhalt".
+- ~~Kein News-Panel-Inhalt über die Erstversion hinaus~~ — erster echter Inhalt seit
+  0.2.0 (Waterkotte-Ergänzung, siehe unten).
+
+## Waterkotte-Ergänzung (18.09.2026)
+
+Fünfter Hersteller, direkt aus Dietmars Auftrag heraus: Dietmar hat das offizielle
+Waterkotte-PDF „Software Technische Information — Modbus/TCP" (Firmware 01.07.xx,
+07.2017) sowie einen E-Mail-Austausch mit einem Waterkotte-Servicetechniker besorgt.
+Damit ist Waterkotte die **einzige Registerkarte dieser Liste, die von Dietmar selbst
+und nicht nur aus einer Online-Recherche stammt** — höchste erreichbare
+Vertrauensstufe, siehe DRIVERS-Kommentar in `module.php`.
+
+Übernommen (Basis-PDF, alles Holding-Register FC03, BMS-Analogadresse = Modbus/TCP-
+Adresse 1:1, Faktor 10 wie alle anderen Hersteller): Außentemperatur (A1),
+Rücklauf-/Vorlauftemperatur (A11/A12), Pufferspeichertemperatur (A16, **neues
+generisches Feld** `Speichertemperatur` → `bufferTempID`, nicht Waterkotte-
+spezifisch), Warmwasser Ist/Soll (A19/A37 — A37 statt der BMS-Schreibregister
+A32/A38, da dieses Modul nicht schreibt) und Heizzone 1 Ist/Soll (A30/A31).
+
+**Noch nicht eingearbeitet:** Der Techniker-E-Mail-Screenshot zeigte zusätzlich
+Mischkreis-spezifische Register (`T_SP_norm`, `T_Os`, `T_SP_Os`, `T_SP_max`,
+`C_T_Os`, `C_T_SP_Os`, `Flow_Limit` — vermutlich zweiter Heizkreis/Mischerkreis-
+Sollwertlogik), die im Basis-PDF nicht enthalten sind. Diese Adressen lagen nur als
+Screenshot vor und waren zum Zeitpunkt dieser Ergänzung nicht mehr im Kontext
+verfügbar — bewusst nicht geraten übernommen. Bei Bedarf (zweiter Heizkreis/Mischer
+als eigenes Feld) den Screenshot erneut vorlegen lassen und gegen das Basis-PDF
+plausibilisieren, bevor Adressen ins Registerprofil wandern.
 
 ## Branch-Modell
 
 `ems-integration` bleibt der aktive Entwicklungsbranch. Seit 18.09.2026 existiert zusätzlich
-`beta` (erster Store-Release-Branch) — wird nur bei Bedarf von `ems-integration`
-nachgezogen, kein automatischer Gleichlauf. `main` existiert für dieses Repo noch nicht.
+`beta` (erster Store-Release-Branch). **Seit 18.09.2026 (Dietmars Entscheidung, verbundweit):
+beide Branches laufen automatisch gleich** — jeder Push nach `ems-integration` geht im
+selben Zug auch nach `beta`, kein manuelles Nachziehen mehr nötig. `main` existiert für
+dieses Repo noch nicht.
 
 ## Verbund-Manifest SUITE.md
 
