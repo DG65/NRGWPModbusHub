@@ -4,7 +4,7 @@ require_once __DIR__ . '/libs/ModbusTcpClient.php';
 
 // NRG-Stack WPModbusHub -- lokale Modbus-TCP-Anbindung fuer Waermepumpen
 // mehrerer Hersteller (NIBE, Stiebel Eltron, LG, Samsung EHS ueber MIM-B19n,
-// Waterkotte EcoTouch).
+// Waterkotte EcoTouch, IDM Navigatorregelung 2.0).
 // Dritter Baustein der Waermepumpen-Vertikale im Verbund, neben WPHub
 // (Cloud, mehrere Hersteller) und HeishaMon (lokal, nur Panasonic):
 //
@@ -19,13 +19,16 @@ require_once __DIR__ . '/libs/ModbusTcpClient.php';
 // WPMBHUB_ModbusTcpClient ist 1:1 aus MeterHub portiert (siehe dort).
 //
 // Anders als bei MeterHub (13 Treiberklassen mit individueller Dekodierlogik
-// fuer Float32/Double64/Schreibkanaele) sind alle bisherigen Wärmepumpen-
-// Register einheitlich vorzeichenbehaftete 16-Bit-Werte mit Faktor 10 --
-// ein gemeinsames, datengetriebenes Registerprofil (DRIVERS-Konstante)
-// statt einer Klasse je Hersteller. Sollte ein kuenftiger Hersteller eine
-// abweichende Kodierung brauchen (Float32, mehrere Register je Wert), ist
-// das Interface WPMBHUB_HeatpumpDriverInterface (analog MeterHub) der
-// vorgesehene Erweiterungspunkt -- bislang nicht noetig.
+// fuer Float32/Double64/Schreibkanaele) bleibt hier EIN gemeinsames,
+// datengetriebenes Registerprofil (DRIVERS-Konstante) statt einer Klasse je
+// Hersteller -- die meisten Wärmepumpen-Register sind vorzeichenbehaftete
+// 16-Bit-Werte mit Faktor 10, seit IDM (0.3.0) traegt das Schema zusaetzlich
+// ein optionales 'type'=>'float32' fuer 32-Bit-IEEE754-Werte ueber 2
+// Register (siehe readRegisters()/floatLE()). Sollte ein kuenftiger
+// Hersteller eine noch abweichendere Kodierung brauchen (Schreibzugriffe,
+// Double64, mehrteilige Strukturen), ist ein Interface nach MeterHub-Vorbild
+// weiterhin der vorgesehene naechste Erweiterungspunkt -- ein reiner
+// zweiter Datentyp hat dafuer noch nicht ausgereicht.
 //
 // Vertrag WPHUB_GetFunctions()-kompatibel: Type=>'heatpump', contractVersion
 // 1.15, dieselben Feldnamen/Idents wie WPHub (siehe DG65/NRGWPHub) -- EMS/
@@ -42,10 +45,13 @@ require_once __DIR__ . '/libs/ModbusTcpClient.php';
 
 class WPModbusHub extends IPSModule
 {
-    const NEWS_VERSION = '0.2.0';
+    const NEWS_VERSION = '0.3.0';
 
     // Registerprofile je Hersteller. Jedes Feld: [regType('input'|'holding'),
-    // addr(0-basierte Modbus-Wire-Adresse), scale(Divisor), signed(bool)].
+    // addr(0-basierte Modbus-Wire-Adresse), scale(Divisor), signed(bool)] fuer
+    // den Standardfall s16×Faktor. Optional 'type'=>'float32' (bislang nur
+    // IDM) liest 2 Register statt 1 und dekodiert per floatLE() statt
+    // s16()/u16() -- scale/signed werden dann ignoriert.
     // Ident-Namen bewusst identisch zu WPHub (Aussentemperatur/Warmwasser/…)
     // -- GetFunctions() loest sie genau wie dort ueber contractFieldID() auf.
     const DRIVERS = [
@@ -146,6 +152,38 @@ class WPModbusHub extends IPSModule
                 'Zone1Soll'           => ['regType' => 'holding', 'addr' => 31, 'scale' => 10, 'signed' => true],
             ],
         ],
+        // IDM Energiesysteme (Navigatorregelung 2.0, z. B. ALM-Serie -- die
+        // Schnittstelle haengt an der Regelung, nicht am Waermepumpenmodell).
+        // Registerkarte direkt aus IDMs eigenem PDF "Modbus TCP
+        // Navigatorregelung 2.0" (Dok. 812170_Rev.10, Stand 20.04.2022,
+        // selbst gelesen inkl. Kapitel 4.2 "Datentypen") -- Vertrauensstufe
+        // wie Waterkotte/Stiebel Eltron. EINZIGER Hersteller dieser Liste mit
+        // 32-Bit-IEEE754-Float statt s16×10 (Access "RO" -> Input-Register/
+        // FC04, "RW" -> Holding-Register/FC03) -- siehe 'type'=>'float32' in
+        // readRegisters() und floatLE() in ModbusTcpClient.php: IDM ueberträgt
+        // die Wortreihenfolge VERTAUSCHT (Low-Word zuerst), nicht big-endian.
+        // Warmwasser-Ist bewusst auf die Zapftemperatur (B42) gelegt, nicht
+        // auf die beiden Speicherfuehler oben/unten (B48/B41) -- naeher am
+        // "was kommt aus dem Hahn"-Sinn der anderen Hersteller-Warmwasser-
+        // Felder. WarmwasserSoll (UCHAR, FW030) ist die einzige direkte
+        // BMS-Vorgabe dieser Liste, die zugleich auch rueckgelesen werden
+        // kann (RW, kein separates Ist/Soll-Registerpaar wie bei Waterkotte).
+        'idm' => [
+            'caption'      => 'IDM Energiesysteme (Navigatorregelung 2.0, z. B. ALM)',
+            'confidence'   => 'Registerkarte direkt aus IDMs eigenem PDF "Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10) -- nicht an echter Hardware verifiziert.',
+            'defaultPort'  => 502,
+            'defaultUnitId' => 1,
+            'registers'    => [
+                'Aussentemperatur'    => ['regType' => 'input',   'addr' => 1000, 'type' => 'float32'],
+                'Ruecklauftemperatur' => ['regType' => 'input',   'addr' => 1052, 'type' => 'float32'],
+                'Vorlauftemperatur'   => ['regType' => 'input',   'addr' => 1050, 'type' => 'float32'],
+                'Speichertemperatur'  => ['regType' => 'input',   'addr' => 1008, 'type' => 'float32'],
+                'Warmwasser'          => ['regType' => 'input',   'addr' => 1030, 'type' => 'float32'],
+                'WarmwasserSoll'      => ['regType' => 'holding', 'addr' => 1032, 'scale' => 1, 'signed' => false],
+                'Zone1Ist'            => ['regType' => 'input',   'addr' => 1350, 'type' => 'float32'],
+                'Zone1Soll'           => ['regType' => 'input',   'addr' => 1378, 'type' => 'float32'],
+            ],
+        ],
     ];
     const MANUFACTURER_DEFAULT = 'nibe';
 
@@ -240,7 +278,7 @@ class WPModbusHub extends IPSModule
                 'caption'  => '🆕 Neu in Version ' . self::NEWS_VERSION,
                 'expanded' => true,
                 'items'    => [
-                    ['type' => 'Label', 'caption' => '• Fünfter Hersteller: Waterkotte (EcoTouch-Regler) -- Registerkarte direkt aus Waterkottes eigenem Modbus/TCP-PDF, inklusive Pufferspeichertemperatur.'],
+                    ['type' => 'Label', 'caption' => '• Sechster Hersteller: IDM Energiesysteme (Navigatorregelung 2.0, z. B. ALM) -- Registerkarte direkt aus IDMs eigenem Modbus/TCP-PDF, erster Hersteller mit 32-Bit-Fließkommawerten statt Ganzzahl×Faktor.'],
                     ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBHUB_AckNews($id);'],
                 ],
             ]);
@@ -321,7 +359,7 @@ class WPModbusHub extends IPSModule
             'expanded' => true,
             'caption'  => '💬  Feedback im Symcon-Forum',
             'items'    => [
-                ['type' => 'Label', 'caption' => 'Fragen, Fehler oder Erfahrungsberichte zu NIBE, Stiebel Eltron, LG, Samsung oder Waterkotte -- dafür gibt es den WPModbusHub-Forumsthread.'],
+                ['type' => 'Label', 'caption' => 'Fragen, Fehler oder Erfahrungsberichte zu NIBE, Stiebel Eltron, LG, Samsung, Waterkotte oder IDM -- dafür gibt es den WPModbusHub-Forumsthread.'],
                 ['type' => 'Button', 'caption' => 'Zum Forums-Thread', 'onClick' => "echo '" . self::FORUM_THREAD_URL . "';", 'link' => true],
                 ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBHUB_AckForumHint($id);'],
             ],
@@ -401,20 +439,29 @@ class WPModbusHub extends IPSModule
         $anyAttempt = false;
         foreach ($registerMap as $ident => $def) {
             $anyAttempt = true;
+            $isFloat32 = ($def['type'] ?? 'int16') === 'float32';
+            $count = $isFloat32 ? 2 : 1;
             $regs = ($def['regType'] === 'holding')
-                ? $client->readHolding($def['addr'], 1)
-                : $client->readInput($def['addr'], 1);
+                ? $client->readHolding($def['addr'], $count)
+                : $client->readInput($def['addr'], $count);
             if ($regs === null) {
                 continue;
             }
             $anySuccess = true;
-            $raw = !empty($def['signed']) ? $client->s16($regs, 0) : $client->u16($regs, 0);
-            $scale = $def['scale'] ?? 1;
-            // (float) vor der Division: PHP liefert bei glatt teilbaren
-            // int/int-Werten sonst wieder einen int zurueck (z.B. 470/10 =
-            // int 47 statt float 47.0) -- MaintainVariable() erwartet einen
-            // durchgehend gleichartigen Typ je Ident.
-            $out[$ident] = (float)$raw / $scale;
+            if ($isFloat32) {
+                // Kein Skalierungsfaktor -- IEEE754 traegt den Wert schon
+                // direkt in Grad Celsius (siehe floatLE()-Kommentar zur
+                // Wortreihenfolge).
+                $out[$ident] = $client->floatLE($regs, 0);
+            } else {
+                $raw = !empty($def['signed']) ? $client->s16($regs, 0) : $client->u16($regs, 0);
+                $scale = $def['scale'] ?? 1;
+                // (float) vor der Division: PHP liefert bei glatt teilbaren
+                // int/int-Werten sonst wieder einen int zurueck (z.B. 470/10 =
+                // int 47 statt float 47.0) -- MaintainVariable() erwartet einen
+                // durchgehend gleichartigen Typ je Ident.
+                $out[$ident] = (float)$raw / $scale;
+            }
         }
         if ($anyAttempt && !$anySuccess) {
             return null;

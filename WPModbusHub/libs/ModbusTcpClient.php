@@ -176,4 +176,14 @@ class WPMBHUB_ModbusTcpClient
         $v = $this->u32($regs, $offset);
         return $v > 2147483647 ? $v - 4294967296 : $v;
     }
+
+    // 32-Bit-IEEE754-Float ueber 2 Register -- WORTREIHENFOLGE VERTAUSCHT
+    // (Low-Word zuerst, dann High-Word), nicht big-endian wie u32()/s32().
+    // Bislang nur fuer IDM (Navigatorregelung 2.0) gebraucht: deren offizielle
+    // Modbus-TCP-PDF dokumentiert Reg_L (Bit 15..0) vor Reg_H (Bit 31..16).
+    public function floatLE($regs, $offset)
+    {
+        $raw = ($this->u16($regs, $offset + 1) << 16) | $this->u16($regs, $offset);
+        return unpack('G', pack('N', $raw))[1];
+    }
 }

@@ -1,5 +1,10 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.3.0 (Build 5) — 18.09.2026
+
+- **Sechster Hersteller: IDM Energiesysteme (Navigatorregelung 2.0, z. B. ALM).** Registerkarte direkt aus IDMs eigenem PDF „Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10, Stand 20.04.2022) — selbst gelesen, inklusive des Kapitels zu Datentypen. **Erster Hersteller dieser Liste mit 32-Bit-IEEE754-Fließkommawerten statt Ganzzahl×Faktor** — das Registerprofil-Schema trägt dafür jetzt ein optionales `'type' => 'float32'` (2 Register statt 1, neue Methode `floatLE()` in `ModbusTcpClient.php`). Wichtige Eigenheit: IDM überträgt die beiden 16-Bit-Register in vertauschter Wortreihenfolge (Low-Word zuerst) — anders als die bestehenden `u32()`/`s32()`-Methoden, die big-endian erwarten. Ausgelesen werden Außen-, Vorlauf-, Rücklauf-, Speicher- und Warmwassertemperatur (Zapftemperatur, nicht die beiden Speicherfühler oben/unten) sowie Heizzone 1 Ist/Soll. `WarmwasserSoll` ist bei IDM erstmals ein echtes lesbares UCHAR-Register (FW030), kein Umweg über einen separaten „geforderte Temperatur"-Wert wie bei Waterkotte.
+- Angepasst für Wiederverwendbarkeit: `readRegisters()` liest jetzt pro Feld 1 oder 2 Register (je nach `type`), alle fünf bisherigen Hersteller unverändert kompatibel (Standardverhalten bleibt s16×Faktor ohne `type`-Angabe).
+
 ## 0.2.0 (Build 4) — 18.09.2026
 
 - **Fünfter Hersteller: Waterkotte (EcoTouch-Regler).** Registerkarte direkt aus Waterkottes eigenem PDF „Software Technische Information — Modbus/TCP" (Firmware 01.07.xx, 07.2017) — höchste Vertrauensstufe dieser Liste, gleichauf mit Stiebel Eltron (offizielles Herstellerdokument statt Community-Quelle). Ausgelesen werden Außen-, Vorlauf-, Rücklauf- und Warmwassertemperatur sowie erstmals eine **Pufferspeichertemperatur** (`Speichertemperatur`, neues generisches Feld, verdrahtet auf `bufferTempID` im Vertrag — nicht Waterkotte-spezifisch, künftige Hersteller mit Pufferspeicher können es mitnutzen) und Heizzone 1 Ist/Soll. „Soll"-Felder bewusst auf die vom Regler selbst berechneten, lesbaren Zielwerte gelegt (nicht auf die separaten BMS-Vorgabe-Register), da dieses Modul nur liest.

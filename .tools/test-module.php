@@ -250,19 +250,23 @@ class FakeModbusClient extends WPMBHUB_ModbusTcpClient
 
     public function readInput($startReg, $count)
     {
-        return $this->fakeRead('input', $startReg);
+        return $this->fakeRead('input', $startReg, $count);
     }
     public function readHolding($startReg, $count)
     {
-        return $this->fakeRead('holding', $startReg);
+        return $this->fakeRead('holding', $startReg, $count);
     }
-    private function fakeRead(string $type, int $addr): ?array
+    private function fakeRead(string $type, int $addr, int $count = 1): ?array
     {
-        $key = $type . ':' . $addr;
-        if (in_array($key, $this->fail, true) || !array_key_exists($key, $this->values)) {
-            return null;
+        $regs = [];
+        for ($i = 0; $i < $count; $i++) {
+            $key = $type . ':' . ($addr + $i);
+            if (in_array($key, $this->fail, true) || !array_key_exists($key, $this->values)) {
+                return null;
+            }
+            $regs[$i] = $this->values[$key] & 0xFFFF;
         }
-        return [0 => $this->values[$key] & 0xFFFF];
+        return $regs;
     }
     public function close(): void
     {
@@ -291,6 +295,17 @@ $mod->ApplyChanges();
 check('Aktiv mit Host: Status 102, Timer läuft', $mod->status === 102 && $mod->GetTimerInterval('WPMBHUB_UpdateTimer') === 60000);
 
 check('Gemeinsames Profil NRG.Celsius wurde angelegt', IPS_VariableProfileExists('NRG.Celsius'));
+
+// ---------------------------------------------------------------------------
+echo "Block 1b: floatLE() -- IDMs vertauschte Wortreihenfolge\n";
+// ---------------------------------------------------------------------------
+
+$floatLE = new WPMBHUB_ModbusTcpClient('x', 502, 1);
+// 8.2 als IEEE754: 0x41 03 33 33 -> big-endian High-Word 0x4103, Low-Word
+// 0x3333. IDM ueberträgt Low-Word ZUERST -- Register[0]=Low, Register[1]=High.
+check('floatLE(): 8.2 aus vertauschten Registern korrekt', abs($floatLE->floatLE([0 => 0x3333, 1 => 0x4103], 0) - 8.2) < 0.0001);
+check('floatLE(): 0.0 korrekt (beide Register 0)', $floatLE->floatLE([0 => 0, 1 => 0], 0) === 0.0);
+check('floatLE(): negativer Wert korrekt (-3.5)', abs($floatLE->floatLE([0 => 0x0000, 1 => 0xC060], 0) - (-3.5)) < 0.0001);
 
 // ---------------------------------------------------------------------------
 echo "Block 2: readRegisters() -- Registerprofile werden korrekt dekodiert\n";
@@ -378,6 +393,39 @@ check('Waterkotte: alle acht Felder korrekt dekodiert', $valuesWaterkotte === [
     'Speichertemperatur' => 41.0, 'Warmwasser' => 48.0, 'WarmwasserSoll' => 50.0,
     'Zone1Ist' => 21.0, 'Zone1Soll' => 21.5,
 ], json_encode($valuesWaterkotte));
+
+// IDM: einziger Hersteller mit 32-Bit-Float (2 Register, Low-Word zuerst --
+// siehe floatLE()), gemischt mit einem einfachen UCHAR-Register (WarmwasserSoll).
+// Rohregister per pack('G', $wert) + Bit-Zerlegung erzeugt (echter
+// IEEE754-Roundtrip, nicht erfunden).
+$fakeIdm = new FakeModbusClient('192.168.1.55', 502, 1);
+$fakeIdm->values = [
+    'input:1000' => 13107, 'input:1001' => 16643, // Aussentemperatur 8.2°C
+    'input:1050' => 0,     'input:1051' => 16910, // Vorlauftemperatur 35.5°C
+    'input:1052' => 0,     'input:1053' => 16896, // Ruecklauftemperatur 32.0°C
+    'input:1008' => 0,     'input:1009' => 16932, // Speichertemperatur 41.0°C
+    'input:1030' => 0,     'input:1031' => 16960, // Warmwasser 48.0°C
+    'holding:1032' => 46,                          // WarmwasserSoll 46 (UCHAR, kein Faktor)
+    'input:1350' => 0,     'input:1351' => 16808, // Zone1Ist 21.0°C
+    'input:1378' => 0,     'input:1379' => 16812, // Zone1Soll 21.5°C
+];
+$valuesIdm = $readRegisters->invoke($mod, WPModbusHub::DRIVERS['idm']['registers'], $fakeIdm);
+// Vergleich gerundet, nicht strikt === -- 8.2 & Co. lassen sich als 32-Bit-
+// Float nicht exakt darstellen (Praezisionsverlust ggue. dem float64-
+// Literal ist hier KEIN Dekodierfehler, sondern IEEE754-Rundung selbst).
+check('IDM: alle acht Felder korrekt dekodiert (Float32 + UCHAR gemischt)', array_map(fn($v) => round($v, 3), $valuesIdm) === [
+    'Aussentemperatur' => 8.2, 'Ruecklauftemperatur' => 32.0, 'Vorlauftemperatur' => 35.5,
+    'Speichertemperatur' => 41.0, 'Warmwasser' => 48.0, 'WarmwasserSoll' => 46.0,
+    'Zone1Ist' => 21.0, 'Zone1Soll' => 21.5,
+], json_encode($valuesIdm));
+
+// IDM-Teilausfall: fehlt nur EIN Register eines Float32-Paares (hier das
+// High-Word von Vorlauftemperatur), muss das ganze Feld fehlen, nicht mit
+// einem falschen Halb-Wert auftauchen.
+$fakeIdmPartial = new FakeModbusClient('192.168.1.55', 502, 1);
+$fakeIdmPartial->values = ['input:1000' => 13107, 'input:1001' => 16643, 'input:1050' => 0];
+$valuesIdmPartial = $readRegisters->invoke($mod, WPModbusHub::DRIVERS['idm']['registers'], $fakeIdmPartial);
+check('IDM: unvollstaendiges Float32-Paar liefert kein Feld (kein Halb-Wert)', !array_key_exists('Vorlauftemperatur', $valuesIdmPartial) && round($valuesIdmPartial['Aussentemperatur'] ?? 0, 3) === 8.2);
 
 // Teilausfall: ein Register liefert null, die uebrigen bleiben nutzbar.
 $fakePartial = new FakeModbusClient('192.168.1.50', 502, 1);
@@ -474,7 +522,7 @@ function findFormElement(array $items, string $name): ?array
 $GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
 $form = json_decode($mod->GetConfigurationForm(), true);
 $manufacturerSelect = findFormElement($form['elements'], 'Manufacturer');
-check('Formular hat ein Hersteller-Select mit fünf Optionen', $manufacturerSelect !== null && count($manufacturerSelect['options']) === 5);
+check('Formular hat ein Hersteller-Select mit sechs Optionen', $manufacturerSelect !== null && count($manufacturerSelect['options']) === 6);
 
 $licenseHint = end($form['elements']);
 check('"Über dieses Modul" steht ganz unten', ($licenseHint['caption'] ?? '') === '🧡  Über dieses Modul');

@@ -50,6 +50,7 @@ einer reinen Forenzusammenfassung:
 | LG Therma V | Community-gepflegte Modbus-Konfiguration, keine offizielle LG-Quelle gefunden | mittel |
 | Samsung EHS | Community-Sammlung, beruft sich auf Samsungs offizielle MIM-B19N-Anleitung (DB68-07538A) | mittel |
 | Waterkotte | Direkt aus Waterkottes eigenem PDF „Software Technische Information -- Modbus/TCP" (Firmware 01.07.xx, 07.2017), von Dietmar besorgt | hoch |
+| IDM Energiesysteme | Direkt aus IDMs eigenem PDF „Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10, 20.04.2022), selbst gelesen inkl. Datentypen-Kapitel, gilt fuer alle IDM-WP mit Navigator-2.0-Regelung (inkl. ALM) | hoch |
 
 Bewusst **nicht** übernommen: Register, deren Ist/Soll-Richtung in der Quelle selbst
 unklar/auskommentiert war (z. B. ein Samsung-Warmwasser-Register) — lieber weniger Felder
@@ -98,6 +99,34 @@ Screenshot vor und waren zum Zeitpunkt dieser Ergänzung nicht mehr im Kontext
 verfügbar — bewusst nicht geraten übernommen. Bei Bedarf (zweiter Heizkreis/Mischer
 als eigenes Feld) den Screenshot erneut vorlegen lassen und gegen das Basis-PDF
 plausibilisieren, bevor Adressen ins Registerprofil wandern.
+
+## IDM-Ergänzung (18.09.2026)
+
+Sechster Hersteller, aus einer echten Forumsanfrage heraus: "kollaps"/Christian (IDM ALM,
+bereits selbst per Modbus in IP-Symcon angebunden) hat im WPModbusHub-Forumsthread gefragt,
+ob IDM unterstützt werden könnte. Statt Christians eigene Konfiguration abzuwarten, wurde die
+offizielle IDM-PDF gefunden und selbst gelesen (siehe Registerkarten-Tabelle oben) -- ein
+Forumsbeitrag mit Wartezeit war nicht der Flaschenhals, ein gutes offizielles Dokument war
+sofort verfügbar. Forumsantwort trotzdem abgeschickt: Christians eigene, bereits laufende
+Konfiguration wäre eine wertvolle Zweitquelle/Live-Verifikation, sobald er antwortet.
+
+**Architektur-Neuerung:** IDM ist der erste Hersteller dieser Liste mit 32-Bit-IEEE754-
+Werten (2 Register) statt vorzeichenbehaftetem 16-Bit×Faktor-10 -- der im Klassenkopf-
+Kommentar seit 17.09.2026 angekündigte "künftige Hersteller mit abweichender Kodierung" ist
+damit eingetreten. Bewusst NICHT auf die im selben Kommentar angedachte volle
+Treiber-Interface-Abstraktion (`WPMBHUB_HeatpumpDriverInterface`) gewechselt -- ein einzelnes
+optionales `'type'=>'float32'`-Flag im bestehenden datengetriebenen Schema reicht für EINEN
+zusätzlichen Datentyp, die Interface-Abstraktion bleibt der Erweiterungspunkt für einen noch
+grösseren Sprung (Schreibzugriffe, mehrteilige Strukturen). Wichtige Eigenheit, die beim
+ersten Verifikationstest zuerst geprüft werden sollte: IDMs Wortreihenfolge ist VERTAUSCHT
+(Low-Word zuerst laut PDF-Kapitel 4.2 "Datentypen"), nicht big-endian wie die bestehenden
+`u32()`/`s32()`-Methoden -- deshalb eine eigene `floatLE()`-Methode statt Wiederverwendung.
+
+Warmwasser-Ist bewusst auf die Zapftemperatur (Adresse 1030, "Warmwasserzapftemperatur B42")
+gelegt statt auf einen der beiden Speicherfühler (1012 unten/1014 oben) -- näher am
+"was kommt aus dem Hahn"-Sinn der Warmwasser-Felder bei den anderen Herstellern, aber nicht
+hart durch die PDF vorgegeben; bei einer echten Verifikation gegenprüfen, ob das dem
+Nutzererwartung entspricht.
 
 ## Heizkurven-Recherche für Dashboard (18.09.2026)
 
