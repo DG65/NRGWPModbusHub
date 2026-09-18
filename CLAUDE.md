@@ -85,12 +85,41 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
   (nur die Standardfelder: Aussentemp, Vorlauf/Ruecklauf, Warmwasser Ist/Soll)
   gebeten statt der ganzen Datei -- passt besser zur v1-Linie "erst Temperaturen,
   keine Steuerbefehle" und respektiert die Kundenexklusivitaet der Vollversion.
-  **Offene Architekturfrage, noch nicht geklaert:** Ghostraider liest ueber einen
-  SERIELLEN COM-Port (COM7, 19200 Baud) aus, nicht Modbus TCP -- WPMBHUB_ModbusTcpClient
-  spricht nur TCP-Sockets. Ob bei ihm ein RS485-zu-Ethernet-Adapter dahinterhaengt
-  (dann passt das bestehende Modul direkt) oder ein lokaler USB-RS485-Dongle (dann
-  braeuchte es eine neue serielle Transportart, deutlich groesserer Umbau als nur
-  eine Registerkarte) -- Antwort steht aus.
+  **Update 18.09.2026 (zweiter Nachtrag) -- Excel gelesen, DREI Bloecker, bewusst
+  NICHT als Treiber gebaut:**
+
+  1. **Transport bestaetigt seriell, kein Gateway.** Ghostraider: "läuft über RS485 an
+     einem USB Dongel" -- also ein lokaler USB-RS485-Adapter direkt am Symcon-Host,
+     KEIN Netzwerk-Gateway. `WPMBHUB_ModbusTcpClient` spricht nur TCP-Sockets
+     (`fsockopen`) -- das bestehende Modul kann diese Verbindung technisch nicht
+     herstellen, unabhaengig von der Registerkarte. Eine serielle Transportart waere
+     ein eigener Baustein (IP-Symcons Serial-Port-Instanz als Parent, kein simpler
+     Socket-Client mehr) -- deutlich groesserer Umbau als eine neue Registerkarte,
+     noch nicht begonnen.
+  2. **FWT ist eine Zu-/Abluft-Waermepumpe, kein Hydronik-System.** Die Excel
+     ("Modbus Liste FWT2.0 ver2.xlsx", Sheets "Holding Register"/"Input Register",
+     lokal unter `/Users/dietmar/Downloads/Proxon/` gelesen) kennt kein
+     Vorlauf/Ruecklauf -- stattdessen Luft-Sensoren T1 Zuluft, T3 Frischluft
+     (naeheste Entsprechung zu "Aussentemperatur"), T4 Fortluft, T7 Abluft, dazu
+     Kaeltekreis-Sensoren T5/T6/T8/T10/T11/T13/T14. Passt NICHT ins bestehende
+     Vorlauftemperatur/Ruecklauftemperatur-Feldschema der anderen fuenf Hersteller --
+     bräuchte eigene Idents statt der bestehenden, kein Fall von "Adresse eintragen,
+     fertig".
+  3. **T300-Temperaturskalierung nur ABGELEITET, nicht explizit dokumentiert.** Die
+     T300-Excel ("...ver2 T300.xlsx") hat bei Input-Register-Temperaturen (z. B.
+     4x0813 "T20 Behälter Unten", 4x0814 "T21 Behälter Mitte") eine separate
+     "Offset"-Spalte = -100 neben "Format" = "/10", waehrend das Holding-Register
+     "Normal Wassertemperatur" (3x2000, Roh-Min/Max 200/550 -> IST-Min/Max 20/55)
+     OHNE Offset einfach raw/10 ist. Daraus abgeleitete Arbeitshypothese: bei
+     Input-Registern mit Offset=-100 gilt `°C = raw/10 - 100` (Bias-Kodierung fuer
+     negative Kaeltekreistemperaturen in einem uint16) -- intern konsistent, aber
+     NIRGENDS als Formel ausgeschrieben, nur aus zwei Spalten kombiniert. Vor einer
+     Implementierung durch einen echten Raw/Ist-Wertevergleich von Ghostraider
+     bestaetigen lassen, nicht auf die Ableitung allein bauen.
+
+  Forumsantwort hat beide offenen Punkte (Transport-Detail, ein konkretes
+  Raw/Ist-Wertepaar) adressiert -- Antwort steht aus. Excel-Dateien lokal, NICHT ins
+  Repo committen (Kundenexklusiv von Zimmermann, nur fuer die eigene Recherche).
 - ~~Kein Forum-Hinweis-Panel~~ — erledigt 18.09.2026: Thread ist live
   (https://community.symcon.de/t/modul-nrg-stack-wpmodbushub-lokale-modbus-anbindung-fuer-waermepumpen-mehrerer-hersteller-nibe-stiebel-eltron-lg-samsung/144421),
   Panel `ForumHint()`/`AckForumHint()` verlinkt (0.1.2).
