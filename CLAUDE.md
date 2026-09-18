@@ -51,6 +51,7 @@ einer reinen Forenzusammenfassung:
 | Samsung EHS | Community-Sammlung, beruft sich auf Samsungs offizielle MIM-B19N-Anleitung (DB68-07538A) | mittel |
 | Waterkotte | Direkt aus Waterkottes eigenem PDF „Software Technische Information -- Modbus/TCP" (Firmware 01.07.xx, 07.2017), von Dietmar besorgt | hoch |
 | IDM Energiesysteme | Direkt aus IDMs eigenem PDF „Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10, 20.04.2022), selbst gelesen inkl. Datentypen-Kapitel, gilt fuer alle IDM-WP mit Navigator-2.0-Regelung (inkl. ALM) | hoch |
+| Proxon T300 | Direkt aus Zimmermanns eigener Kunden-Excel, von Nutzer "Ghostraider" per PN erhalten (18.09.2026) -- NUR die zwei Register mit eindeutiger Skalierung uebernommen | hoch (fuer die zwei Felder), NICHT der Rest der Tabelle |
 
 Bewusst **nicht** übernommen: Register, deren Ist/Soll-Richtung in der Quelle selbst
 unklar/auskommentiert war (z. B. ein Samsung-Warmwasser-Register) — lieber weniger Felder
@@ -120,6 +121,32 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
   Forumsantwort hat beide offenen Punkte (Transport-Detail, ein konkretes
   Raw/Ist-Wertepaar) adressiert -- Antwort steht aus. Excel-Dateien lokal, NICHT ins
   Repo committen (Kundenexklusiv von Zimmermann, nur fuer die eigene Recherche).
+
+  **Update 18.09.2026 (dritter Nachtrag) -- Dietmar wollte es trotzdem bauen, TEIL
+  davon geht.** Recherche zu IP-Symcons eingebautem Serial-Port/Modbus-Configurator-
+  Splitter (mehrere Websuchen: offizielle Symcon-Doku, Community-Threads,
+  Open-Source-Referenzmodule wie daschaefer/SymconPluggit) ergab: die konkrete
+  Splitter-GUID und das SendDataToParent-Pufferformat (Function/Address/Quantity/
+  Data) sind oeffentlich NICHT verlaesslich dokumentiert -- SymconPluggit umgeht das
+  Problem sogar selbst, indem es fuer sein (TCP-basiertes) Geraet eine eigene
+  Phpmodbus-Verbindung aufbaut statt durch den Symcon-Splitter zu gehen. Fuer echten
+  seriellen Zugriff (Windows-COM-Port wie bei Ghostraider) ist reines PHP ohne
+  Symcons Kern-Unterstuetzung nicht zuverlaessig plattformuebergreifend moeglich --
+  bewusst NICHT geraten implementiert (Verbund-Regel: Symcon-SDK-Methoden verifizieren,
+  nicht aus Analogie annehmen).
+
+  Stattdessen umgesetzt: **`proxon` als siebter DRIVERS-Eintrag** (0.4.0), aber NUR
+  die zwei Register mit eindeutiger Skalierung (`Warmwasser` via 4x0882 BehaelterAvg,
+  Faktor 100, kein Offset; `WarmwasserSoll` via 3x2000 Normal Wassertemperatur,
+  Faktor 10, kein Offset) -- beide passen unveraendert ins bestehende s16xFaktor-
+  Schema, kein neuer Datentyp noetig. Empfehlung an Nutzer mit reinem USB-RS485-
+  Dongle (wie Ghostraider): ein RS485-zu-Ethernet-Gateway im "Modbus TCP zu
+  RTU"-Gatewaymodus davorsetzen (gleiches Geraeteschema wie SamsungEhs/Waveshare,
+  NICHT nur rohes Byte-Tunneling -- das waere ein anderer Modus). Damit funktioniert
+  der bestehende `WPMBHUB_ModbusTcpClient` unveraendert. T20/T21-Tankfuehler und die
+  FWT-Lueftungszentrale bleiben bewusst aussen vor (siehe oben, Bloecker 2+3
+  weiterhin ungeloest -- Bloecker 1 nur per Hardware-Workaround umgangen, nicht im
+  Modul geloest).
 - ~~Kein Forum-Hinweis-Panel~~ — erledigt 18.09.2026: Thread ist live
   (https://community.symcon.de/t/modul-nrg-stack-wpmodbushub-lokale-modbus-anbindung-fuer-waermepumpen-mehrerer-hersteller-nibe-stiebel-eltron-lg-samsung/144421),
   Panel `ForumHint()`/`AckForumHint()` verlinkt (0.1.2).

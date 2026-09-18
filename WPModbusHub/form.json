@@ -63,7 +63,8 @@
                         {"caption": "LG Therma V", "value": "lg"},
                         {"caption": "Samsung EHS (über MIM-B19N-Zubehörmodul)", "value": "samsung"},
                         {"caption": "Waterkotte (EcoTouch-Regler)", "value": "waterkotte"},
-                        {"caption": "IDM Energiesysteme (Navigatorregelung 2.0, z. B. ALM)", "value": "idm"}
+                        {"caption": "IDM Energiesysteme (Navigatorregelung 2.0, z. B. ALM)", "value": "idm"},
+                        {"caption": "Proxon T300 (Zimmermann, via Modbus-TCP-Gateway)", "value": "proxon"}
                     ],
                     "onChange": "WPMBHUB_OnChangeManufacturer($id, $Manufacturer);"
                 },
@@ -89,7 +90,7 @@
                                 "items": [
                                     {
                                         "type": "Label",
-                                        "caption": "Bei NIBE S-Serie, Stiebel Eltron (ISG), Waterkotte (EcoTouch) und IDM (Navigatorregelung) ist das die IP-Adresse der Wärmepumpe/des Reglers selbst im lokalen Netz -- unter „Modbus TCP/IP“ bzw. im Netzwerkmenü des Reglers sichtbar/einstellbar. Bei LG und Samsung ist es die IP-Adresse des dazwischengeschalteten Modbus-Gateways (z. B. ein RS485-zu-Ethernet-Adapter oder das offizielle MIM-B19N-Modul mit eigenem TCP-Zugang)."
+                                        "caption": "Bei NIBE S-Serie, Stiebel Eltron (ISG), Waterkotte (EcoTouch) und IDM (Navigatorregelung) ist das die IP-Adresse der Wärmepumpe/des Reglers selbst im lokalen Netz -- unter „Modbus TCP/IP“ bzw. im Netzwerkmenü des Reglers sichtbar/einstellbar. Bei LG, Samsung und Proxon ist es die IP-Adresse des dazwischengeschalteten Modbus-Gateways (z. B. ein RS485-zu-Ethernet-Adapter im „Modbus TCP zu RTU“-Modus, das offizielle MIM-B19N-Modul, oder bei Proxon ein passender RS485-Gateway vor dem werksseitig seriellen Anschluss)."
                                     }
                                 ]
                             }

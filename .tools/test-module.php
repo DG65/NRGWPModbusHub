@@ -427,6 +427,20 @@ $fakeIdmPartial->values = ['input:1000' => 13107, 'input:1001' => 16643, 'input:
 $valuesIdmPartial = $readRegisters->invoke($mod, WPModbusHub::DRIVERS['idm']['registers'], $fakeIdmPartial);
 check('IDM: unvollstaendiges Float32-Paar liefert kein Feld (kein Halb-Wert)', !array_key_exists('Vorlauftemperatur', $valuesIdmPartial) && round($valuesIdmPartial['Aussentemperatur'] ?? 0, 3) === 8.2);
 
+// Proxon: nur zwei Register, unterschiedliche Skalierung (Faktor 100 fuer
+// Warmwasser-Ist, Faktor 10 fuer WarmwasserSoll) -- beides normale
+// Ganzzahlregister, kein Float32/Offset (die unsicheren Tankfuehler sind
+// bewusst nicht im Registerprofil).
+$fakeProxon = new FakeModbusClient('192.168.1.56', 502, 41);
+$fakeProxon->values = [
+    'input:882'    => 4650, // Warmwasser (BehaelterAvg) 46.5°C
+    'holding:2000' => 480,  // WarmwasserSoll (Normal Wassertemperatur) 48.0°C
+];
+$valuesProxon = $readRegisters->invoke($mod, WPModbusHub::DRIVERS['proxon']['registers'], $fakeProxon);
+check('Proxon: beide Felder korrekt dekodiert (Faktor 100 bzw. 10)', $valuesProxon === [
+    'Warmwasser' => 46.5, 'WarmwasserSoll' => 48.0,
+], json_encode($valuesProxon));
+
 // Teilausfall: ein Register liefert null, die uebrigen bleiben nutzbar.
 $fakePartial = new FakeModbusClient('192.168.1.50', 502, 1);
 $fakePartial->values = ['input:1' => 75, 'input:8' => 485];
@@ -522,7 +536,7 @@ function findFormElement(array $items, string $name): ?array
 $GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
 $form = json_decode($mod->GetConfigurationForm(), true);
 $manufacturerSelect = findFormElement($form['elements'], 'Manufacturer');
-check('Formular hat ein Hersteller-Select mit sechs Optionen', $manufacturerSelect !== null && count($manufacturerSelect['options']) === 6);
+check('Formular hat ein Hersteller-Select mit sieben Optionen', $manufacturerSelect !== null && count($manufacturerSelect['options']) === 7);
 
 $licenseHint = end($form['elements']);
 check('"Über dieses Modul" steht ganz unten', ($licenseHint['caption'] ?? '') === '🧡  Über dieses Modul');
