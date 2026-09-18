@@ -1,0 +1,107 @@
+{
+    "elements": [
+        {
+            "type": "ExpansionPanel",
+            "caption": "📖 Dokumentation & Hilfe",
+            "expanded": false,
+            "items": [
+                {
+                    "type": "Label",
+                    "name": "VersionInfo",
+                    "caption": "ℹ️ WPModbusHubGateway Version -- Wärmepumpen über Symcons ModBus-Gateway auslesen."
+                },
+                {
+                    "type": "Label",
+                    "caption": "Wie WPModbusHub, aber ohne eigene Netzwerkverbindung: die Instanz hängt als Kind an einem ModBus-Gateway aus dem Objektbaum. Damit funktioniert auch RS485/Modbus RTU an einem seriellen Anschluss (Serial Port → ModBus Gateway → diese Instanz). Details: https://github.com/DG65/NRGWPModbusHub"
+                },
+                {
+                    "type": "Label",
+                    "caption": "Ablauf: 1. ModBus-Gateway einrichten (Geräte-ID = Slave-ID der Wärmepumpe) → 2. Diese Instanz anlegen und oben unter „Gateway“ den ModBus-Gateway wählen → 3. Hersteller wählen → 4. „WPModbusHubGateway aktiv“ einschalten und übernehmen → 5. „Verbindung testen“."
+                },
+                {
+                    "type": "Button",
+                    "caption": "🔄 Übernehmen erzwingen (ohne Formularänderung)",
+                    "confirm": "Wirklich ApplyChanges() erzwingen? Praktisch direkt nach einem Modul-Update über die Modulverwaltung.",
+                    "onClick": "IPS_ApplyChanges($id); echo '✅ ApplyChanges() ausgeführt.';"
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "name": "GeneralPanel",
+            "caption": "🔧 Allgemein",
+            "expanded": true,
+            "items": [
+                {
+                    "type": "CheckBox",
+                    "name": "WPMBGW_Active",
+                    "caption": "WPModbusHubGateway aktiv"
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "WPMBGW_Interval",
+                    "caption": "Aktualisierungsintervall (Sekunden)",
+                    "minimum": 30,
+                    "maximum": 600,
+                    "suffix": " s"
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "name": "ConnectionPanel",
+            "caption": "🔌 Wärmepumpe (über ModBus-Gateway)",
+            "expanded": true,
+            "items": [
+                {
+                    "type": "Select",
+                    "name": "Manufacturer",
+                    "caption": "Hersteller",
+                    "options": [],
+                    "onChange": "WPMBGW_OnChangeManufacturer($id, $Manufacturer);"
+                },
+                {
+                    "type": "Label",
+                    "name": "ManufacturerConfidence",
+                    "caption": ""
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        {
+                            "type": "Button",
+                            "caption": "🔍 Verbindung testen",
+                            "onClick": "echo WPMBGW_TestConnection($id);"
+                        },
+                        {
+                            "type": "PopupButton",
+                            "caption": "Wo stelle ich Slave-ID, Baudrate und Parität ein?",
+                            "width": "460px",
+                            "popup": {
+                                "caption": "Wo stelle ich Slave-ID, Baudrate und Parität ein?",
+                                "items": [
+                                    {
+                                        "type": "Label",
+                                        "caption": "Nicht in dieser Instanz, sondern im Objektbaum darüber: Die Slave-/Geräte-ID steht als „Geräte-ID“ im ModBus-Gateway (bei RS485: Gateway-Modus „RTU“), Baudrate, Datenbits, Parität und Stoppbits im darunterliegenden Serial Port. Beispiel Proxon: Geräte-ID 41, 19200 Baud, 8 Datenbits, gerade Parität (Even), 1 Stoppbit. Diese Instanz schickt nur Function Code, Adresse und Anzahl der Register an das Gateway."
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "status": [
+        {
+            "code": 201,
+            "icon": "error",
+            "caption": "Kein ModBus-Gateway verbunden -- oben unter „Gateway“ einen ModBus-Gateway wählen"
+        },
+        {
+            "code": 202,
+            "icon": "error",
+            "caption": "Wärmepumpe antwortet nicht -- Geräte-ID, Baudrate/Parität und Verkabelung prüfen („Verbindung testen“)"
+        }
+    ]
+}

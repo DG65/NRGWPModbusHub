@@ -64,7 +64,7 @@
                         {"caption": "Samsung EHS (über MIM-B19N-Zubehörmodul)", "value": "samsung"},
                         {"caption": "Waterkotte (EcoTouch-Regler)", "value": "waterkotte"},
                         {"caption": "IDM Energiesysteme (Navigatorregelung 2.0, z. B. ALM)", "value": "idm"},
-                        {"caption": "Proxon T300 (Zimmermann, via Modbus-TCP-Gateway)", "value": "proxon"}
+                        {"caption": "Proxon T300 (Zimmermann, Trinkwasser-Wärmepumpe)", "value": "proxon"}
                     ],
                     "onChange": "WPMBHUB_OnChangeManufacturer($id, $Manufacturer);"
                 },

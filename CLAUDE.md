@@ -19,6 +19,10 @@ Alle drei liefern denselben Vertrag (`*_GetFunctions()`, `Type=>'heatpump'`, con
 
 ## Architektur (bewusst anders als MeterHub)
 
+**Stand 0.5.0: zwei Module in einer Bibliothek** -- `WPModbusHub` (eigener TCP-Socket) und
+`WPModbusHubGateway` (Kind des Symcon-ModBus-Gateways, auch RS485/RTU), gemeinsame
+Registerkarten und Logik in `libs/` (siehe Abschnitt "Proxon", vierter Nachtrag).
+
 MeterHub hat 13 Treiberklassen mit individueller Dekodierlogik (Float32/Double64/
 Schreibkanäle). Alle bisherigen Wärmepumpen-Register sind dagegen einheitlich
 vorzeichenbehaftete 16-Bit-Werte mit Faktor 10 — deshalb ein **datengetriebenes**
@@ -29,7 +33,7 @@ Wert, Schreibzugriffe), ist ein Interface nach MeterHub-Vorbild (`WPMBHUB_MeterD
 → hier `WPMBHUB_HeatpumpDriverInterface`) der vorgesehene Erweiterungspunkt — bislang nicht
 nötig, bewusst nicht vorgebaut ("keine Abstraktion vor dem zweiten echten Bedarfsfall").
 
-`WPMBHUB_ModbusTcpClient` (`WPModbusHub/libs/ModbusTcpClient.php`) ist 1:1 aus MeterHub
+`WPMBHUB_ModbusTcpClient` (`libs/ModbusTcpClient.php`) ist 1:1 aus MeterHub
 (`MHUB_ModbusTcpClient`, DG65/NRGMeterHub) portiert — bewährter Kern (eine TCP-Verbindung je
 Lesezyklus, siehe MeterHub-CLAUDE.md "Modbus: eine Verbindung je Zyklus"), nur der
 Präfix hat sich geändert (globale Klassennamen brauchen einen Modul-Präfix, Verbund-
@@ -122,8 +126,8 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
   Raw/Ist-Wertepaar) adressiert -- Antwort steht aus. Excel-Dateien lokal, NICHT ins
   Repo committen (Kundenexklusiv von Zimmermann, nur fuer die eigene Recherche).
 
-  **Update 18.09.2026 (dritter Nachtrag) -- Dietmar wollte es trotzdem bauen, TEIL
-  davon geht.** Recherche zu IP-Symcons eingebautem Serial-Port/Modbus-Configurator-
+  **Update 18.09.2026 (dritter Nachtrag, ÜBERHOLT durch den vierten unten) -- Dietmar
+  wollte es trotzdem bauen, TEIL davon geht.** Recherche zu IP-Symcons eingebautem Serial-Port/Modbus-Configurator-
   Splitter (mehrere Websuchen: offizielle Symcon-Doku, Community-Threads,
   Open-Source-Referenzmodule wie daschaefer/SymconPluggit) ergab: die konkrete
   Splitter-GUID und das SendDataToParent-Pufferformat (Function/Address/Quantity/
@@ -147,6 +151,30 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
   FWT-Lueftungszentrale bleiben bewusst aussen vor (siehe oben, Bloecker 2+3
   weiterhin ungeloest -- Bloecker 1 nur per Hardware-Workaround umgangen, nicht im
   Modul geloest).
+  **Update 19.09.2026 (vierter Nachtrag) -- Blocker 1 (serieller Transport) GELÖST, der
+  Satz "SDK-Details nicht verifizierbar" im dritten Nachtrag war falsch.** Dietmar bestand
+  darauf, es zu bauen ("bei mir wissen", Test über Ghostraider). Der Denkfehler der ersten
+  Recherche: nach Doku gesucht statt nach Open-Source-Referenzmodulen -- das offizielle
+  Symcon-Modul `symcon/SymconBC` (EM24-DIN) zeigt das Gateway-Schema im Klartext, und
+  MeterHub/InverterHub/ChargerHub hatten es im Verbund (SUITE.md 9j) schon gegengelesen und
+  live bestätigt. Umsetzung als **eigenes Schwestermodul `WPModbusHubGateway`** (Prefix
+  `WPMBGW`, GUID {70FBAC61-...}), Kind des nativen ModBus Gateways: `module.json`
+  `parentRequirements {E310B701-...}`, `implemented {77B31ABB-...}` (beide an einer
+  Live-IPS aus der Moduldefinition des ModBus Gateways ausgelesen, Serial Port ist
+  {6DC3D946-0D31-450F-A8C6-C42DB8D7D4F1}, ModBus Gateway {A5F663AB-...}). Eigenes Modul statt
+  Property im TCP-Modul, weil `parentRequirements` sonst jede bestehende TCP-Instanz
+  betroffen hätte. `ConnectParent()` bewusst NICHT (würde ungefragt ein neues Gateway
+  anlegen). Repo umgebaut: `libs/` am Library-Root (`WPMBHUB_Drivers` = geteilte
+  Registerkarten, `WPMBHUB_HeatpumpTrait` = transportunabhängige Logik,
+  `ModbusTcpClient.php`, `ModbusGatewayClient.php` -- Muster Pluggit-Modul, `require_once
+  __DIR__.'/../libs/..'`). Gateway-Client erbt (wie ChargerHub) nur die Dekodierhilfen vom
+  TCP-Client; `SendDataToParent()` ist protected, daher Closure vom Modul. Unit-ID sitzt am
+  Gateway (`DeviceID`), nicht im Puffer. **Offen: an einer echten Anlage über diesen Weg
+  ungetestet** -- Ghostraider soll mit "Verbindung testen" und
+  `WPMBGW_ReadRaw($id, 4, 882, 1)` prüfen (ReadRaw liefert auch die Rohwerte der
+  T20/T21-Tankfühler für die noch offene Offset-Formel). Unverändert offen: FWT-Zentrale,
+  T20/T21-Skalierung.
+
 - ~~Kein Forum-Hinweis-Panel~~ — erledigt 18.09.2026: Thread ist live
   (https://community.symcon.de/t/modul-nrg-stack-wpmodbushub-lokale-modbus-anbindung-fuer-waermepumpen-mehrerer-hersteller-nibe-stiebel-eltron-lg-samsung/144421),
   Panel `ForumHint()`/`AckForumHint()` verlinkt (0.1.2).

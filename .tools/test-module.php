@@ -76,6 +76,14 @@ function IPS_ApplyChanges(int $id): void
 {
     $GLOBALS['ips']['applied'] = true;
 }
+function IPS_GetInstance(int $id): array
+{
+    return ['ConnectionID' => $GLOBALS['ips']['parent'] ?? 0];
+}
+function IPS_InstanceExists(int $id): bool
+{
+    return $id > 0;
+}
 function GetValue(int $id)
 {
     foreach ($GLOBALS['ips']['variables'] as $v) {
@@ -194,6 +202,13 @@ class IPSModule
     {
         return $this->status;
     }
+    // Attrappe fuer das Gateway-Kind-Modul: die "Gegenstelle" ist eine
+    // Closure in $GLOBALS['ips']['parentResponder'] (Anfrage-JSON -> Antwort).
+    protected function SendDataToParent(string $data)
+    {
+        $fn = $GLOBALS['ips']['parentResponder'] ?? null;
+        return $fn ? $fn($data) : false;
+    }
     protected function SendDebug(string $topic, string $text, int $format): void
     {
     }
@@ -238,6 +253,7 @@ class IPSModule
 }
 
 require __DIR__ . '/../WPModbusHub/module.php';
+require __DIR__ . '/../WPModbusHubGateway/module.php';
 
 // Modbus-Client-Attrappe: liefert kanonische Registerwerte aus einer
 // vorgegebenen Tabelle statt echter TCP-Kommunikation. $regType+$addr als
@@ -580,8 +596,11 @@ echo "Block 6: Vollstaendigkeit der Methodenaufrufe\n";
 // ---------------------------------------------------------------------------
 
 foreach ([
-    ['WPModbusHub/libs/ModbusTcpClient.php', WPMBHUB_ModbusTcpClient::class],
+    ['libs/ModbusTcpClient.php', WPMBHUB_ModbusTcpClient::class],
+    ['libs/WPMBHUB_HeatpumpTrait.php', WPModbusHub::class],
     ['WPModbusHub/module.php', WPModbusHub::class],
+    ['libs/ModbusGatewayClient.php', WPMBHUB_ModbusGatewayClient::class],
+    ['WPModbusHubGateway/module.php', WPModbusHubGateway::class],
 ] as [$file, $class]) {
     $src = file_get_contents(__DIR__ . '/../' . $file);
     preg_match_all('/\$this->([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/', $src, $m);
@@ -593,6 +612,146 @@ foreach ([
     }
     check("Alle \$this->…()-Aufrufe in $file definiert", count($missing) === 0, 'fehlt: ' . implode(', ', $missing));
 }
+
+
+// ---------------------------------------------------------------------------
+echo "Block 7: WPModbusHubGateway -- Symcon-ModBus-Gateway statt TCP-Socket\n";
+// ---------------------------------------------------------------------------
+
+// Gegenstelle nach dem Vorbild des Gateways: Anfrage-JSON in, rohe Antwort aus
+// (2 Byte Kopf Function+ByteCount, dann big-endian Register). $table
+// "input:882" => Registerwert. $log sammelt die eingegangenen Anfragen.
+function makeGatewayResponder(array $table, array &$log): callable
+{
+    return function (string $json) use ($table, &$log) {
+        $req = json_decode($json, true);
+        $log[] = $req;
+        if (($req['DataID'] ?? '') !== '{E310B701-4AE7-458E-B618-EC13A1A6F6A8}') {
+            return false;
+        }
+        $type = $req['Function'] === 3 ? 'holding' : 'input';
+        $regs = '';
+        for ($i = 0; $i < $req['Quantity']; $i++) {
+            $key = $type . ':' . ($req['Address'] + $i);
+            if (!array_key_exists($key, $table)) {
+                return chr($req['Function'] | 0x80) . chr(2);
+            }
+            $regs .= pack('n', $table[$key] & 0xFFFF);
+        }
+        return chr($req['Function']) . chr(strlen($regs)) . $regs;
+    };
+}
+
+// --- Client direkt ---
+$log = [];
+$client = new WPMBHUB_ModbusGatewayClient(makeGatewayResponder(['input:100' => 258, 'holding:200' => 5, 'holding:201' => 65535], $log));
+$r = $client->readInput(100, 1);
+check('Gateway-Client: readInput liest ein Register (Function 4)', $r === [258] && $log[0]['Function'] === 4 && $log[0]['Address'] === 100 && $log[0]['Quantity'] === 1, json_encode($r));
+check('Gateway-Client: Anfrage traegt die verifizierte DataID und leeres Data', $log[0]['DataID'] === '{E310B701-4AE7-458E-B618-EC13A1A6F6A8}' && $log[0]['Data'] === '');
+check('Gateway-Client: Kopf passt zu Function+Bytezahl (Diagnose)', $client->headerLooksLikePdu === true);
+$r2 = $client->readHolding(200, 2);
+check('Gateway-Client: readHolding liest zwei Register (Function 3)', $r2 === [5, 65535] && $log[1]['Function'] === 3);
+check('Gateway-Client: Dekodierhilfen der Basisklasse nutzbar (s16 -1)', $client->s16($r2, 1) === -1);
+$rExc = $client->readInput(999, 1);
+check('Gateway-Client: Modbus-Ausnahme liefert null mit lesbarem Fehler', $rExc === null && strpos($client->lastError, 'Ausnahme 0x02') !== false, $client->lastError);
+
+$calls = 0;
+$dead = new WPMBHUB_ModbusGatewayClient(function (string $json) use (&$calls) { $calls++; return false; });
+$dead->readInput(1, 1); $dead->readInput(2, 1); $dead->readInput(3, 1); $dead->readInput(4, 1);
+check('Gateway-Client: nach 2 Anfragen ohne Antwort werden weitere uebersprungen (kein minutenlanges Blockieren)', $calls === 2, (string)$calls);
+
+$odd = new WPMBHUB_ModbusGatewayClient(function (string $json) { return "\x00\x00" . pack('n', 777); });
+check('Gateway-Client: unerwarteter Kopf wird toleriert, nur Diagnose meldet es', $odd->readHolding(1, 1) === [777] && $odd->headerLooksLikePdu === false);
+$short = new WPMBHUB_ModbusGatewayClient(function (string $json) { return "\x03\x04\x00\x01"; });
+check('Gateway-Client: zu kurze Antwort liefert null', $short->readHolding(1, 2) === null && strpos($short->lastError, 'zu kurz') !== false);
+$thrower = new WPMBHUB_ModbusGatewayClient(function (string $json) { throw new RuntimeException('Gateway weg'); });
+check('Gateway-Client: Ausnahme im Aufruf wird abgefangen (null statt Absturz)', $thrower->readInput(1, 1) === null);
+
+// --- Modul ---
+$GLOBALS['ips']['variables'] = [];
+$GLOBALS['ips']['properties'] = [];
+$GLOBALS['ips']['parent'] = 0;
+unset($GLOBALS['ips']['parentResponder']);
+$gw = new WPModbusHubGateway();
+$gw->Create();
+$gw->ApplyChanges();
+check('Gateway-Modul: inaktiv -> Status 104, kein Timer', $gw->status === 104 && $gw->GetTimerInterval('WPMBGW_UpdateTimer') === 0);
+
+$GLOBALS['ips']['properties']['WPMBGW_Active'] = true;
+$gw->ApplyChanges();
+check('Gateway-Modul: aktiv ohne Gateway -> Status 201, Timer laeuft trotzdem', $gw->status === 201 && $gw->GetTimerInterval('WPMBGW_UpdateTimer') === 60000);
+
+$GLOBALS['ips']['parent'] = 4711;
+$gw->ApplyChanges();
+check('Gateway-Modul: aktiv mit Gateway -> Status 102', $gw->status === 102);
+
+// Proxon-Karte durch die Gateway-Strecke
+$GLOBALS['ips']['properties']['Manufacturer'] = 'proxon';
+$log = [];
+$GLOBALS['ips']['parentResponder'] = makeGatewayResponder(['input:882' => 4650, 'holding:2000' => 480], $log);
+$gw->Update();
+check('Gateway-Modul: Proxon Warmwasser Ist/Soll ueber Gateway korrekt (46.5 / 48.0)',
+    ($GLOBALS['ips']['variables']['Warmwasser']['value'] ?? null) === 46.5 && ($GLOBALS['ips']['variables']['WarmwasserSoll']['value'] ?? null) === 48.0);
+check('Gateway-Modul: Erfolg -> Erreichbar true, Status 102', ($GLOBALS['ips']['variables']['Erreichbar']['value'] ?? null) === true && $gw->status === 102);
+check('Gateway-Modul: Function 4 fuer Input-, Function 3 fuer Holding-Register', $log[0]['Function'] === 4 && $log[1]['Function'] === 3);
+
+// IDM (Float32, vertauschte Wortreihenfolge) ueber dieselbe Strecke
+$GLOBALS['ips']['properties']['Manufacturer'] = 'idm';
+$GLOBALS['ips']['variables'] = [];
+$log = [];
+$GLOBALS['ips']['parentResponder'] = makeGatewayResponder([
+    'input:1000' => 13107, 'input:1001' => 16643, // 8.2 °C, Low-Word zuerst
+    'holding:1032' => 46,
+], $log);
+$gw->Update();
+check('Gateway-Modul: IDM-Float32 ueber Gateway korrekt (8.2 °C)', abs(($GLOBALS['ips']['variables']['Aussentemperatur']['value'] ?? 0) - 8.2) < 0.001);
+check('Gateway-Modul: Float32 fragt 2 Register in EINER Anfrage', $log[0]['Quantity'] === 2);
+
+// Ausfall: keine Antwort
+$GLOBALS['ips']['parentResponder'] = function (string $json) { return false; };
+$gw->Update();
+check('Gateway-Modul: Regler antwortet nicht -> Status 202, Erreichbar false', $gw->status === 202 && ($GLOBALS['ips']['variables']['Erreichbar']['value'] ?? null) === false);
+
+// Kein Gateway -> Update meldet 201 statt Absturz
+$GLOBALS['ips']['parent'] = 0;
+$gw->Update();
+check('Gateway-Modul: Update ohne Gateway -> Status 201', $gw->status === 201);
+$GLOBALS['ips']['parent'] = 4711;
+
+// TestConnection / ReadRaw
+$GLOBALS['ips']['properties']['Manufacturer'] = 'proxon';
+$log = [];
+$GLOBALS['ips']['parentResponder'] = makeGatewayResponder(['input:882' => 4650, 'holding:2000' => 480], $log);
+$report = $gw->TestConnection();
+check('TestConnection: Erfolg zeigt Anfrage, rohe Antwort und Ergebnis', strpos($report, '✅') !== false && strpos($report, 'Antwort: 0x') !== false && strpos($report, '"Function":4') !== false, $report);
+$GLOBALS['ips']['parentResponder'] = function (string $json) { return false; };
+$reportFail = $gw->TestConnection();
+check('TestConnection: Fehlschlag nennt Pruefhinweise (Geraete-ID, Parity)', strpos($reportFail, '❌') !== false && strpos($reportFail, 'Geräte-ID') !== false, $reportFail);
+$GLOBALS['ips']['parentResponder'] = makeGatewayResponder(['input:882' => 4650, 'holding:5' => 0xFFFF], $log);
+$raw = $gw->ReadRaw(4, 882, 1);
+check('ReadRaw: zeigt unsigned und signed sowie die Rohantwort', strpos($raw, 'unsigned [4650]') !== false && strpos($raw, '0x0402122a') !== false, $raw);
+check('ReadRaw: signed-Anzeige bei 0xFFFF ist -1', strpos($gw->ReadRaw(3, 5, 1), 'signed [-1]') !== false);
+check('ReadRaw: Schreib-Function wird abgelehnt (nur lesen)', strpos($gw->ReadRaw(6, 5, 1), 'Nur Function 3') !== false);
+
+// Formular / Vertrag
+$formGw = json_decode($gw->GetConfigurationForm(), true);
+$selGw = findFormElement($formGw['elements'], 'Manufacturer');
+check('Gateway-Formular: Hersteller-Select aus DRIVERS erzeugt (7 Optionen)', $selGw !== null && count($selGw['options']) === count(WPModbusHub::DRIVERS) && count($selGw['options']) === 7);
+check('Gateway-Formular: hat "Verbindung testen"-Knopf', strpos(json_encode($formGw, JSON_UNESCAPED_UNICODE), 'WPMBGW_TestConnection($id)') !== false);
+check('Gateway-Formular: "Über dieses Modul" steht ganz unten', (end($formGw['elements'])['caption'] ?? '') === '🧡  Über dieses Modul');
+
+$fnGw = $gw->GetFunctions();
+$GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
+$fnTcp = (new WPModbusHub())->GetFunctions();
+check('Vertrag: Gateway- und TCP-Modul liefern dieselben Vertragsfelder', array_keys($fnGw[0]) === array_keys($fnTcp[0]));
+check('Vertrag: Gateway-Modul Type=heatpump, contractVersion 1.15', ($fnGw[0]['Type'] ?? '') === 'heatpump' && ($fnGw[0]['contractVersion'] ?? '') === '1.15');
+check('Registerkarten sind geteilt (eine Quelle der Wahrheit)', WPModbusHub::DRIVERS === WPModbusHubGateway::DRIVERS && WPModbusHub::DRIVERS === WPMBHUB_Drivers::DRIVERS);
+
+// module.json des Gateway-Moduls: verifizierte Schnittstellen
+$mj = json_decode(file_get_contents(__DIR__ . '/../WPModbusHubGateway/module.json'), true);
+check('module.json: parentRequirements = verifizierte Gateway-DataID', ($mj['parentRequirements'] ?? []) === ['{E310B701-4AE7-458E-B618-EC13A1A6F6A8}']);
+check('module.json: implemented = RX-Typ des Gateways (an Kinder)', ($mj['implemented'] ?? []) === ['{77B31ABB-18FA-4B91-BB63-E5B2AB5588F4}']);
+check('module.json: Klassenname = name, Praefix WPMBGW', ($mj['name'] ?? '') === 'WPModbusHubGateway' && ($mj['prefix'] ?? '') === 'WPMBGW');
 
 // ---------------------------------------------------------------------------
 echo "\n";
