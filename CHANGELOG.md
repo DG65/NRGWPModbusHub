@@ -1,5 +1,9 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.4.1 (Build 7) — 18.09.2026
+
+- **Waterkotte teilweise an einer laufenden Anlage gegengeprüft.** Die Register für Außen-, Vorlauf-, Rücklauf-, Speicher- und Heizkreistemperatur (Adresse 1, 12, 11, 16, 30) laufen an einer produktiven Waterkotte-Anlage per Symcon auf denselben Adressen als int16 mit Faktor 0,1 — Adressierung, Datentyp und Faktor sind damit für diese fünf bestätigt. Warmwasser Ist/Soll und Heizzone Soll (19/37/31) stammen weiterhin nur aus dem PDF. Nur Hinweistext im Formular angepasst, keine Registeränderung.
+
 ## 0.4.0 (Build 6) — 18.09.2026
 
 - **Siebter Hersteller: Proxon T300 (Zimmermann Lüftungs- und Wärmesysteme).** Registerkarte aus Zimmermanns eigener Kunden-Excel für die T300-Trinkwasser-Wärmepumpe (vom Nutzer "Ghostraider" bereitgestellt) — bewusst nur zwei Register übernommen, deren Skalierung eindeutig aus der Tabelle hervorgeht (`Warmwasser`, `WarmwasserSoll`). Bewusst NICHT enthalten: die Tankfühler mit unklarer Offset-Formel, die FWT-Lüftungszentrale (Zu-/Abluft-Wärmepumpe ohne Vorlauf/Rücklauf, passt konzeptionell nicht ins Feldschema) und jede Steuerung. **Proxon spricht nativ Modbus RTU über einen seriellen Anschluss, nicht Modbus TCP** — diese Registerkarte setzt ein RS485-zu-Ethernet-Gateway im „Modbus TCP zu RTU"-Modus voraus. Native serielle Unterstützung (IP-Symcons eingebauter Modbus-Splitter) wurde recherchiert, aber die dafür nötigen SDK-Details ließen sich nicht verlässlich verifizieren — bewusst nicht geraten umgesetzt.

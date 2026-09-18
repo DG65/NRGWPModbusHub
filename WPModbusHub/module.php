@@ -138,7 +138,7 @@ class WPModbusHub extends IPSModule
         // auf die BMS-Vorgabe-Register A32/A38 -- dieses Modul schreibt nicht.
         'waterkotte' => [
             'caption'      => 'Waterkotte (EcoTouch-Regler)',
-            'confidence'   => 'Registerkarte direkt aus Waterkottes eigenem PDF "Software Technische Information -- Modbus/TCP" (Firmware 01.07.xx) -- nicht an echter Hardware verifiziert.',
+            'confidence'   => 'Registerkarte direkt aus Waterkottes eigenem PDF "Software Technische Information -- Modbus/TCP" (Firmware 01.07.xx). Außen-, Vorlauf-, Rücklauf-, Speicher- und Heizkreistemperatur sind zusätzlich an einer laufenden Anlage gegengeprüft; Warmwasser Ist/Soll und Heizzone Soll stammen nur aus dem PDF.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
             'registers'    => [

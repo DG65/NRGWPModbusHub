@@ -169,14 +169,45 @@ generisches Feld** `Speichertemperatur` → `bufferTempID`, nicht Waterkotte-
 spezifisch), Warmwasser Ist/Soll (A19/A37 — A37 statt der BMS-Schreibregister
 A32/A38, da dieses Modul nicht schreibt) und Heizzone 1 Ist/Soll (A30/A31).
 
-**Noch nicht eingearbeitet:** Der Techniker-E-Mail-Screenshot zeigte zusätzlich
-Mischkreis-spezifische Register (`T_SP_norm`, `T_Os`, `T_SP_Os`, `T_SP_max`,
-`C_T_Os`, `C_T_SP_Os`, `Flow_Limit` — vermutlich zweiter Heizkreis/Mischerkreis-
-Sollwertlogik), die im Basis-PDF nicht enthalten sind. Diese Adressen lagen nur als
-Screenshot vor und waren zum Zeitpunkt dieser Ergänzung nicht mehr im Kontext
-verfügbar — bewusst nicht geraten übernommen. Bei Bedarf (zweiter Heizkreis/Mischer
-als eigenes Feld) den Screenshot erneut vorlegen lassen und gegen das Basis-PDF
-plausibilisieren, bevor Adressen ins Registerprofil wandern.
+**Gegenprobe an einer laufenden Anlage (18.09.2026, EMS-Sitzung):** Die EMS-Sitzung hat
+aus der Symcon-Konfiguration von Dietmars Geschäftsanlage (Waterkotte produktiv per
+Modbus TCP, nur lesend ausgelesen, keine zusätzlichen Abfragen) eine 72-Register-Tabelle
+erstellt: `/Users/dietmar/Nextcloud/Claude/Waterkotte-Registertabelle.md` (Praxis-Zuordnung
+von Hand in Symcon gebaut, KEIN Herstellerdokument; Datentypen aus den Werten abgeleitet;
+"schreibbar" = nur ein Schreib-FC eingetragen, nie geprüft; keine Netzwerkadressen im Repo
+übernehmen). Ergebnis für unsere Registerkarte: **Adresse 1, 11, 12, 16, 30**
+(Außen-/Rücklauf-/Vorlauf-/Speicher-/Heizkreistemperatur) laufen dort produktiv als
+int16 mit Faktor 0,1 auf den gleichen Adressen wie im PDF -- damit ist Adressierung
+(BMS-Adresse = Wire-Adresse, Symcon reicht sie 1:1 durch), Datentyp und Faktor für diese
+fünf Register an echter Hardware bestätigt. **Nicht abgedeckt** (dort nicht konfiguriert,
+bleiben PDF-only): 19 (Warmwasser Ist) und 31 (Heizzone Soll). Register 37 ist dort als
+"Speichertemperatur Soll" beschriftet (Wert 0,0, die Anlage hat vermutlich kein
+Warmwasser) -- PDF nennt es "geforderte Warmwassertemperatur", Bedeutung Speicher-Soll
+vs. Warmwasser-Soll bleibt also mehrdeutig.
+
+**Mischkreis-Rätsel aus dem Techniker-Screenshot gelöst:** Die Datenpunkt-Nummern in der
+Techniker-Mail (275/276/277/278/286/287/288 für Mixer1, +46 je Kreis) sind exakt die
+Wire-Adressen der laufenden Anlage (Techniker-"Adresse" = Datenpunkt+1 ist die
+1-basierte Registernummer). Und `T_Os` ist NICHT die Außentemperatur (eigene frühere
+Vermutung, falsch), sondern die **Heizgrenze**: Es ist eine native **Zwei-Punkt-Heizkurve
+je Mischerkreis (3 Kreise)** -- 274/320/366 T Norm-Außen (-15 °C), 275/321/367 Vorlauf bei
+Norm-Außen (`T_SP_norm`), 276/322/368 Heizgrenze (`T_Os`, 16 °C), 277/323/369 Vorlauf bei
+Heizgrenze (`T_SP_Os`), 278/324/372 max. Vorlauf (`T_SP_max`); Kühlen: 286/332/378 Außen-
+Einsatzgrenze, 287/333/379 Kühltemperatur, 288/334/380 Min-Vorlauf (`Flow_Limit`). Dass
+alle drei Mischer im Techniker-Screenshot identische Werte zeigten, waren schlicht
+Werkseinstellungen. Lesen läuft produktiv, Schreib-FC 6 ist in Symcon eingetragen ("teils
+Schreiben" laut Anlage), aber NICHT als funktionierend geprüft. Weitere Praxis-Register
+ohne PDF-Beleg: 44-49 Vorlauf Ist/Soll Kreis 1-3, 510/512/514 Mischerventile, 58/703-705
+Verdichterleistung, 5011 Betriebsstunden, Coils 796-799 = SG 1..4 (EVU-Sperre,
+Normalbetrieb, Sollwerterhöhung, Zwangslauf; SG-Ready-artiger Einstieg, Polarität von
+"An" ungeklärt).
+
+**Noch nicht eingearbeitet, bewusst:** Zone 2/3 (44-49; unklar, ob Mischerkreis 1 =
+Zone 2 im Vertragssinn), Heizkurven-Register (kein Vertragsfeld dafür -- siehe Abschnitt
+"Heizkurven-Recherche für Dashboard"), SG-Coils (Steuerung, dieses Modul ist nur lesend).
+Waterkotte ist damit ein NEUER, bislang nicht an Dashboard gemeldeter Heizkurven-Kandidat
+mit dem gewünschten Zwei-Punkt-Modell -- Meldung erst, wenn Schreiben an echter Hardware
+geprüft ist (Dashboard-Vorgabe), vorher nur mit Dietmars Rücksprache.
 
 ## IDM-Ergänzung (18.09.2026)
 
