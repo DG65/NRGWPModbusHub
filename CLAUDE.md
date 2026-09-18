@@ -69,6 +69,18 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
   geprüft, aber keine ausreichend konkrete/verlässliche Registerkarte gefunden bzw. Zeit
   gefehlt, sie zu verifizieren. Bewusst nicht mit geratenen Adressen aufgenommen. Nächste
   Kandidaten, sobald sich dafür Zeit/ein Tester findet.
+- **Proxon** (Zimmermann Lüftungs- und Wärmesysteme GmbH & Co. KG, eigenständiger
+  Hersteller, weit verbreitet in deutschen Fertighäusern über Einbaupartner wie
+  WeberHaus/Fingerhaus — KEIN Rebrand eines bereits unterstuetzten Herstellers,
+  18.09.2026 recherchiert nach Forumsanfrage "Ghostraider"). Modbus (nativ RS485 an
+  Port X6 der FWT-Lüftungs-/Wärmepumpenzentrale, Slave-ID 41) sitzt an der FWT
+  1.x/2.0-Einheit, dazu separat eine Trinkwasser-Wärmepumpe T300. Zimmermann hat
+  offenbar offizielle Modbus-Doku ("Kurzbeschreibung GLT-Schnittstelle FWT2.0" +
+  Registerliste als Excel), aber NICHT oeffentlich online -- nur auf Kundenanfrage,
+  kursiert informell in einem Home-Assistant-Forumsthread. Bewusst NICHT von dort
+  uebernommen (unklare Weitergabeberechtigung einer als kundenexklusiv markierten
+  Herstellerdoku) -- Forumsnutzer gebeten, die Datei selbst bei Zimmermann anzufragen
+  oder seine eigene laufende Registerliste zu teilen.
 - ~~Kein Forum-Hinweis-Panel~~ — erledigt 18.09.2026: Thread ist live
   (https://community.symcon.de/t/modul-nrg-stack-wpmodbushub-lokale-modbus-anbindung-fuer-waermepumpen-mehrerer-hersteller-nibe-stiebel-eltron-lg-samsung/144421),
   Panel `ForumHint()`/`AckForumHint()` verlinkt (0.1.2).
