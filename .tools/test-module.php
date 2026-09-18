@@ -443,19 +443,34 @@ $fakeIdmPartial->values = ['input:1000' => 13107, 'input:1001' => 16643, 'input:
 $valuesIdmPartial = $readRegisters->invoke($mod, WPModbusHub::DRIVERS['idm']['registers'], $fakeIdmPartial);
 check('IDM: unvollstaendiges Float32-Paar liefert kein Feld (kein Halb-Wert)', !array_key_exists('Vorlauftemperatur', $valuesIdmPartial) && round($valuesIdmPartial['Aussentemperatur'] ?? 0, 3) === 8.2);
 
-// Proxon: nur zwei Register, unterschiedliche Skalierung (Faktor 100 fuer
-// Warmwasser-Ist, Faktor 10 fuer WarmwasserSoll) -- beides normale
-// Ganzzahlregister, kein Float32/Offset (die unsicheren Tankfuehler sind
-// bewusst nicht im Registerprofil).
+// Proxon: vier Register. Warmwasser Ist (Faktor 100) und Soll (Faktor 10) ohne
+// Offset, die beiden Behaelterfuehler mit Offset -100 (°C = Roh/10 - 100).
+// Rohwerte 1412/1454 stammen aus dem Livetest an einer echten T300 (19.09.2026,
+// Display 41,3 bzw. 45,4 °C).
 $fakeProxon = new FakeModbusClient('192.168.1.56', 502, 41);
 $fakeProxon->values = [
     'input:882'    => 4650, // Warmwasser (BehaelterAvg) 46.5°C
     'holding:2000' => 480,  // WarmwasserSoll (Normal Wassertemperatur) 48.0°C
+    'input:813'    => 1412, // T20 Behaelter unten: 1412/10 - 100 = 41.2
+    'input:814'    => 1454, // T21 Behaelter Mitte: 1454/10 - 100 = 45.4
 ];
 $valuesProxon = $readRegisters->invoke($mod, WPModbusHub::DRIVERS['proxon']['registers'], $fakeProxon);
-check('Proxon: beide Felder korrekt dekodiert (Faktor 100 bzw. 10)', $valuesProxon === [
-    'Warmwasser' => 46.5, 'WarmwasserSoll' => 48.0,
+check('Proxon: vier Felder korrekt dekodiert (Faktor 100/10, Offset -100)', array_map(fn($v) => round($v, 3), $valuesProxon) === [
+    'Warmwasser' => 46.5, 'WarmwasserSoll' => 48.0, 'WarmwasserUnten' => 41.2, 'WarmwasserMitte' => 45.4,
 ], json_encode($valuesProxon));
+
+// Offset-Pfad einzeln, inkl. Vorspannungs-Randfaelle (0 °C und unter null).
+$offsetDef = ['regType' => 'input', 'addr' => 1, 'scale' => 10, 'signed' => false, 'offset' => -100];
+$fakeOff = new FakeModbusClient('x', 502, 1);
+foreach ([1000 => 0.0, 900 => -10.0, 1412 => 41.2] as $raw => $expect) {
+    $fakeOff->values = ['input:1' => $raw];
+    $v = $readRegisters->invoke($mod, ['T' => $offsetDef], $fakeOff);
+    check("Offset: Roh $raw -> $expect °C", abs(($v['T'] ?? 999) - $expect) < 0.0001, json_encode($v));
+}
+// Ohne 'offset' bleibt das Verhalten unveraendert (Rueckwaertskompatibilitaet).
+$fakeOff->values = ['input:1' => 470];
+$vNoOff = $readRegisters->invoke($mod, ['T' => ['regType' => 'input', 'addr' => 1, 'scale' => 10, 'signed' => true]], $fakeOff);
+check('Offset: ohne offset-Schluessel unveraendert (47.0)', ($vNoOff['T'] ?? null) === 47.0);
 
 // Teilausfall: ein Register liefert null, die uebrigen bleiben nutzbar.
 $fakePartial = new FakeModbusClient('192.168.1.50', 502, 1);
@@ -688,8 +703,10 @@ check('Gateway-Modul: aktiv mit Gateway -> Status 102', $gw->status === 102);
 // Proxon-Karte durch die Gateway-Strecke
 $GLOBALS['ips']['properties']['Manufacturer'] = 'proxon';
 $log = [];
-$GLOBALS['ips']['parentResponder'] = makeGatewayResponder(['input:882' => 4650, 'holding:2000' => 480], $log);
+$GLOBALS['ips']['parentResponder'] = makeGatewayResponder(['input:882' => 4650, 'holding:2000' => 480, 'input:813' => 1412, 'input:814' => 1454], $log);
 $gw->Update();
+check('Gateway-Modul: Behaelterfuehler unten/Mitte mit Offset ueber Gateway (41.2 / 45.4)',
+    abs(($GLOBALS['ips']['variables']['WarmwasserUnten']['value'] ?? 0) - 41.2) < 0.001 && abs(($GLOBALS['ips']['variables']['WarmwasserMitte']['value'] ?? 0) - 45.4) < 0.001);
 check('Gateway-Modul: Proxon Warmwasser Ist/Soll ueber Gateway korrekt (46.5 / 48.0)',
     ($GLOBALS['ips']['variables']['Warmwasser']['value'] ?? null) === 46.5 && ($GLOBALS['ips']['variables']['WarmwasserSoll']['value'] ?? null) === 48.0);
 check('Gateway-Modul: Erfolg -> Erreichbar true, Status 102', ($GLOBALS['ips']['variables']['Erreichbar']['value'] ?? null) === true && $gw->status === 102);

@@ -58,7 +58,7 @@ trait WPMBHUB_HeatpumpTrait
                 // int/int-Werten sonst wieder einen int zurueck (z.B. 470/10 =
                 // int 47 statt float 47.0) -- MaintainVariable() erwartet einen
                 // durchgehend gleichartigen Typ je Ident.
-                $out[$ident] = (float)$raw / $scale;
+                $out[$ident] = (float)$raw / $scale + (float)($def['offset'] ?? 0);
             }
         }
         if ($anyAttempt && !$anySuccess) {
@@ -79,6 +79,8 @@ trait WPMBHUB_HeatpumpTrait
             'Ruecklauftemperatur' => 'Rücklauftemperatur',
             'Warmwasser'          => 'Warmwasser',
             'WarmwasserSoll'      => 'Warmwasser Sollwert',
+            'WarmwasserUnten'     => 'Warmwasser unten',
+            'WarmwasserMitte'     => 'Warmwasser Mitte',
             'Speichertemperatur'  => 'Pufferspeichertemperatur',
             'Zone1Ist'            => 'Heizzone 1 Isttemperatur',
             'Zone1Soll'           => 'Heizzone 1 Solltemperatur',

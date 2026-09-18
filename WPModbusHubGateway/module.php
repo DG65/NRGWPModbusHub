@@ -31,7 +31,7 @@ class WPModbusHubGateway extends IPSModule
 {
     use WPMBHUB_HeatpumpTrait;
 
-    const NEWS_VERSION = '0.5.0';
+    const NEWS_VERSION = '0.6.0';
     const DRIVERS = WPMBHUB_Drivers::DRIVERS;
     const MANUFACTURER_DEFAULT = WPMBHUB_Drivers::MANUFACTURER_DEFAULT;
 
@@ -113,6 +113,7 @@ class WPModbusHubGateway extends IPSModule
                 'expanded' => true,
                 'items'    => [
                     ['type' => 'Label', 'caption' => '• Erste Version: Wärmepumpen über Symcons ModBus-Gateway auslesen -- damit geht auch RS485/Modbus RTU an einem seriellen Anschluss, z. B. Proxon per USB-RS485-Dongle.'],
+                    ['type' => 'Label', 'caption' => '• Proxon T300 an einer echten Anlage bestätigt: Warmwasser Ist/Soll und die beiden Behälterfühler (unten/mitte) stimmen mit dem Display überein.'],
                     ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBGW_AckNews($id);'],
                 ],
             ]);

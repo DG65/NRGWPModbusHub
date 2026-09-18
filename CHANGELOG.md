@@ -1,5 +1,10 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.6.0 (Build 10) — 19.09.2026
+
+- **Proxon T300: alle Register am Display einer echten Anlage bestätigt, Behälterfühler aufgenommen.** Ghostraider hat drei Vergleiche geliefert: Register 4x0882 (BehaelterAvg, Faktor 100) = 48,8 = Display; Register 3x2000 (Warmwasser-Sollwert) roh 250 = 25 °C am Regler (Faktor 10); T21 (4x0814) roh 1454 = 45,4 °C exakt wie im Display, T20 (4x0813) roh 1412 = 41,2 gegen Display 41,3 (0,1 Messzeitversatz). Damit gilt die Vorspannungskodierung °C = Roh/10 − 100 für die Tankfühler, und `WarmwasserUnten`/`WarmwasserMitte` sind neu im Profil (eigene Variablen, nicht im NRG-Stack-Vertrag). Für negative Werte ist die Formel nur extrapoliert, deshalb bleiben die Kältekreisfühler (T5/T6/T9 …), die im Winter unter null gehen, bewusst draußen.
+- **Registerschema um optionales `'offset'` erweitert** (Wert = Roh/scale + offset, nur Proxon nutzt es). Ohne den Schlüssel unverändertes Verhalten, per Test abgesichert; Wirksamkeit per Mutation geprüft. Tests: 99 → 104.
+
 ## 0.5.1 (Build 9) — 19.09.2026
 
 - **WPModbusHubGateway an einer echten Anlage bestätigt.** Proxon-Nutzer „Ghostraider“ hat „Verbindung testen“ an einer T300 über USB-RS485 (Serial Port → ModBus Gateway, Geräte-ID 41) ausgeführt: Antwort `0x04021310` = Function 4, 2 Datenbytes, 4880 → Warmwasser 48,8 °C, Kopfprüfung „ja“. Damit sind Anfrageschema, Antwortkopf und Dekodierung über den Gateway-Weg live bestätigt, nicht mehr nur gegen das Referenzmodul gelesen. Zusätzlich `WPMBGW_ReadRaw` genutzt: Register 4x0813 (T20 Behälter unten) roh 1412, Display 41,3 °C — passt zur Arbeitshypothese °C = Roh/10 − 100 (41,2 °C, 0,1 Abweichung durch Messzeitpunkt). Nur ein Wertepaar bei positiver Temperatur, deshalb sind die Offset-Register (T20/T21 …) noch nicht im Profil. Nur Hinweistexte und Doku geändert.

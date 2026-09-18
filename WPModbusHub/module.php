@@ -52,7 +52,7 @@ class WPModbusHub extends IPSModule
 {
     use WPMBHUB_HeatpumpTrait;
 
-    const NEWS_VERSION = '0.5.0';
+    const NEWS_VERSION = '0.6.0';
 
     // Registerkarten je Hersteller stehen in libs/WPMBHUB_Drivers.php (geteilt mit
     // WPModbusHubGateway); Schema-Beschreibung dort.
@@ -151,6 +151,7 @@ class WPModbusHub extends IPSModule
                 'expanded' => true,
                 'items'    => [
                     ['type' => 'Label', 'caption' => '• Neues Schwestermodul WPModbusHubGateway: dieselben Wärmepumpen über Symcons ModBus-Gateway statt eigener Netzwerkverbindung -- damit geht auch RS485/Modbus RTU an einem seriellen Anschluss (z. B. USB-RS485-Dongle). Dazu neu: Proxon T300 als siebter Hersteller.'],
+                    ['type' => 'Label', 'caption' => '• Proxon T300: jetzt auch die beiden Behälterfühler (unten/mitte), alle Register am Display einer echten Anlage geprüft.'],
                     ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBHUB_AckNews($id);'],
                 ],
             ]);

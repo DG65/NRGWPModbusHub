@@ -55,7 +55,7 @@ einer reinen Forenzusammenfassung:
 | Samsung EHS | Community-Sammlung, beruft sich auf Samsungs offizielle MIM-B19N-Anleitung (DB68-07538A) | mittel |
 | Waterkotte | Direkt aus Waterkottes eigenem PDF „Software Technische Information -- Modbus/TCP" (Firmware 01.07.xx, 07.2017), von Dietmar besorgt | hoch |
 | IDM Energiesysteme | Direkt aus IDMs eigenem PDF „Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10, 20.04.2022), selbst gelesen inkl. Datentypen-Kapitel, gilt fuer alle IDM-WP mit Navigator-2.0-Regelung (inkl. ALM) | hoch |
-| Proxon T300 | Direkt aus Zimmermanns eigener Kunden-Excel, von Nutzer "Ghostraider" per PN erhalten (18.09.2026) -- NUR die zwei Register mit eindeutiger Skalierung uebernommen | hoch (fuer die zwei Felder), NICHT der Rest der Tabelle |
+| Proxon T300 | Direkt aus Zimmermanns eigener Kunden-Excel, von Nutzer "Ghostraider" per PN erhalten (18.09.2026), vier Register am 19.09.2026 an einer echten Anlage gegen das Display geprueft | hoch (vier Felder, live bestaetigt), NICHT der Rest der Tabelle |
 
 Bewusst **nicht** übernommen: Register, deren Ist/Soll-Richtung in der Quelle selbst
 unklar/auskommentiert war (z. B. ein Samsung-Warmwasser-Register) — lieber weniger Felder
@@ -188,6 +188,13 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
   4x0882 vs. Display + 3x2000 per `WPMBGW_ReadRaw($id, 3, 2000, 1)`; dann T20/T21 als eigene
   Idents (`WarmwasserUnten`/`WarmwasserMitte`, Vertrag kennt sie nicht) mit neuem optionalem
   `'offset' => -100` im Registerschema aufnehmen.
+
+  **Update 19.09.2026 (sechster Nachtrag) -- alle Proxon-Kontrollen bestanden, T20/T21
+  aufgenommen (0.6.0).** Ghostraider: 4x0882 = Display 48,8; 3x2000 roh 250 = Sollwert
+  25 °C; T21 (4x0814) roh 1454 = 45,4 exakt, T20 (4x0813) roh 1412 = 41,2 vs. 41,3. Neues
+  Schema-Feld `'offset'` (Wert = Roh/scale + offset), neue Idents `WarmwasserUnten`/
+  `WarmwasserMitte`. Negative Werte nur extrapoliert -- Kältekreisfühler (T5/T6/T9) und die
+  FWT-Zentrale bleiben draußen, bis dort ein Wert unter null gegengeprüft ist.
 
 - ~~Kein Forum-Hinweis-Panel~~ — erledigt 18.09.2026: Thread ist live
   (https://community.symcon.de/t/modul-nrg-stack-wpmodbushub-lokale-modbus-anbindung-fuer-waermepumpen-mehrerer-hersteller-nibe-stiebel-eltron-lg-samsung/144421),

@@ -1,7 +1,7 @@
 # WPModbusHub — lokale Modbus-Anbindung für Wärmepumpen (IP-Symcon)
 
 ![Symcon](https://img.shields.io/badge/Symcon-PHPModul-blue)
-![Modul Version](https://img.shields.io/badge/Modul_Version-0.5.1-blue)
+![Modul Version](https://img.shields.io/badge/Modul_Version-0.6.0-blue)
 ![Symcon Version](https://img.shields.io/badge/Symcon_Version-9.0%2B-blue)
 ![License](https://img.shields.io/badge/License-PolyForm_Noncommercial_1.0.0-lightgrey)
 [![Check Style](https://github.com/DG65/NRGWPModbusHub/actions/workflows/check-style.yml/badge.svg)](https://github.com/DG65/NRGWPModbusHub/actions/workflows/check-style.yml)
@@ -26,7 +26,7 @@ Zwei Module in einer Bibliothek, gleiche Registerkarten, gleicher Vertrag, nur d
 
 ## Status
 
-Stand 0.5.1 (19.09.2026) — **bewusst nur lesend** (keine Steuerbefehle) und **bei keinem der sieben Hersteller vollständig an echter Hardware verifiziert** (bei Waterkotte sind fünf Temperaturregister durch eine laufende Anlage gegengeprüft). Die Registerkarten stammen so weit wie möglich aus offizieller Herstellerdokumentation oder einer von der jeweiligen Smart-Home-Plattform offiziell übernommenen Referenzimplementierung:
+Stand 0.6.0 (19.09.2026) — **bewusst nur lesend** (keine Steuerbefehle) und **bei den meisten der sieben Hersteller noch nicht an echter Hardware verifiziert** (bestätigt: Proxon T300 vollständig, Waterkotte fünf Temperaturregister). Die Registerkarten stammen so weit wie möglich aus offizieller Herstellerdokumentation oder einer von der jeweiligen Smart-Home-Plattform offiziell übernommenen Referenzimplementierung:
 
 - **NIBE** (S-Serie, z. B. S1155/S1255/S2125) — Registerkarte aus einer aktiv gepflegten, unabhängigen Referenzbibliothek für NIBE-Wärmepumpen.
 - **Stiebel Eltron** (ISG-Gateway, WPMsystem/WPM3/WPM3i/LWZ) — Registerkarte direkt aus dem offiziellen Stiebel-Eltron-PDF „ISG Modbus"-Bedienungsanleitung.
@@ -34,7 +34,7 @@ Stand 0.5.1 (19.09.2026) — **bewusst nur lesend** (keine Steuerbefehle) und **
 - **Samsung EHS** (über das offizielle Zubehör-Modul MIM-B19N) — Registerkarte aus einer Community-Sammlung, die sich auf Samsungs offizielle MIM-B19N-Installationsanleitung beruft. Gilt **nicht** für die RS485/NASA-Route ohne dieses Modul (dafür wäre ein anderes, eigenes Modul nötig).
 - **Waterkotte** (EcoTouch-Regler, eingebaute Modbus/TCP-Schnittstelle) — Registerkarte direkt aus Waterkottes eigenem PDF „Software Technische Information — Modbus/TCP".
 - **IDM Energiesysteme** (Navigatorregelung 2.0, z. B. ALM-Serie) — Registerkarte direkt aus IDMs eigenem PDF „Modbus TCP Navigatorregelung 2.0". Einziger Hersteller dieser Liste mit 32-Bit-Fließkommawerten statt Ganzzahl×Faktor.
-- **Proxon T300** (Zimmermann Lüftungs- und Wärmesysteme, Trinkwasser-Wärmepumpe) — zwei Register aus Zimmermanns Kunden-Registerliste. Spricht nativ Modbus RTU über einen seriellen Anschluss, nicht TCP — braucht ein RS485-zu-Ethernet-Gateway im „Modbus TCP zu RTU"-Modus davor. Die FWT-Lüftungszentrale (Zu-/Abluft, kein Vorlauf/Rücklauf) ist bewusst nicht enthalten.
+- **Proxon T300** (Zimmermann Lüftungs- und Wärmesysteme, Trinkwasser-Wärmepumpe) — vier Register aus Zimmermanns Kunden-Registerliste (Warmwasser Ist/Soll, Behälterfühler unten/mitte), alle an einer echten Anlage gegen das Display geprüft. Spricht nativ Modbus RTU über einen seriellen Anschluss, nicht TCP — braucht ein RS485-zu-Ethernet-Gateway im „Modbus TCP zu RTU"-Modus davor. Die FWT-Lüftungszentrale (Zu-/Abluft, kein Vorlauf/Rücklauf) ist bewusst nicht enthalten.
 
 **Ausgelesen werden aktuell nur Temperaturen** (Außentemperatur, Vorlauf, teils Rücklauf/Warmwasser/Pufferspeicher/Heizzone) — noch keine Leistungs- oder Energiezähler.
 
