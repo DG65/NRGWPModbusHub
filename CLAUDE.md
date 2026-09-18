@@ -265,6 +265,16 @@ gelegt statt auf einen der beiden Speicherfühler (1012 unten/1014 oben) -- näh
 hart durch die PDF vorgegeben; bei einer echten Verifikation gegenprüfen, ob das dem
 Nutzererwartung entspricht.
 
+## Discovery durch Konsumenten (19.09.2026)
+
+Dashboard (Build 159, `HEATPUMP_SOURCES` in NRGDashboardWPMonitor/HeatSchema) kennt
+WPModbusHub, WPModbusHubGateway und SamsungEhs jetzt per GUID => Funktion. Generische
+Suche über alle `*_GetFunctions` hat Dashboard bewusst NICHT gebaut (fremde Vertragsfunktionen
+blind aufzurufen ist riskanter) -- weitere Quellen brauchen dort eine Zeile. Tile-Energiefluss
+kennt weiter nur HeishaMon (braucht PowerID, unsere Module liefern 0); fehlende Felder (0)
+blendet die Kachel aus. EMS sucht bislang nur HeishaMon (`discoverContract`), Aufnahme angefragt,
+Antwort steht aus.
+
 ## Heizkurven-Recherche für Dashboard (18.09.2026)
 
 Dashboard-Sitzung wollte einen einheitlichen `*_GetHeatingCurve`/`*_SetHeatingCurve`-Vertrag

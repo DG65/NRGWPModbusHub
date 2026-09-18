@@ -34,10 +34,10 @@ require_once __DIR__ . '/../libs/WPMBHUB_HeatpumpTrait.php';
 //
 // Vertrag WPHUB_GetFunctions()-kompatibel: Type=>'heatpump', contractVersion
 // 1.15, dieselben Feldnamen/Idents wie WPHub (siehe DG65/NRGWPHub) -- EMS/
-// Dashboard koennen alle Waermepumpen-Datenquellen identisch behandeln -- sobald
-// sie das Modul kennen: Stand 19.09.2026 suchen beide noch per fester GUID-Liste
-// nur HeishaMon/WPHub, Aufnahme von WPModbusHub/WPModbusHubGateway/SamsungEhs
-// ist bei Dashboard und EMS angefragt.
+// Dashboard koennen alle Waermepumpen-Datenquellen identisch behandeln. Stand
+// 19.09.2026: Dashboard (WPMonitor/HeatSchema) kennt WPModbusHub,
+// WPModbusHubGateway und SamsungEhs per GUID-Liste, EMS ist angefragt (sucht
+// bislang nur HeishaMon).
 //
 // Registerkarten-Herkunft (siehe DRIVERS-Kommentare je Hersteller) --
 // KEINE davon an echter Hardware verifiziert (kein Testkonto/-geraet
