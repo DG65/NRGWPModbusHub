@@ -99,6 +99,26 @@ verfügbar — bewusst nicht geraten übernommen. Bei Bedarf (zweiter Heizkreis/
 als eigenes Feld) den Screenshot erneut vorlegen lassen und gegen das Basis-PDF
 plausibilisieren, bevor Adressen ins Registerprofil wandern.
 
+## Heizkurven-Recherche für Dashboard (18.09.2026)
+
+Dashboard-Sitzung wollte einen einheitlichen `*_GetHeatingCurve`/`*_SetHeatingCurve`-Vertrag
+fuer WPHub/WPModbusHub/SamsungEhs klaeren (Belege siehe Chat-Transkript). Ergebnis fuer
+WPModbusHub: **NIBE** hat eine eigene 7-Punkt-Kurve (Reg. 39-45, R/W) UND ein einfaches
+Steigung+Offset-Paar je Klimasystem 1-3 (Reg. 24/28 usw., R/W) -- beste Quellenlage dieser
+Liste. **Stiebel Eltron** hat ein Steigungsregister (41504, Faktor 0.01, Holding R/W), aber
+HK2-Aequivalent und Wertebereich nicht sauber belegt (PDFs nicht textextrahierbar).
+**LG Therma V:** nichts gefunden, die aktiv gepflegte Community-Doku kennt keine
+Kurvenregister. **Samsung (MIM-B19N Modbus):** unklar, vermutete Register 89-91 nicht
+verlaesslich belegt.
+
+**Dietmars Entscheidung (Dashboard, 18.09.2026):** WPMonitor-Heizkurven-Reiter v1 wird NUR
+gegen HeishaMon gebaut. WPModbusHub bekommt **keinen Zeitdruck** -- Dashboard-Vertrag
+erhaelt Kapazitaetsfelder (`curveModel`/`curveWritable`) fuer spaeteres Andocken ohne
+UI-Umbau. Vor einem `SetHeatingCurve()`-Bau: Register-Schreibbarkeit erst an echter
+NIBE/Stiebel-Eltron-Hardware verifizieren (KEINER der vier WPModbusHub-Hersteller ist Stand
+heute an echter Hardware getestet, siehe Registerkarten-Tabelle oben) -- dann von uns aus bei
+Dashboard melden.
+
 ## Branch-Modell
 
 `ems-integration` bleibt der aktive Entwicklungsbranch. Seit 18.09.2026 existiert zusätzlich
