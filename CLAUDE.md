@@ -288,11 +288,8 @@ Vorschlag jetzt Trinkwassererwaermer oben (1014, B48) statt 1030 (0.6.1). Offen:
 ob 1014 an seiner Anlage einen sinnvollen Wert liefert; optional 1012 (unten, B41) als
 `WarmwasserUnten` aufnehmen (Ident existiert seit Proxon).
 
-Warmwasser-Ist bewusst auf die Zapftemperatur (Adresse 1030, "Warmwasserzapftemperatur B42")
-gelegt statt auf einen der beiden Speicherfühler (1012 unten/1014 oben) -- näher am
-"was kommt aus dem Hahn"-Sinn der Warmwasser-Felder bei den anderen Herstellern, aber nicht
-hart durch die PDF vorgegeben; bei einer echten Verifikation gegenprüfen, ob das dem
-Nutzererwartung entspricht.
+(Ursprünglich lag Warmwasser-Ist auf der Zapftemperatur 1030 -- "was kommt aus dem Hahn" --,
+das war ohne Warmwasserstation nicht lesbar; seit 0.6.1 Speicherfühler oben, siehe oben.)
 
 ## Statuszeile im Formular (0.7.0, 21.09.2026)
 
