@@ -52,7 +52,7 @@ class WPModbusHub extends IPSModule
 {
     use WPMBHUB_HeatpumpTrait;
 
-    const NEWS_VERSION = '0.6.0';
+    const NEWS_VERSION = '0.7.0';
 
     // Registerkarten je Hersteller stehen in libs/WPMBHUB_Drivers.php (geteilt mit
     // WPModbusHubGateway); Schema-Beschreibung dort.
@@ -75,6 +75,10 @@ class WPModbusHub extends IPSModule
         $this->RegisterAttributeBoolean('PurposeIntroGone', false);
         $this->RegisterAttributeString('SeenNews', '');
         $this->RegisterAttributeInteger('LastSeenAt', 0);
+        // Fuer die Statuszeile im Formular: Zeitpunkt des letzten Lesezyklus (auch
+        // erfolglos) und die dabei nicht gelesenen Felder (Idents, Komma-getrennt).
+        $this->RegisterAttributeInteger('LastCycleAt', 0);
+        $this->RegisterAttributeString('LastMissing', '');
         // Einmalig dismissible Forum-Hinweis (SUITE.md "Einheitliche Formular-
         // Optik", Forumsthread seit 18.09.2026 live), siehe ForumHint().
         $this->RegisterAttributeBoolean('ForumHintGone', false);
@@ -120,6 +124,26 @@ class WPModbusHub extends IPSModule
         $this->UpdateFormField('Port', 'value', $driver['defaultPort']);
         $this->UpdateFormField('UnitId', 'value', $driver['defaultUnitId']);
         $this->UpdateFormField('ManufacturerConfidence', 'caption', 'ℹ️ ' . $driver['confidence']);
+        // Die Statuszeile beschreibt den GESPEICHERTEN Hersteller -- folgt sie der
+        // Auswahl nicht, zeigt sie Werte eines Profils, das gar nicht mehr gewählt ist.
+        if ($manufacturer !== $this->ReadPropertyString('Manufacturer')) {
+            $this->UpdateFormField('ConnectionStatus', 'caption', 'ℹ️ Hersteller geändert -- erst nach „Übernehmen“ wird mit dem neuen Profil gelesen.');
+            $this->UpdateFormField('ConnectionStatus', 'color', -1);
+        } else {
+            [$line, $color] = $this->statusLine();
+            $this->UpdateFormField('ConnectionStatus', 'caption', $line);
+            $this->UpdateFormField('ConnectionStatus', 'color', $color);
+        }
+    }
+
+    private function statusLine(): array
+    {
+        return $this->connectionStatusLine(
+            $this->ReadPropertyBoolean('WPMBHUB_Active'),
+            trim($this->ReadPropertyString('Host')) === '' ? 'keine IP-Adresse eingetragen' : '',
+            max(30, $this->ReadPropertyInteger('WPMBHUB_Interval')),
+            'IP-Adresse, Port und Unit-ID prüfen.'
+        );
     }
 
     public function GetConfigurationForm()
@@ -139,6 +163,9 @@ class WPModbusHub extends IPSModule
             ]);
         }
 
+        [$statusText, $statusColor] = $this->statusLine();
+        $this->updateFormElement($form['elements'], 'ConnectionStatus', ['caption' => $statusText, 'color' => $statusColor]);
+
         $purposeIntro = $this->PurposeIntro();
         if ($purposeIntro !== null) {
             array_unshift($form['elements'], $purposeIntro);
@@ -150,8 +177,8 @@ class WPModbusHub extends IPSModule
                 'caption'  => '🆕 Neu in Version ' . self::NEWS_VERSION,
                 'expanded' => true,
                 'items'    => [
-                    ['type' => 'Label', 'caption' => '• Neues Schwestermodul WPModbusHubGateway: dieselben Wärmepumpen über Symcons ModBus-Gateway statt eigener Netzwerkverbindung -- damit geht auch RS485/Modbus RTU an einem seriellen Anschluss (z. B. USB-RS485-Dongle). Dazu neu: Proxon T300 als siebter Hersteller.'],
-                    ['type' => 'Label', 'caption' => '• Proxon T300: jetzt auch die beiden Behälterfühler (unten/mitte), alle Register am Display einer echten Anlage geprüft.'],
+                    ['type' => 'Label', 'caption' => '• Neue Statuszeile im Bereich „Wärmepumpe“: zeigt live, ob die Wärmepumpe antwortet, wie lange die letzte Aktualisierung her ist und welche Werte gerade ankommen -- oder was fehlt.'],
+                    ['type' => 'Label', 'caption' => '• IDM: „Warmwasser“ zeigt jetzt den Speicherfühler oben statt der Zapftemperatur, die es nur mit IDMs Warmwasserstation gibt.'],
                     ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBHUB_AckNews($id);'],
                 ],
             ]);
@@ -270,6 +297,7 @@ class WPModbusHub extends IPSModule
         $client = new WPMBHUB_ModbusTcpClient($host, $this->ReadPropertyInteger('Port'), $this->ReadPropertyInteger('UnitId'));
         $values = $this->readRegisters(self::DRIVERS[$manufacturer]['registers'], $client);
         $client->close();
+        $this->recordCycle(self::DRIVERS[$manufacturer]['registers'], $values);
 
         $reachable = ($values !== null && count($values) > 0);
         $this->maintainDeviceVariables($values ?? [], $reachable);

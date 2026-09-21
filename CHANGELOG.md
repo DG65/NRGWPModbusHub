@@ -1,5 +1,9 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.7.0 (Build 12) — 21.09.2026
+
+- **Statuszeile im Formular (WPModbusHub und WPModbusHubGateway).** Im Bereich „Wärmepumpe“ steht jetzt eine live berechnete Zeile (SUITE.md „Verbund-Verbindungen im Formular sichtbar machen“) statt eines Rätsels, ob und was ankommt: ✅ Wärmepumpe antwortet, gelesen vor X s, mit den tatsächlich gelesenen Werten; ⚠️ antwortet nicht (mit Prüfhinweis, letzter Antwort und letzten bekannten Werten), antwortet nur teilweise (welche Felder fehlen) oder wird nicht mehr aktualisiert; ℹ️ ausgeschaltet, noch nicht eingerichtet oder noch kein Zyklus gelaufen; ⛔ Pflichtangabe fehlt (IP-Adresse bzw. kein ModBus-Gateway), rot. Beim Wechsel des Herstellers im offenen Formular schaltet die Zeile auf „erst nach Übernehmen“ um, damit sie nie Werte eines nicht mehr gewählten Profils zeigt. Neu dafür: zwei Attribute je Instanz (Zeitpunkt des letzten Zyklus, dabei nicht gelesene Felder); die Feldnamen stehen jetzt einmal in `WPMBHUB_Drivers::FIELD_CAPTIONS`. Prüfstand 104 → 123 Prüfungen, sieben Mutationen der Zielstellen gefangen.
+
 ## 0.6.1 (Build 11) — 21.09.2026
 
 - **IDM an einer laufenden ALM bestätigt, Warmwasser-Ist auf den Speicherfühler oben umgestellt.** Christian („kollaps“, IDM ALM) hat 0.3.0+ getestet: Außen-, Vorlauf-, Rücklauf-, Speicher- und Heizkreistemperatur sowie Warmwasser-Solltemperatur „passen“ — damit ist auch die vertauschte Wortreihenfolge der 32-Bit-Floats in der Praxis bestätigt, die bis dahin nur aus dem PDF gelesen war. Nur Warmwasser fehlte: `Warmwasser` lag auf der Zapftemperatur (B42, Adresse 1030), die es nur mit IDMs Warmwasserstation gibt, seine Anlage hat keine. Auf seinen Vorschlag zeigt `Warmwasser` jetzt den Trinkwassererwärmer oben (B48, Adresse 1014), den jede Anlage mit Warmwasserspeicher hat. Die Zapftemperatur ist nicht mehr im Profil. Warmwasser oben an seiner Anlage noch nicht zurückgemeldet.

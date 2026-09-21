@@ -294,6 +294,17 @@ gelegt statt auf einen der beiden Speicherfühler (1012 unten/1014 oben) -- näh
 hart durch die PDF vorgegeben; bei einer echten Verifikation gegenprüfen, ob das dem
 Nutzererwartung entspricht.
 
+## Statuszeile im Formular (0.7.0, 21.09.2026)
+
+Dietmar: "Ja, Statuszeilen nachruesten". Label `ConnectionStatus` als erstes Element im
+ConnectionPanel beider Module (form.json nur leerer Platzhalter), live gefuellt in
+`GetConfigurationForm()` ueber `connectionStatusLine()` im Trait. Zustaende: ✅/⚠️/ℹ️/⛔ wie
+SUITE.md. Datenbasis: Attribute `LastCycleAt` + `LastMissing` (von `recordCycle()` in
+`Update()` geschrieben), `LastSeenAt`, Variable `Erreichbar`, letzte Werte aus den Variablen.
+`OnChangeManufacturer()` stellt die Zeile bei Herstellerwechsel auf "erst nach Uebernehmen"
+um (Zeile folgt der Auswahl). Feldnamen zentral in `WPMBHUB_Drivers::FIELD_CAPTIONS`. Beim
+Bau eines neuen Feldes dort eintragen, sonst fehlt es in Variablen UND Statuszeile.
+
 ## Discovery durch Konsumenten (19.09.2026)
 
 Dashboard (Build 159, `HEATPUMP_SOURCES` in NRGDashboardWPMonitor/HeatSchema) kennt

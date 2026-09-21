@@ -771,6 +771,109 @@ check('module.json: implemented = RX-Typ des Gateways (an Kinder)', ($mj['implem
 check('module.json: Klassenname = name, Praefix WPMBGW', ($mj['name'] ?? '') === 'WPModbusHubGateway' && ($mj['prefix'] ?? '') === 'WPMBGW');
 
 // ---------------------------------------------------------------------------
+echo "Block 8: Statuszeile im Formular (live berechnet, jeder Zustand)\n";
+// ---------------------------------------------------------------------------
+
+function statusOf($module): array
+{
+    $form = json_decode($module->GetConfigurationForm(), true);
+    $label = findFormElement($form['elements'], 'ConnectionStatus');
+    return [$label['caption'] ?? '', $label['color'] ?? null];
+}
+function setAttr($module, string $name, int $value): void
+{
+    $m = new ReflectionMethod($module, 'WriteAttributeInteger');
+    $m->setAccessible(true);
+    $m->invoke($module, $name, $value);
+}
+
+$GLOBALS['ips']['variables'] = [];
+$GLOBALS['ips']['properties']['Manufacturer'] = 'proxon';
+$GLOBALS['ips']['properties']['WPMBGW_Active'] = false;
+$GLOBALS['ips']['properties']['WPMBGW_Interval'] = 60;
+$GLOBALS['ips']['parent'] = 0;
+$g2 = new WPModbusHubGateway();
+$g2->Create();
+
+// Die statische form.json darf nicht schon einen Ersatztext tragen: leer ausliefern gilt nicht.
+$rawForm = json_decode(file_get_contents(__DIR__ . '/../WPModbusHubGateway/form.json'), true);
+check('Gateway-form.json: Statuszeile ist nur ein leerer Platzhalter (kein statischer Satz)', (findFormElement($rawForm['elements'], 'ConnectionStatus')['caption'] ?? 'x') === '');
+$rawFormTcp = json_decode(file_get_contents(__DIR__ . '/../WPModbusHub/form.json'), true);
+check('TCP-form.json: Statuszeile ist nur ein leerer Platzhalter (kein statischer Satz)', (findFormElement($rawFormTcp['elements'], 'ConnectionStatus')['caption'] ?? 'x') === '');
+
+[$line, $color] = statusOf($g2);
+check('Gateway inaktiv, kein Gateway: ℹ️ noch nicht eingerichtet', strpos($line, 'ℹ️ Noch nicht eingerichtet') === 0 && strpos($line, 'ModBus-Gateway') !== false && $color === -1, $line);
+
+$GLOBALS['ips']['properties']['WPMBGW_Active'] = true;
+[$line, $color] = statusOf($g2);
+check('Gateway aktiv, kein Gateway: ⛔ Pflichtangabe fehlt, rot', strpos($line, '⛔ Pflichtangabe fehlt') === 0 && $color === 0xFF0000, $line);
+
+$GLOBALS['ips']['parent'] = 4711;
+[$line, $color] = statusOf($g2);
+check('Aktiv, noch kein Zyklus: ℹ️ erster Lesezyklus folgt', strpos($line, 'ℹ️ Noch kein Lesezyklus') === 0 && strpos($line, '60 s') !== false, $line);
+
+$GLOBALS['ips']['parentResponder'] = makeGatewayResponder(['input:882' => 4650, 'holding:2000' => 480, 'input:813' => 1412, 'input:814' => 1454], $log);
+$g2->Update();
+[$line, $color] = statusOf($g2);
+check('Erfolg: ✅ nennt Herstellernamen und Alter', strpos($line, '✅ ') === 0 && strpos($line, 'Proxon') !== false && strpos($line, 'gelesen vor 0 s') !== false && $color === -1, $line);
+check('Erfolg: ✅ nennt die tatsächlich gelesenen Werte (deutsches Dezimalkomma)', strpos($line, 'Warmwasser 46,5 °C') !== false && strpos($line, 'Warmwasser Sollwert 48,0 °C') !== false && strpos($line, 'Warmwasser unten 41,2 °C') !== false, $line);
+
+$GLOBALS['ips']['parentResponder'] = makeGatewayResponder(['input:882' => 4650, 'holding:2000' => 480, 'input:814' => 1454], $log);
+$g2->Update();
+[$line] = statusOf($g2);
+check('Teilausfall: ⚠️ nennt, wie viele und welche Felder fehlen', strpos($line, '⚠️ ') === 0 && strpos($line, '1 von 4 Feldern') !== false, $line);
+check('Teilausfall: das fehlende Feld wird beim Namen genannt', strpos($line, 'Warmwasser unten') !== false, $line);
+
+$GLOBALS['ips']['parentResponder'] = function (string $json) { return false; };
+$g2->Update();
+[$line, $color] = statusOf($g2);
+check('Keine Antwort: ⚠️ antwortet nicht, mit Prüfhinweis zum Gateway-Weg', strpos($line, '⚠️ ') === 0 && strpos($line, 'antwortet nicht') !== false && strpos($line, 'Baudrate') !== false, $line);
+check('Keine Antwort: letzte bekannte Werte bleiben sichtbar, "letzte Antwort" nennt den Zeitpunkt', strpos($line, 'Letzte bekannte Werte') !== false && strpos($line, 'Warmwasser 46,5 °C') !== false && strpos($line, 'letzte Antwort: vor') !== false, $line);
+
+$GLOBALS['ips']['parentResponder'] = makeGatewayResponder(['input:882' => 4650, 'holding:2000' => 480, 'input:813' => 1412, 'input:814' => 1454], $log);
+$g2->Update();
+setAttr($g2, 'LastCycleAt', time() - 1000);
+[$line] = statusOf($g2);
+check('Veraltet: ⚠️ meldet, wenn die letzte Aktualisierung viel zu lange her ist', strpos($line, '⚠️ Die letzte Aktualisierung liegt') === 0 && strpos($line, 'zurück') !== false, $line);
+
+$GLOBALS['ips']['properties']['WPMBGW_Active'] = false;
+[$line, $color] = statusOf($g2);
+check('Ausgeschaltet (Gateway da): ℹ️ Ausgeschaltet', strpos($line, 'ℹ️ Ausgeschaltet') === 0 && $color === -1, $line);
+$GLOBALS['ips']['properties']['WPMBGW_Active'] = true;
+
+// Auswahlfeld: Zeile folgt der Auswahl, nicht nur dem Speicherstand
+$GLOBALS['ips']['formFieldUpdates'] = [];
+$g2->OnChangeManufacturer('idm');
+check('Gateway: Herstellerwechsel im offenen Formular stellt die Zeile um', strpos($GLOBALS['ips']['formFieldUpdates']['ConnectionStatus']['caption'] ?? '', 'Hersteller geändert') !== false, json_encode($GLOBALS['ips']['formFieldUpdates']['ConnectionStatus'] ?? null));
+$GLOBALS['ips']['formFieldUpdates'] = [];
+$g2->OnChangeManufacturer('proxon');
+check('Gateway: zurück zum gespeicherten Hersteller zeigt wieder die Zeile zum Zustand (samt Farbe)', strpos($GLOBALS['ips']['formFieldUpdates']['ConnectionStatus']['caption'] ?? '', 'Hersteller geändert') === false && strpos($GLOBALS['ips']['formFieldUpdates']['ConnectionStatus']['caption'] ?? '', 'Aktualisierung') !== false && ($GLOBALS['ips']['formFieldUpdates']['ConnectionStatus']['color'] ?? null) === -1, json_encode($GLOBALS['ips']['formFieldUpdates']['ConnectionStatus'] ?? null, JSON_UNESCAPED_UNICODE));
+
+// TCP-Modul: Pflichtangabe IP-Adresse, Erfolgszeile
+$GLOBALS['ips']['variables'] = [];
+$GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
+$GLOBALS['ips']['properties']['Host'] = '';
+$GLOBALS['ips']['properties']['WPMBHUB_Active'] = true;
+$t2 = new WPModbusHub();
+$t2->Create();
+[$line, $color] = statusOf($t2);
+check('TCP aktiv ohne IP-Adresse: ⛔ rot, nennt die IP-Adresse', strpos($line, '⛔') === 0 && strpos($line, 'IP-Adresse') !== false && $color === 0xFF0000, $line);
+$GLOBALS['ips']['properties']['Host'] = '203.0.113.1';
+[$line] = statusOf($t2);
+check('TCP mit IP-Adresse, noch kein Zyklus: ℹ️', strpos($line, 'ℹ️ Noch kein Lesezyklus') === 0, $line);
+// Zyklus wie in Update(): Werte -> Variablen -> Zyklusmerker
+$rc = new ReflectionMethod(WPModbusHub::class, 'recordCycle');
+$rc->setAccessible(true);
+$maintainVars->invoke($t2, $valuesNibe, true);
+$rc->invoke($t2, WPModbusHub::DRIVERS['nibe']['registers'], $valuesNibe);
+setAttr($t2, 'LastSeenAt', time());
+[$line, $color] = statusOf($t2);
+check('TCP Erfolg: ✅ mit NIBE-Werten', strpos($line, '✅ ') === 0 && strpos($line, 'NIBE') !== false && strpos($line, 'Außentemperatur 7,5 °C') !== false && strpos($line, 'Vorlauftemperatur 38,2 °C') !== false, $line);
+$maintainVars->invoke($t2, [], false);
+[$line] = statusOf($t2);
+check('TCP nicht erreichbar: ⚠️ mit Prüfhinweis zu IP-Adresse/Port/Unit-ID', strpos($line, '⚠️ ') === 0 && strpos($line, 'Unit-ID') !== false, $line);
+
+// ---------------------------------------------------------------------------
 echo "\n";
 if ($failures === 0) {
     echo "Alle Pruefungen bestanden.\n";

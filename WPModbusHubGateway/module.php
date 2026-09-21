@@ -31,7 +31,7 @@ class WPModbusHubGateway extends IPSModule
 {
     use WPMBHUB_HeatpumpTrait;
 
-    const NEWS_VERSION = '0.6.0';
+    const NEWS_VERSION = '0.7.0';
     const DRIVERS = WPMBHUB_Drivers::DRIVERS;
     const MANUFACTURER_DEFAULT = WPMBHUB_Drivers::MANUFACTURER_DEFAULT;
 
@@ -46,6 +46,9 @@ class WPModbusHubGateway extends IPSModule
         $this->RegisterAttributeBoolean('PurposeIntroGone', false);
         $this->RegisterAttributeString('SeenNews', '');
         $this->RegisterAttributeInteger('LastSeenAt', 0);
+        // Fuer die Statuszeile im Formular (siehe WPModbusHub).
+        $this->RegisterAttributeInteger('LastCycleAt', 0);
+        $this->RegisterAttributeString('LastMissing', '');
         $this->RegisterAttributeBoolean('ForumHintGone', false);
 
         $this->RegisterTimer('WPMBGW_UpdateTimer', 0, 'WPMBGW_Update($_IPS[\'TARGET\']);');
@@ -76,6 +79,24 @@ class WPModbusHubGateway extends IPSModule
             return;
         }
         $this->UpdateFormField('ManufacturerConfidence', 'caption', 'ℹ️ ' . self::DRIVERS[$manufacturer]['confidence']);
+        if ($manufacturer !== $this->ReadPropertyString('Manufacturer')) {
+            $this->UpdateFormField('ConnectionStatus', 'caption', 'ℹ️ Hersteller geändert -- erst nach „Übernehmen“ wird mit dem neuen Profil gelesen.');
+            $this->UpdateFormField('ConnectionStatus', 'color', -1);
+        } else {
+            [$line, $color] = $this->statusLine();
+            $this->UpdateFormField('ConnectionStatus', 'caption', $line);
+            $this->UpdateFormField('ConnectionStatus', 'color', $color);
+        }
+    }
+
+    private function statusLine(): array
+    {
+        return $this->connectionStatusLine(
+            $this->ReadPropertyBoolean('WPMBGW_Active'),
+            $this->hasGatewayParent() ? '' : 'kein ModBus-Gateway verbunden (oben unter „Gateway“ eines wählen)',
+            max(30, $this->ReadPropertyInteger('WPMBGW_Interval')),
+            'Geräte-ID am ModBus-Gateway, Baudrate/Parität am Serial Port und Verkabelung prüfen („Verbindung testen“).'
+        );
     }
 
     public function GetConfigurationForm()
@@ -101,6 +122,9 @@ class WPModbusHubGateway extends IPSModule
             ]);
         }
 
+        [$statusText, $statusColor] = $this->statusLine();
+        $this->updateFormElement($form['elements'], 'ConnectionStatus', ['caption' => $statusText, 'color' => $statusColor]);
+
         $purposeIntro = $this->PurposeIntro();
         if ($purposeIntro !== null) {
             array_unshift($form['elements'], $purposeIntro);
@@ -112,8 +136,8 @@ class WPModbusHubGateway extends IPSModule
                 'caption'  => '🆕 Neu in Version ' . self::NEWS_VERSION,
                 'expanded' => true,
                 'items'    => [
-                    ['type' => 'Label', 'caption' => '• Erste Version: Wärmepumpen über Symcons ModBus-Gateway auslesen -- damit geht auch RS485/Modbus RTU an einem seriellen Anschluss, z. B. Proxon per USB-RS485-Dongle.'],
-                    ['type' => 'Label', 'caption' => '• Proxon T300 an einer echten Anlage bestätigt: Warmwasser Ist/Soll und die beiden Behälterfühler (unten/mitte) stimmen mit dem Display überein.'],
+                    ['type' => 'Label', 'caption' => '• Neue Statuszeile im Bereich „Wärmepumpe“: zeigt live, ob ein ModBus-Gateway verbunden ist, ob die Wärmepumpe antwortet, wie lange die letzte Aktualisierung her ist und welche Werte gerade ankommen -- oder was fehlt.'],
+                    ['type' => 'Label', 'caption' => '• IDM: „Warmwasser“ zeigt jetzt den Speicherfühler oben statt der Zapftemperatur, die es nur mit IDMs Warmwasserstation gibt.'],
                     ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBGW_AckNews($id);'],
                 ],
             ]);
@@ -221,6 +245,7 @@ class WPModbusHubGateway extends IPSModule
         }
         $client = $this->gatewayClient();
         $values = $this->readRegisters(self::DRIVERS[$manufacturer]['registers'], $client);
+        $this->recordCycle(self::DRIVERS[$manufacturer]['registers'], $values);
 
         $reachable = ($values !== null && count($values) > 0);
         $this->maintainDeviceVariables($values ?? [], $reachable);

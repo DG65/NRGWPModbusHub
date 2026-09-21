@@ -9,6 +9,22 @@ class WPMBHUB_Drivers
 {
     const MANUFACTURER_DEFAULT = 'nibe';
 
+    // Anzeigenamen der Felder (Ident => Beschriftung), in der Reihenfolge, in der die
+    // Variablen angelegt werden. Genutzt von maintainDeviceVariables() und der
+    // Statuszeile im Formular.
+    const FIELD_CAPTIONS = [
+        'Aussentemperatur'    => 'Außentemperatur',
+        'Vorlauftemperatur'   => 'Vorlauftemperatur',
+        'Ruecklauftemperatur' => 'Rücklauftemperatur',
+        'Warmwasser'          => 'Warmwasser',
+        'WarmwasserSoll'      => 'Warmwasser Sollwert',
+        'WarmwasserUnten'     => 'Warmwasser unten',
+        'WarmwasserMitte'     => 'Warmwasser Mitte',
+        'Speichertemperatur'  => 'Pufferspeichertemperatur',
+        'Zone1Ist'            => 'Heizzone 1 Isttemperatur',
+        'Zone1Soll'           => 'Heizzone 1 Solltemperatur',
+    ];
+
     // Registerprofile je Hersteller. Jedes Feld: [regType('input'|'holding'),
     // addr(0-basierte Modbus-Wire-Adresse), scale(Divisor), signed(bool)] fuer
     // den Standardfall s16×Faktor. Optional 'type'=>'float32' (bislang nur
