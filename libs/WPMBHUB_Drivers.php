@@ -125,15 +125,21 @@ class WPMBHUB_Drivers
         // FC04, "RW" -> Holding-Register/FC03) -- siehe 'type'=>'float32' in
         // readRegisters() und floatLE() in ModbusTcpClient.php: IDM ueberträgt
         // die Wortreihenfolge VERTAUSCHT (Low-Word zuerst), nicht big-endian.
-        // Warmwasser-Ist bewusst auf die Zapftemperatur (B42) gelegt, nicht
-        // auf die beiden Speicherfuehler oben/unten (B48/B41) -- naeher am
-        // "was kommt aus dem Hahn"-Sinn der anderen Hersteller-Warmwasser-
-        // Felder. WarmwasserSoll (UCHAR, FW030) ist die einzige direkte
-        // BMS-Vorgabe dieser Liste, die zugleich auch rueckgelesen werden
-        // kann (RW, kein separates Ist/Soll-Registerpaar wie bei Waterkotte).
+        // Warmwasser-Ist = Trinkwassererwaermer oben (B48, Adresse 1014).
+        // Urspruenglich auf die Zapftemperatur (B42, 1030) gelegt -- die gibt es
+        // aber nur mit IDMs Warmwasserstation; Christian (IDM ALM, Forum
+        // 21.09.2026) hat keine verbaut, dort fehlte der Wert, und er schlug
+        // den Speicherfuehler oben vor. Der ist bei jeder Anlage mit
+        // Trinkwasserspeicher da und passt zu den Warmwasser-Feldern der
+        // anderen Hersteller. WarmwasserSoll (UCHAR, FW030) ist die einzige
+        // direkte BMS-Vorgabe dieser Liste, die zugleich auch rueckgelesen
+        // werden kann (RW, kein separates Ist/Soll-Registerpaar wie bei
+        // Waterkotte). Live bestaetigt von Christian (21.09.2026): Aussen,
+        // Vorlauf, Ruecklauf, Speicher, Warmwasser Soll, Heizkreis A Ist/Soll
+        // "passen", damit auch die vertauschte Wortreihenfolge der Floats.
         'idm' => [
             'caption'      => 'IDM Energiesysteme (Navigatorregelung 2.0, z. B. ALM)',
-            'confidence'   => 'Registerkarte direkt aus IDMs eigenem PDF "Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10) -- nicht an echter Hardware verifiziert.',
+            'confidence'   => 'Registerkarte direkt aus IDMs eigenem PDF "Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10). An einer laufenden IDM ALM bestätigt: Außen-, Vorlauf-, Rücklauf-, Speicher- und Heizkreistemperatur sowie Warmwasser-Solltemperatur. Warmwasser Ist ist der Speicherfühler oben (B48); die Zapftemperatur gibt es nur mit IDM-Warmwasserstation und ist deshalb nicht enthalten.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
             'registers'    => [
@@ -141,7 +147,7 @@ class WPMBHUB_Drivers
                 'Ruecklauftemperatur' => ['regType' => 'input',   'addr' => 1052, 'type' => 'float32'],
                 'Vorlauftemperatur'   => ['regType' => 'input',   'addr' => 1050, 'type' => 'float32'],
                 'Speichertemperatur'  => ['regType' => 'input',   'addr' => 1008, 'type' => 'float32'],
-                'Warmwasser'          => ['regType' => 'input',   'addr' => 1030, 'type' => 'float32'],
+                'Warmwasser'          => ['regType' => 'input',   'addr' => 1014, 'type' => 'float32'],
                 'WarmwasserSoll'      => ['regType' => 'holding', 'addr' => 1032, 'scale' => 1, 'signed' => false],
                 'Zone1Ist'            => ['regType' => 'input',   'addr' => 1350, 'type' => 'float32'],
                 'Zone1Soll'           => ['regType' => 'input',   'addr' => 1378, 'type' => 'float32'],

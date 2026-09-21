@@ -280,6 +280,14 @@ ersten Verifikationstest zuerst geprüft werden sollte: IDMs Wortreihenfolge ist
 (Low-Word zuerst laut PDF-Kapitel 4.2 "Datentypen"), nicht big-endian wie die bestehenden
 `u32()`/`s32()`-Methoden -- deshalb eine eigene `floatLE()`-Methode statt Wiederverwendung.
 
+**Update 21.09.2026 (Christian/kollaps, IDM ALM, Forum-Post #12):** "Bis auf das Warmwasser
+passt alles" -- Aussen, Vorlauf, Ruecklauf, Speicher, Heizkreis A Ist/Soll und Warmwasser-Soll
+live bestaetigt, damit auch die vertauschte Float-Wortreihenfolge in der Praxis. Warmwasser-Ist
+fehlte, weil die Zapftemperatur (1030, B42) nur mit IDM-Warmwasserstation existiert. Auf seinen
+Vorschlag jetzt Trinkwassererwaermer oben (1014, B48) statt 1030 (0.6.1). Offen: Rueckmeldung,
+ob 1014 an seiner Anlage einen sinnvollen Wert liefert; optional 1012 (unten, B41) als
+`WarmwasserUnten` aufnehmen (Ident existiert seit Proxon).
+
 Warmwasser-Ist bewusst auf die Zapftemperatur (Adresse 1030, "Warmwasserzapftemperatur B42")
 gelegt statt auf einen der beiden Speicherfühler (1012 unten/1014 oben) -- näher am
 "was kommt aus dem Hahn"-Sinn der Warmwasser-Felder bei den anderen Herstellern, aber nicht

@@ -420,7 +420,7 @@ $fakeIdm->values = [
     'input:1050' => 0,     'input:1051' => 16910, // Vorlauftemperatur 35.5°C
     'input:1052' => 0,     'input:1053' => 16896, // Ruecklauftemperatur 32.0°C
     'input:1008' => 0,     'input:1009' => 16932, // Speichertemperatur 41.0°C
-    'input:1030' => 0,     'input:1031' => 16960, // Warmwasser 48.0°C
+    'input:1014' => 0,     'input:1015' => 16960, // Warmwasser (Speicher oben, B48) 48.0°C
     'holding:1032' => 46,                          // WarmwasserSoll 46 (UCHAR, kein Faktor)
     'input:1350' => 0,     'input:1351' => 16808, // Zone1Ist 21.0°C
     'input:1378' => 0,     'input:1379' => 16812, // Zone1Soll 21.5°C

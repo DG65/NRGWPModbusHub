@@ -1,5 +1,9 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.6.1 (Build 11) — 21.09.2026
+
+- **IDM an einer laufenden ALM bestätigt, Warmwasser-Ist auf den Speicherfühler oben umgestellt.** Christian („kollaps“, IDM ALM) hat 0.3.0+ getestet: Außen-, Vorlauf-, Rücklauf-, Speicher- und Heizkreistemperatur sowie Warmwasser-Solltemperatur „passen“ — damit ist auch die vertauschte Wortreihenfolge der 32-Bit-Floats in der Praxis bestätigt, die bis dahin nur aus dem PDF gelesen war. Nur Warmwasser fehlte: `Warmwasser` lag auf der Zapftemperatur (B42, Adresse 1030), die es nur mit IDMs Warmwasserstation gibt, seine Anlage hat keine. Auf seinen Vorschlag zeigt `Warmwasser` jetzt den Trinkwassererwärmer oben (B48, Adresse 1014), den jede Anlage mit Warmwasserspeicher hat. Die Zapftemperatur ist nicht mehr im Profil. Warmwasser oben an seiner Anlage noch nicht zurückgemeldet.
+
 ## 0.6.0 (Build 10) — 19.09.2026
 
 - **Proxon T300: alle Register am Display einer echten Anlage bestätigt, Behälterfühler aufgenommen.** Ghostraider hat drei Vergleiche geliefert: Register 4x0882 (BehaelterAvg, Faktor 100) = 48,8 = Display; Register 3x2000 (Warmwasser-Sollwert) roh 250 = 25 °C am Regler (Faktor 10); T21 (4x0814) roh 1454 = 45,4 °C exakt wie im Display, T20 (4x0813) roh 1412 = 41,2 gegen Display 41,3 (0,1 Messzeitversatz). Damit gilt die Vorspannungskodierung °C = Roh/10 − 100 für die Tankfühler, und `WarmwasserUnten`/`WarmwasserMitte` sind neu im Profil (eigene Variablen, nicht im NRG-Stack-Vertrag). Für negative Werte ist die Formel nur extrapoliert, deshalb bleiben die Kältekreisfühler (T5/T6/T9 …), die im Winter unter null gehen, bewusst draußen.
