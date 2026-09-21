@@ -31,7 +31,7 @@ class WPModbusHubGateway extends IPSModule
 {
     use WPMBHUB_HeatpumpTrait;
 
-    const NEWS_VERSION = '0.7.0';
+    const NEWS_VERSION = '0.7.1';
     const DRIVERS = WPMBHUB_Drivers::DRIVERS;
     const MANUFACTURER_DEFAULT = WPMBHUB_Drivers::MANUFACTURER_DEFAULT;
 
@@ -137,7 +137,7 @@ class WPModbusHubGateway extends IPSModule
                 'expanded' => true,
                 'items'    => [
                     ['type' => 'Label', 'caption' => '• Neue Statuszeile im Bereich „Wärmepumpe“: zeigt live, ob ein ModBus-Gateway verbunden ist, ob die Wärmepumpe antwortet, wie lange die letzte Aktualisierung her ist und welche Werte gerade ankommen -- oder was fehlt.'],
-                    ['type' => 'Label', 'caption' => '• IDM: „Warmwasser“ zeigt jetzt den Speicherfühler oben statt der Zapftemperatur, die es nur mit IDMs Warmwasserstation gibt.'],
+                    ['type' => 'Label', 'caption' => '• IDM: „Warmwasser“ zeigt jetzt den Speicherfühler oben statt der Zapftemperatur, die es nur mit IDMs Warmwasserstation gibt; neu dazu „Warmwasser unten“ (Speicherfühler unten).'],
                     ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBGW_AckNews($id);'],
                 ],
             ]);

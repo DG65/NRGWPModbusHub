@@ -421,6 +421,7 @@ $fakeIdm->values = [
     'input:1052' => 0,     'input:1053' => 16896, // Ruecklauftemperatur 32.0°C
     'input:1008' => 0,     'input:1009' => 16932, // Speichertemperatur 41.0°C
     'input:1014' => 0,     'input:1015' => 16960, // Warmwasser (Speicher oben, B48) 48.0°C
+    'input:1012' => 0,     'input:1013' => 16920, // WarmwasserUnten (Speicher unten, B41) 38.0°C
     'holding:1032' => 46,                          // WarmwasserSoll 46 (UCHAR, kein Faktor)
     'input:1350' => 0,     'input:1351' => 16808, // Zone1Ist 21.0°C
     'input:1378' => 0,     'input:1379' => 16812, // Zone1Soll 21.5°C
@@ -429,9 +430,9 @@ $valuesIdm = $readRegisters->invoke($mod, WPModbusHub::DRIVERS['idm']['registers
 // Vergleich gerundet, nicht strikt === -- 8.2 & Co. lassen sich als 32-Bit-
 // Float nicht exakt darstellen (Praezisionsverlust ggue. dem float64-
 // Literal ist hier KEIN Dekodierfehler, sondern IEEE754-Rundung selbst).
-check('IDM: alle acht Felder korrekt dekodiert (Float32 + UCHAR gemischt)', array_map(fn($v) => round($v, 3), $valuesIdm) === [
+check('IDM: alle neun Felder korrekt dekodiert (Float32 + UCHAR gemischt)', array_map(fn($v) => round($v, 3), $valuesIdm) === [
     'Aussentemperatur' => 8.2, 'Ruecklauftemperatur' => 32.0, 'Vorlauftemperatur' => 35.5,
-    'Speichertemperatur' => 41.0, 'Warmwasser' => 48.0, 'WarmwasserSoll' => 46.0,
+    'Speichertemperatur' => 41.0, 'Warmwasser' => 48.0, 'WarmwasserUnten' => 38.0, 'WarmwasserSoll' => 46.0,
     'Zone1Ist' => 21.0, 'Zone1Soll' => 21.5,
 ], json_encode($valuesIdm));
 

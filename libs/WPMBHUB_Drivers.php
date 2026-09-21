@@ -141,6 +141,9 @@ class WPMBHUB_Drivers
         // FC04, "RW" -> Holding-Register/FC03) -- siehe 'type'=>'float32' in
         // readRegisters() und floatLE() in ModbusTcpClient.php: IDM ueberträgt
         // die Wortreihenfolge VERTAUSCHT (Low-Word zuerst), nicht big-endian.
+        // WarmwasserUnten = Trinkwassererwaermer unten (B41, Adresse 1012), auf
+        // Christians Wunsch (Forum 21.09.2026) zusaetzlich zum Fuehler oben; eigene
+        // Variable, nicht im NRG-Stack-Vertrag (wie bei Proxon).
         // Warmwasser-Ist = Trinkwassererwaermer oben (B48, Adresse 1014).
         // Urspruenglich auf die Zapftemperatur (B42, 1030) gelegt -- die gibt es
         // aber nur mit IDMs Warmwasserstation; Christian (IDM ALM, Forum
@@ -155,7 +158,7 @@ class WPMBHUB_Drivers
         // "passen", damit auch die vertauschte Wortreihenfolge der Floats.
         'idm' => [
             'caption'      => 'IDM Energiesysteme (Navigatorregelung 2.0, z. B. ALM)',
-            'confidence'   => 'Registerkarte direkt aus IDMs eigenem PDF "Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10). An einer laufenden IDM ALM bestätigt: Außen-, Vorlauf-, Rücklauf-, Speicher- und Heizkreistemperatur sowie Warmwasser-Solltemperatur. Warmwasser Ist ist der Speicherfühler oben (B48); die Zapftemperatur gibt es nur mit IDM-Warmwasserstation und ist deshalb nicht enthalten.',
+            'confidence'   => 'Registerkarte direkt aus IDMs eigenem PDF "Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10). An einer laufenden IDM ALM bestätigt: Außen-, Vorlauf-, Rücklauf-, Speicher- und Heizkreistemperatur sowie Warmwasser-Solltemperatur. Warmwasser Ist ist der Speicherfühler oben (B48), zusätzlich Warmwasser unten (B41); die Zapftemperatur gibt es nur mit IDM-Warmwasserstation und ist deshalb nicht enthalten.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
             'registers'    => [
@@ -164,6 +167,7 @@ class WPMBHUB_Drivers
                 'Vorlauftemperatur'   => ['regType' => 'input',   'addr' => 1050, 'type' => 'float32'],
                 'Speichertemperatur'  => ['regType' => 'input',   'addr' => 1008, 'type' => 'float32'],
                 'Warmwasser'          => ['regType' => 'input',   'addr' => 1014, 'type' => 'float32'],
+                'WarmwasserUnten'     => ['regType' => 'input',   'addr' => 1012, 'type' => 'float32'],
                 'WarmwasserSoll'      => ['regType' => 'holding', 'addr' => 1032, 'scale' => 1, 'signed' => false],
                 'Zone1Ist'            => ['regType' => 'input',   'addr' => 1350, 'type' => 'float32'],
                 'Zone1Soll'           => ['regType' => 'input',   'addr' => 1378, 'type' => 'float32'],

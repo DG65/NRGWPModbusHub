@@ -284,9 +284,10 @@ ersten Verifikationstest zuerst geprüft werden sollte: IDMs Wortreihenfolge ist
 passt alles" -- Aussen, Vorlauf, Ruecklauf, Speicher, Heizkreis A Ist/Soll und Warmwasser-Soll
 live bestaetigt, damit auch die vertauschte Float-Wortreihenfolge in der Praxis. Warmwasser-Ist
 fehlte, weil die Zapftemperatur (1030, B42) nur mit IDM-Warmwasserstation existiert. Auf seinen
-Vorschlag jetzt Trinkwassererwaermer oben (1014, B48) statt 1030 (0.6.1). Offen: Rueckmeldung,
-ob 1014 an seiner Anlage einen sinnvollen Wert liefert; optional 1012 (unten, B41) als
-`WarmwasserUnten` aufnehmen (Ident existiert seit Proxon).
+Vorschlag jetzt Trinkwassererwaermer oben (1014, B48) statt 1030 (0.6.1). Christian bestaetigte
+danach: "Jetzt passt der Wert fuer das Warmwasser oben" und wuenschte 1012 (unten, B41) dazu --
+seit 0.7.1 als `WarmwasserUnten` im IDM-Profil (Ident seit Proxon vorhanden). Damit ist die
+IDM-Karte an einer echten ALM vollstaendig bestaetigt bis auf 1012 selbst (noch keine Rueckmeldung).
 
 (Ursprünglich lag Warmwasser-Ist auf der Zapftemperatur 1030 -- "was kommt aus dem Hahn" --,
 das war ohne Warmwasserstation nicht lesbar; seit 0.6.1 Speicherfühler oben, siehe oben.)

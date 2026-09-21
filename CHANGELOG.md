@@ -1,5 +1,9 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.7.1 (Build 13) — 21.09.2026
+
+- **IDM: „Warmwasser unten“ (Speicherfühler unten, B41, Register 1012) neu.** Christian („kollaps“) hat die Umstellung von „Warmwasser“ auf den Fühler oben (1014, 0.6.1) an seiner ALM bestätigt („jetzt passt der Wert“) und wünschte sich zusätzlich den Fühler unten. Eigene Variable `WarmwasserUnten` (wie bei Proxon, nicht im NRG-Stack-Vertrag), Float32 wie 1014. Prüfstand IDM-Fixtur um 1012 erweitert (38,0 °C).
+
 ## 0.7.0 (Build 12) — 21.09.2026
 
 - **Statuszeile im Formular (WPModbusHub und WPModbusHubGateway).** Im Bereich „Wärmepumpe“ steht jetzt eine live berechnete Zeile (SUITE.md „Verbund-Verbindungen im Formular sichtbar machen“) statt eines Rätsels, ob und was ankommt: ✅ Wärmepumpe antwortet, gelesen vor X s, mit den tatsächlich gelesenen Werten; ⚠️ antwortet nicht (mit Prüfhinweis, letzter Antwort und letzten bekannten Werten), antwortet nur teilweise (welche Felder fehlen) oder wird nicht mehr aktualisiert; ℹ️ ausgeschaltet, noch nicht eingerichtet oder noch kein Zyklus gelaufen; ⛔ Pflichtangabe fehlt (IP-Adresse bzw. kein ModBus-Gateway), rot. Beim Wechsel des Herstellers im offenen Formular schaltet die Zeile auf „erst nach Übernehmen“ um, damit sie nie Werte eines nicht mehr gewählten Profils zeigt. Neu dafür: zwei Attribute je Instanz (Zeitpunkt des letzten Zyklus, dabei nicht gelesene Felder); die Feldnamen stehen jetzt einmal in `WPMBHUB_Drivers::FIELD_CAPTIONS`. Prüfstand 104 → 123 Prüfungen, sieben Mutationen der Zielstellen gefangen.
