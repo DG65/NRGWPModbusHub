@@ -1,5 +1,9 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.7.2 (Build 14) — 21.09.2026
+
+- **IDM an einer echten ALM vollständig bestätigt.** Christian („kollaps“) meldete nach dem Update auf 0.7.1: „Werte passen jetzt“, inklusive Warmwasser oben (1014) und dem neuen Warmwasser unten (1012). Damit ist die gesamte IDM-Registerkarte an einer laufenden Anlage geprüft, auch die Wortreihenfolge der 32-Bit-Werte. Nur Hinweistext im Formular und Doku geändert, keine Registeränderung.
+
 ## 0.7.1 (Build 13) — 21.09.2026
 
 - **IDM: „Warmwasser unten“ (Speicherfühler unten, B41, Register 1012) neu.** Christian („kollaps“) hat die Umstellung von „Warmwasser“ auf den Fühler oben (1014, 0.6.1) an seiner ALM bestätigt („jetzt passt der Wert“) und wünschte sich zusätzlich den Fühler unten. Eigene Variable `WarmwasserUnten` (wie bei Proxon, nicht im NRG-Stack-Vertrag), Float32 wie 1014. Prüfstand IDM-Fixtur um 1012 erweitert (38,0 °C).

@@ -54,7 +54,7 @@ einer reinen Forenzusammenfassung:
 | LG Therma V | Community-gepflegte Modbus-Konfiguration, keine offizielle LG-Quelle gefunden | mittel |
 | Samsung EHS | Community-Sammlung, beruft sich auf Samsungs offizielle MIM-B19N-Anleitung (DB68-07538A) | mittel |
 | Waterkotte | Direkt aus Waterkottes eigenem PDF „Software Technische Information -- Modbus/TCP" (Firmware 01.07.xx, 07.2017), von Dietmar besorgt | hoch |
-| IDM Energiesysteme | Direkt aus IDMs eigenem PDF „Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10, 20.04.2022), selbst gelesen inkl. Datentypen-Kapitel, gilt fuer alle IDM-WP mit Navigator-2.0-Regelung (inkl. ALM) | hoch |
+| IDM Energiesysteme | Direkt aus IDMs eigenem PDF „Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10, 20.04.2022), selbst gelesen inkl. Datentypen-Kapitel, gilt fuer alle IDM-WP mit Navigator-2.0-Regelung (inkl. ALM) | hoch, an echter ALM vollstaendig live bestaetigt (21.09.2026) |
 | Proxon T300 | Direkt aus Zimmermanns eigener Kunden-Excel, von Nutzer "Ghostraider" per PN erhalten (18.09.2026), vier Register am 19.09.2026 an einer echten Anlage gegen das Display geprueft | hoch (vier Felder, live bestaetigt), NICHT der Rest der Tabelle |
 
 Bewusst **nicht** übernommen: Register, deren Ist/Soll-Richtung in der Quelle selbst
@@ -287,7 +287,7 @@ fehlte, weil die Zapftemperatur (1030, B42) nur mit IDM-Warmwasserstation existi
 Vorschlag jetzt Trinkwassererwaermer oben (1014, B48) statt 1030 (0.6.1). Christian bestaetigte
 danach: "Jetzt passt der Wert fuer das Warmwasser oben" und wuenschte 1012 (unten, B41) dazu --
 seit 0.7.1 als `WarmwasserUnten` im IDM-Profil (Ident seit Proxon vorhanden). Damit ist die
-IDM-Karte an einer echten ALM vollstaendig bestaetigt bis auf 1012 selbst (noch keine Rueckmeldung).
+IDM-Karte an einer echten ALM VOLLSTAENDIG bestaetigt: Christian, Forum-Post #16 (21.09.2026): "Werte passen jetzt" nach dem Update auf 0.7.1 (0.7.2 = nur Hinweistext).
 
 (Ursprünglich lag Warmwasser-Ist auf der Zapftemperatur 1030 -- "was kommt aus dem Hahn" --,
 das war ohne Warmwasserstation nicht lesbar; seit 0.6.1 Speicherfühler oben, siehe oben.)

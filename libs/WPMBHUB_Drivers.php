@@ -158,7 +158,7 @@ class WPMBHUB_Drivers
         // "passen", damit auch die vertauschte Wortreihenfolge der Floats.
         'idm' => [
             'caption'      => 'IDM Energiesysteme (Navigatorregelung 2.0, z. B. ALM)',
-            'confidence'   => 'Registerkarte direkt aus IDMs eigenem PDF "Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10). An einer laufenden IDM ALM bestätigt: Außen-, Vorlauf-, Rücklauf-, Speicher- und Heizkreistemperatur sowie Warmwasser-Solltemperatur. Warmwasser Ist ist der Speicherfühler oben (B48), zusätzlich Warmwasser unten (B41); die Zapftemperatur gibt es nur mit IDM-Warmwasserstation und ist deshalb nicht enthalten.',
+            'confidence'   => 'Registerkarte direkt aus IDMs eigenem PDF "Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10). An einer laufenden IDM ALM vollständig bestätigt (alle Felder passen). Warmwasser Ist ist der Speicherfühler oben (B48), zusätzlich Warmwasser unten (B41); die Zapftemperatur gibt es nur mit IDM-Warmwasserstation und ist deshalb nicht enthalten.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
             'registers'    => [
