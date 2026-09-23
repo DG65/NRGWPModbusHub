@@ -1,5 +1,9 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.7.3 (Build 15) — 23.09.2026
+
+- **"Was ist Neu" auf die verbundweite `NEWS_VERSIONS`-Konvention umgestellt** (Dashboard/Dietmar 23.09.2026, per EMS weitergegeben): der Hinweis zeigt jetzt gezielt nur die Lücke zwischen der zuletzt bestätigten und der gerade installierten Version, gruppiert nach Versionsnummer ("🆕 Neu bis Version X"), statt nur zu prüfen, ob die aktuelle Version mit dem letzten Eintrag übereinstimmt. Bestätigen merkt sich jetzt die tatsächlich installierte Bibliotheksversion, nicht nur den letzten Eintrag-Schlüssel — ein künftiges Update zeigt den Hinweis dadurch zuverlässig wieder, auch wenn dazwischen kein Eintrag lag. Rein internes Verhalten, keine Registeränderung.
+
 ## 0.7.2 (Build 14) — 21.09.2026
 
 - **IDM an einer echten ALM vollständig bestätigt.** Christian („kollaps“) meldete nach dem Update auf 0.7.1: „Werte passen jetzt“, inklusive Warmwasser oben (1014) und dem neuen Warmwasser unten (1012). Damit ist die gesamte IDM-Registerkarte an einer laufenden Anlage geprüft, auch die Wortreihenfolge der 32-Bit-Werte. Nur Hinweistext im Formular und Doku geändert, keine Registeränderung.

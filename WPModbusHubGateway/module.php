@@ -31,7 +31,15 @@ class WPModbusHubGateway extends IPSModule
 {
     use WPMBHUB_HeatpumpTrait;
 
-    const NEWS_VERSION = '0.7.1';
+    // Verbund-Konvention "NEWS_VERSIONS" (SUITE.md "Einheitliche Formular-Optik" Punkt 1,
+    // Dashboard/Dietmar 23.09.2026, EMS-Weitergabe) -- siehe WPModbusHub/module.php.
+    const NEWS_VERSIONS = [
+        '0.7.1' => [
+            'Neue Statuszeile im Bereich „Wärmepumpe“: zeigt live, ob ein ModBus-Gateway verbunden ist, ob die Wärmepumpe antwortet, wie lange die letzte Aktualisierung her ist und welche Werte gerade ankommen -- oder was fehlt.',
+            'IDM: „Warmwasser“ zeigt jetzt den Speicherfühler oben statt der Zapftemperatur, die es nur mit IDMs Warmwasserstation gibt; neu dazu „Warmwasser unten“ (Speicherfühler unten).',
+        ],
+    ];
+    private const LIBRARY_GUID = '{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}';
     const DRIVERS = WPMBHUB_Drivers::DRIVERS;
     const MANUFACTURER_DEFAULT = WPMBHUB_Drivers::MANUFACTURER_DEFAULT;
 
@@ -129,18 +137,9 @@ class WPModbusHubGateway extends IPSModule
         if ($purposeIntro !== null) {
             array_unshift($form['elements'], $purposeIntro);
         }
-        if ($this->ReadAttributeString('SeenNews') !== self::NEWS_VERSION) {
-            array_unshift($form['elements'], [
-                'type'     => 'ExpansionPanel',
-                'name'     => 'NewsPanel',
-                'caption'  => '🆕 Neu in Version ' . self::NEWS_VERSION,
-                'expanded' => true,
-                'items'    => [
-                    ['type' => 'Label', 'caption' => '• Neue Statuszeile im Bereich „Wärmepumpe“: zeigt live, ob ein ModBus-Gateway verbunden ist, ob die Wärmepumpe antwortet, wie lange die letzte Aktualisierung her ist und welche Werte gerade ankommen -- oder was fehlt.'],
-                    ['type' => 'Label', 'caption' => '• IDM: „Warmwasser“ zeigt jetzt den Speicherfühler oben statt der Zapftemperatur, die es nur mit IDMs Warmwasserstation gibt; neu dazu „Warmwasser unten“ (Speicherfühler unten).'],
-                    ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBGW_AckNews($id);'],
-                ],
-            ]);
+        $newsBanner = $this->newsBanner();
+        if ($newsBanner !== null) {
+            array_unshift($form['elements'], $newsBanner);
         }
 
         $forumHint = $this->ForumHint();
@@ -153,9 +152,49 @@ class WPModbusHubGateway extends IPSModule
         return json_encode($form);
     }
 
+    /** Siehe WPModbusHub/module.php::BaseVersion(). */
+    private function BaseVersion(string $v): string
+    {
+        return preg_replace('/-.*$/', '', $v) ?? $v;
+    }
+
+    /** Siehe WPModbusHub/module.php::newsBanner(). */
+    private function newsBanner(): ?array
+    {
+        $seen = (string) $this->ReadAttributeString('SeenNews');
+        $pending = [];
+        foreach (self::NEWS_VERSIONS as $ver => $lines) {
+            if ($seen === '' || version_compare($ver, $seen, '>')) {
+                $pending[$ver] = $lines;
+            }
+        }
+        if (count($pending) === 0) {
+            return null;
+        }
+        uksort($pending, 'version_compare');
+        $items = [];
+        $multi = count($pending) > 1;
+        foreach ($pending as $ver => $lines) {
+            if ($multi) {
+                $items[] = ['type' => 'Label', 'caption' => 'Version ' . $ver . ':'];
+            }
+            foreach ($lines as $line) {
+                $items[] = ['type' => 'Label', 'caption' => '• ' . $line];
+            }
+        }
+        $items[] = ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBGW_AckNews($id);'];
+        $latest = array_key_last($pending);
+        return ['type' => 'ExpansionPanel', 'name' => 'NewsPanel', 'caption' => '🆕 Neu bis Version ' . $latest, 'expanded' => true, 'items' => $items];
+    }
+
     public function AckNews(): void
     {
-        $this->WriteAttributeString('SeenNews', self::NEWS_VERSION);
+        $lib = @IPS_GetLibrary(self::LIBRARY_GUID);
+        $ver = is_array($lib) ? $this->BaseVersion((string) ($lib['Version'] ?? '')) : '';
+        if ($ver === '') {
+            $ver = (string) array_key_last(self::NEWS_VERSIONS);
+        }
+        $this->WriteAttributeString('SeenNews', $ver);
         $this->UpdateFormField('NewsPanel', 'visible', false);
     }
 

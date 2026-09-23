@@ -84,6 +84,10 @@ function IPS_InstanceExists(int $id): bool
 {
     return $id > 0;
 }
+function IPS_GetLibrary(string $guid): array
+{
+    return ['Version' => $GLOBALS['ips']['libraryVersion'] ?? ''];
+}
 function GetValue(int $id)
 {
     foreach ($GLOBALS['ips']['variables'] as $v) {
@@ -607,6 +611,42 @@ $mod->AckForumHint();
 $formAfterForumAck = json_decode($mod->GetConfigurationForm(), true);
 check('Forum-Hinweis-Panel verschwindet nach Bestätigen', findFormElement($formAfterForumAck['elements'], 'ForumHintPanel') === null);
 
+// -- NEWS_VERSIONS-Banner (SUITE.md "Einheitliche Formular-Optik" Punkt 1,
+// Dashboard/Dietmar 23.09.2026): zeigt nur die Luecke seit SeenNews, merkt die
+// tatsaechlich installierte Bibliotheksversion, nicht nur den letzten Schluessel.
+$newsMod = new WPModbusHub();
+$newsMod->Create();
+$formNews = json_decode($newsMod->GetConfigurationForm(), true);
+$newsPanel = findFormElement($formNews['elements'], 'NewsPanel');
+check('News-Banner erscheint bei leerem SeenNews', $newsPanel !== null);
+check('News-Banner-Caption nennt die hoechste Version', ($newsPanel['caption'] ?? '') === '🆕 Neu bis Version 0.7.1', $newsPanel['caption'] ?? 'null');
+$GLOBALS['ips']['libraryVersion'] = '0.9.9-beta.3';
+$newsMod->AckNews();
+$seenNews = new ReflectionMethod(WPModbusHub::class, 'ReadAttributeString');
+$seenNews->setAccessible(true);
+check('AckNews() speichert die tatsaechlich installierte BASISVERSION "0.9.9" (Beta-Suffix entfernt, NICHT nur den letzten NEWS_VERSIONS-Schluessel 0.7.1)', $seenNews->invoke($newsMod, 'SeenNews') === '0.9.9', $seenNews->invoke($newsMod, 'SeenNews'));
+$GLOBALS['ips']['libraryVersion'] = '';
+$formNewsGone = json_decode($newsMod->GetConfigurationForm(), true);
+check('News-Banner ist nach AckNews() weg (kein neuerer Eintrag)', findFormElement($formNewsGone['elements'], 'NewsPanel') === null);
+
+// Kuenstlicher zweiter Eintrag: nur die LUECKE seit SeenNews erscheint, nicht die Historie.
+$newsVersionsRef = new ReflectionClassConstant(WPModbusHub::class, 'NEWS_VERSIONS');
+$allVersions = $newsVersionsRef->getValue();
+check('NEWS_VERSIONS-Konstante hat den erwarteten Schluessel 0.7.1', array_key_exists('0.7.1', $allVersions));
+
+$GLOBALS['ips']['libraryVersion'] = '';
+$oldNewsMod = new WPModbusHub();
+$oldNewsMod->Create();
+$writeSeenNews = new ReflectionMethod(WPModbusHub::class, 'WriteAttributeString');
+$writeSeenNews->setAccessible(true);
+$writeSeenNews->invoke($oldNewsMod, 'SeenNews', '0.5.0');
+$formOldNews = json_decode($oldNewsMod->GetConfigurationForm(), true);
+$oldNewsPanel = findFormElement($formOldNews['elements'], 'NewsPanel');
+check('Wer eine sehr alte Version zuletzt sah, sieht trotzdem nur den EINEN vorhandenen Eintrag (keine falsche Vervielfachung)', $oldNewsPanel !== null && count(array_filter($oldNewsPanel['items'], fn($i) => ($i['type'] ?? '') === 'Label')) === 2, json_encode($oldNewsPanel));
+$writeSeenNews->invoke($oldNewsMod, 'SeenNews', '9.9.9');
+$formFutureNews = json_decode($oldNewsMod->GetConfigurationForm(), true);
+check('Wer scheinbar eine NEUERE Version als jeden Eintrag zuletzt sah, sieht keinen Banner', findFormElement($formFutureNews['elements'], 'NewsPanel') === null);
+
 // ---------------------------------------------------------------------------
 echo "Block 6: Vollstaendigkeit der Methodenaufrufe\n";
 // ---------------------------------------------------------------------------
@@ -770,6 +810,18 @@ $mj = json_decode(file_get_contents(__DIR__ . '/../WPModbusHubGateway/module.jso
 check('module.json: parentRequirements = verifizierte Gateway-DataID', ($mj['parentRequirements'] ?? []) === ['{E310B701-4AE7-458E-B618-EC13A1A6F6A8}']);
 check('module.json: implemented = RX-Typ des Gateways (an Kinder)', ($mj['implemented'] ?? []) === ['{77B31ABB-18FA-4B91-BB63-E5B2AB5588F4}']);
 check('module.json: Klassenname = name, Praefix WPMBGW', ($mj['name'] ?? '') === 'WPModbusHubGateway' && ($mj['prefix'] ?? '') === 'WPMBGW');
+
+// Gateway-Modul: eigene Kopie des News-Banners verhaelt sich identisch.
+$GLOBALS['ips']['libraryVersion'] = '';
+$gwNews = new WPModbusHubGateway();
+$gwNews->Create();
+$formGwNews = json_decode($gwNews->GetConfigurationForm(), true);
+$gwNewsPanel = findFormElement($formGwNews['elements'], 'NewsPanel');
+check('Gateway: News-Banner erscheint bei leerem SeenNews', $gwNewsPanel !== null && ($gwNewsPanel['caption'] ?? '') === '🆕 Neu bis Version 0.7.1', json_encode($gwNewsPanel['caption'] ?? null));
+$gwNews->AckNews();
+$formGwNewsGone = json_decode($gwNews->GetConfigurationForm(), true);
+check('Gateway: News-Banner ist nach AckNews() weg (kein Bibliotheksstring -> letzter Schluessel als Fallback)', findFormElement($formGwNewsGone['elements'], 'NewsPanel') === null);
+
 
 // ---------------------------------------------------------------------------
 echo "Block 8: Statuszeile im Formular (live berechnet, jeder Zustand)\n";
