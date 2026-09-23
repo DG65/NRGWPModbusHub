@@ -303,6 +303,17 @@ SUITE.md. Datenbasis: Attribute `LastCycleAt` + `LastMissing` (von `recordCycle(
 um (Zeile folgt der Auswahl). Feldnamen zentral in `WPMBHUB_Drivers::FIELD_CAPTIONS`. Beim
 Bau eines neuen Feldes dort eintragen, sonst fehlt es in Variablen UND Statuszeile.
 
+## NEWS_VERSIONS-Umstellung (0.7.3, 23.09.2026)
+
+EMS-Weitergabe (Dashboard/Dietmar, 23.09.2026): verbundweite Konvention, `NEWS_VERSION`+
+Zeilenliste wird zu `NEWS_VERSIONS` (Version ohne Beta-/Build-Suffix => Zeilen-Array).
+`newsBanner()` zeigt nur die Luecke seit `SeenNews` (`version_compare`), `AckNews()` merkt
+die tatsaechlich installierte Bibliotheksversion (`IPS_GetLibrary(self::LIBRARY_GUID)`,
+`BaseVersion()` entfernt Beta-/Build-Suffix per Regex) statt nur den letzten Schluessel.
+Eigene Kopie in WPModbusHub UND WPModbusHubGateway (kein geteilter Trait-Code fuer
+Formular-Scaffolding, Muster wie PurposeIntro/ForumHint/LicenseHint). Referenz:
+NRGDashboardTile (`DG65/NRGDashboard`, Build 201).
+
 ## Discovery durch Konsumenten (19.09.2026)
 
 Dashboard (Build 159, `HEATPUMP_SOURCES` in NRGDashboardWPMonitor/HeatSchema) kennt
