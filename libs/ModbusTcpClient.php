@@ -8,6 +8,19 @@
 // (eine Verbindung je Lesezyklus statt je Anfrage, siehe MeterHub-CLAUDE.md
 // "Modbus: eine Verbindung je Zyklus").
 
+// Warum ein eigener Socket (fsockopen) und kein I/O-Instanz-Parent (Symcon-
+// Review 30.10.2026)? Ehrliche Antwort: Das ist eine Entscheidung der Herkunft,
+// kein harter technischer Zwang. Der Client ist eine Portierung aus MeterHub, wo
+// er sich im Solarpark bewaehrt hat. Dort bestimmt das Modul selbst, wann eine
+// Verbindung entsteht und endet (eine Verbindung je Lesezyklus, danach close()),
+// und jede Instanz traegt ihr Ziel (Host, Port, Unit-ID) selbst -- ohne eine
+// zusaetzliche I/O-Instanz je Waermepumpe, die der Nutzer anlegen muss. Das gilt
+// fuer Modbus-TCP-Ziele und fuer externe RTU/TCP-Wandler. Der saubere Symcon-Weg
+// mit I/O ist bereits im Schwestermodul WPModbusHubGateway umgesetzt: es haengt
+// als Kind-Instanz am Symcon-ModBus-Gateway (dessen Parent wahlweise ein Client
+// Socket fuer TCP oder ein Serial Port fuer RS485 ist) und nutzt dieselben
+// Registerkarten. Wer lieber eine echte I/O-Instanz haben will, nimmt dieses Modul.
+
 class WPMBHUB_ModbusTcpClient
 {
     public $host;

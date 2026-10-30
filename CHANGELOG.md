@@ -1,5 +1,9 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.7.5 (Build 17) — 30.10.2026
+
+- **Symcon-Review: Begründung für den eigenen Socket im Code.** Der Review fragte, warum `WPModbusHub` per `fsockopen` direkt zum Ziel verbindet statt über eine I/O-Instanz. Eine Erklärung steht jetzt im Kopf von `libs/ModbusTcpClient.php`: Herkunft aus MeterHub (Verbindungsdauer pro Lesezyklus, Ziel je Instanz), kein harter technischer Zwang, und der Weg über eine I/O-Instanz ist mit `WPModbusHubGateway` (Kind des Symcon-ModBus-Gateways) bereits vorhanden. Keine Funktionsänderung.
+
 ## 0.7.4 (Build 16) — 30.10.2026
 
 - **Symcon-Review: Logging nur noch auf ausdrücklichen Klick.** Das Modul hat bisher für seine Messwerte automatisch das Logging im Symcon-Archiv eingeschaltet, ohne den Nutzer zu fragen. Das ist entfernt. Im Bereich „Allgemein“ steht jetzt ein Hinweis und der Knopf „📈 Logging für die Messwerte einschalten“ (WPMBHUB_EnableArchiving() bzw. WPMBGW_EnableArchiving() beim Gateway-Modul). Er schaltet das Logging für alle Messwerte (Fließkomma-Variablen) dieser Instanz ein, nie etwas aus, und meldet, für wie viele Werte er es getan hat. Schon eingeschaltetes Logging bleibt bestehen.
