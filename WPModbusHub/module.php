@@ -62,6 +62,9 @@ class WPModbusHub extends IPSModule
             'Neue Statuszeile im Bereich „Wärmepumpe“: zeigt live, ob die Wärmepumpe antwortet, wie lange die letzte Aktualisierung her ist und welche Werte gerade ankommen -- oder was fehlt.',
             'IDM: „Warmwasser“ zeigt jetzt den Speicherfühler oben statt der Zapftemperatur, die es nur mit IDMs Warmwasserstation gibt; neu dazu „Warmwasser unten“ (Speicherfühler unten).',
         ],
+        '0.7.4' => [
+            'Das Logging im Symcon-Archiv wird nicht mehr von selbst eingeschaltet. Im Bereich „Allgemein“ gibt es dafür den Knopf „Logging für die Messwerte einschalten“, damit du es bewusst aktivierst (Symcon-Review). Bereits eingeschaltetes Logging bleibt unangetastet.',
+        ],
     ];
     private const LIBRARY_GUID = '{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}';
 

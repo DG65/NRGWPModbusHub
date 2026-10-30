@@ -58,6 +58,9 @@ function IPS_SetVariableProfileDigits(string $name, int $digits): void
 const TEST_ARCHIVE_INSTANCE_ID = 55555;
 function IPS_GetInstanceListByModuleID(string $moduleID): array
 {
+    if (!empty($GLOBALS['ips']['noArchive'])) {
+        return [];
+    }
     if ($moduleID === '{43192F0B-135B-4CE7-A0A7-1475603F3060}') {
         return [TEST_ARCHIVE_INSTANCE_ID];
     }
@@ -71,6 +74,24 @@ function AC_SetLoggingStatus(int $archiveID, int $variableID, bool $active): boo
 {
     $GLOBALS['ips']['archived'][$variableID] = $active;
     return true;
+}
+const OBJECTTYPE_VARIABLE = 2;
+function IPS_GetChildrenIDs(int $id): array
+{
+    return array_map(fn ($v) => $v['id'], array_values($GLOBALS['ips']['variables']));
+}
+function IPS_GetObject(int $id): array
+{
+    return ['ObjectType' => OBJECTTYPE_VARIABLE];
+}
+function IPS_GetVariable(int $id): array
+{
+    foreach ($GLOBALS['ips']['variables'] as $v) {
+        if ($v['id'] === $id) {
+            return ['VariableType' => $v['type']];
+        }
+    }
+    return ['VariableType' => -1];
 }
 function IPS_ApplyChanges(int $id): void
 {
@@ -503,7 +524,7 @@ check('Erreichbar-Variable gesetzt', ($GLOBALS['ips']['variables']['Erreichbar']
 check('Aussentemperatur-Variable gesetzt', ($GLOBALS['ips']['variables']['Aussentemperatur']['value'] ?? null) === 7.5);
 check('Vorlauftemperatur-Variable gesetzt', ($GLOBALS['ips']['variables']['Vorlauftemperatur']['value'] ?? null) === 38.2);
 check('Zone1Soll-Variable NICHT angelegt (NIBE-Profil liefert das Feld nicht)', !isset($GLOBALS['ips']['variables']['Zone1Soll']));
-check('Archivierung für Aussentemperatur aktiviert', ($GLOBALS['ips']['archived'][$GLOBALS['ips']['variables']['Aussentemperatur']['id']] ?? false) === true);
+check('Aussentemperatur wird NICHT automatisch archiviert (Review 30.10.2026)', ($GLOBALS['ips']['archived'][$GLOBALS['ips']['variables']['Aussentemperatur']['id']] ?? false) === false);
 
 $functions = $mod->GetFunctions();
 check('GetFunctions() liefert genau einen Eintrag', is_array($functions) && count($functions) === 1);
@@ -619,7 +640,7 @@ $newsMod->Create();
 $formNews = json_decode($newsMod->GetConfigurationForm(), true);
 $newsPanel = findFormElement($formNews['elements'], 'NewsPanel');
 check('News-Banner erscheint bei leerem SeenNews', $newsPanel !== null);
-check('News-Banner-Caption nennt die hoechste Version', ($newsPanel['caption'] ?? '') === '🆕 Neu bis Version 0.7.1', $newsPanel['caption'] ?? 'null');
+check('News-Banner-Caption nennt die hoechste Version', ($newsPanel['caption'] ?? '') === '🆕 Neu bis Version 0.7.4', $newsPanel['caption'] ?? 'null');
 $GLOBALS['ips']['libraryVersion'] = '0.9.9-beta.3';
 $newsMod->AckNews();
 $seenNews = new ReflectionMethod(WPModbusHub::class, 'ReadAttributeString');
@@ -642,10 +663,52 @@ $writeSeenNews->setAccessible(true);
 $writeSeenNews->invoke($oldNewsMod, 'SeenNews', '0.5.0');
 $formOldNews = json_decode($oldNewsMod->GetConfigurationForm(), true);
 $oldNewsPanel = findFormElement($formOldNews['elements'], 'NewsPanel');
-check('Wer eine sehr alte Version zuletzt sah, sieht trotzdem nur den EINEN vorhandenen Eintrag (keine falsche Vervielfachung)', $oldNewsPanel !== null && count(array_filter($oldNewsPanel['items'], fn($i) => ($i['type'] ?? '') === 'Label')) === 2, json_encode($oldNewsPanel));
+check('Wer eine sehr alte Version zuletzt sah, sieht trotzdem jeden vorhandenen Eintrag genau einmal (keine falsche Vervielfachung)', $oldNewsPanel !== null && count(array_filter($oldNewsPanel['items'], fn($i) => ($i['type'] ?? '') === 'Label')) === 5, json_encode($oldNewsPanel));
 $writeSeenNews->invoke($oldNewsMod, 'SeenNews', '9.9.9');
 $formFutureNews = json_decode($oldNewsMod->GetConfigurationForm(), true);
 check('Wer scheinbar eine NEUERE Version als jeden Eintrag zuletzt sah, sieht keinen Banner', findFormElement($formFutureNews['elements'], 'NewsPanel') === null);
+
+// ---------------------------------------------------------------------------
+echo "Block 9: Logging nur auf Klick (Symcon-Review 30.10.2026)\n";
+// ---------------------------------------------------------------------------
+// Das Modul darf Variablen nicht von selbst archivieren -- nur ueber den
+// Formular-Knopf, den der Nutzer bewusst klickt.
+$floatIds = [];
+$otherIds = [];
+foreach ($GLOBALS['ips']['variables'] as $v) {
+    if ($v['type'] === VARIABLETYPE_FLOAT) {
+        $floatIds[] = $v['id'];
+    } else {
+        $otherIds[] = $v['id'];
+    }
+}
+check('Logging: Testbasis hat Messwert-Variablen', count($floatIds) > 0, (string)count($floatIds));
+check('Logging: nach allen Update-Zyklen ist NICHTS automatisch archiviert', array_filter($GLOBALS['ips']['archived'] ?? []) === []);
+$enableText = $mod->EnableArchiving();
+check('Logging: Klick schaltet alle Messwerte ein', count(array_filter($floatIds, fn ($id) => ($GLOBALS['ips']['archived'][$id] ?? false) === true)) === count($floatIds));
+check('Logging: Klick fasst Status-/Schaltvariablen nicht an', count(array_filter($otherIds, fn ($id) => ($GLOBALS['ips']['archived'][$id] ?? false) === true)) === 0);
+check('Logging: Rueckmeldung nennt die Zahl der Messwerte', strpos($enableText, '✅') === 0 && strpos($enableText, 'für ' . count($floatIds) . ' Messwert') !== false, $enableText);
+$enableAgain = $mod->EnableArchiving();
+check('Logging: zweiter Klick meldet "schon eingeschaltet" und schaltet nichts doppelt', strpos($enableAgain, 'für 0 Messwert') !== false && strpos($enableAgain, 'waren schon eingeschaltet') !== false, $enableAgain);
+$GLOBALS['ips']['noArchive'] = true;
+check('Logging: ohne Archiv-Instanz klare Fehlermeldung', strpos($mod->EnableArchiving(), '❌') === 0);
+unset($GLOBALS['ips']['noArchive']);
+$savedVars = $GLOBALS['ips']['variables'];
+$GLOBALS['ips']['variables'] = [];
+check('Logging: ohne Messwerte ein Hinweis statt Erfolgsmeldung', strpos($mod->EnableArchiving(), 'ℹ️') === 0);
+$GLOBALS['ips']['variables'] = $savedVars;
+$formJson = json_decode(file_get_contents(__DIR__ . '/../WPModbusHub/form.json'), true);
+$archButton = null;
+foreach ($formJson['elements'] as $el) {
+    if (($el['name'] ?? null) === 'GeneralPanel') {
+        foreach ($el['items'] as $it) {
+            if (($it['type'] ?? '') === 'Button' && strpos($it['onClick'] ?? '', 'WPMBHUB_EnableArchiving($id)') !== false) {
+                $archButton = $it;
+            }
+        }
+    }
+}
+check('Logging: Formular bietet den Knopf im Bereich Allgemein an', $archButton !== null);
 
 // ---------------------------------------------------------------------------
 echo "Block 6: Vollstaendigkeit der Methodenaufrufe\n";
@@ -817,7 +880,7 @@ $gwNews = new WPModbusHubGateway();
 $gwNews->Create();
 $formGwNews = json_decode($gwNews->GetConfigurationForm(), true);
 $gwNewsPanel = findFormElement($formGwNews['elements'], 'NewsPanel');
-check('Gateway: News-Banner erscheint bei leerem SeenNews', $gwNewsPanel !== null && ($gwNewsPanel['caption'] ?? '') === '🆕 Neu bis Version 0.7.1', json_encode($gwNewsPanel['caption'] ?? null));
+check('Gateway: News-Banner erscheint bei leerem SeenNews', $gwNewsPanel !== null && ($gwNewsPanel['caption'] ?? '') === '🆕 Neu bis Version 0.7.4', json_encode($gwNewsPanel['caption'] ?? null));
 $gwNews->AckNews();
 $formGwNewsGone = json_decode($gwNews->GetConfigurationForm(), true);
 check('Gateway: News-Banner ist nach AckNews() weg (kein Bibliotheksstring -> letzter Schluessel als Fallback)', findFormElement($formGwNewsGone['elements'], 'NewsPanel') === null);

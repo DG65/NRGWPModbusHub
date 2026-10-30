@@ -1,5 +1,10 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.7.4 (Build 16) — 30.10.2026
+
+- **Symcon-Review: Logging nur noch auf ausdrücklichen Klick.** Das Modul hat bisher für seine Messwerte automatisch das Logging im Symcon-Archiv eingeschaltet, ohne den Nutzer zu fragen. Das ist entfernt. Im Bereich „Allgemein“ steht jetzt ein Hinweis und der Knopf „📈 Logging für die Messwerte einschalten“ (WPMBHUB_EnableArchiving() bzw. WPMBGW_EnableArchiving() beim Gateway-Modul). Er schaltet das Logging für alle Messwerte (Fließkomma-Variablen) dieser Instanz ein, nie etwas aus, und meldet, für wie viele Werte er es getan hat. Schon eingeschaltetes Logging bleibt bestehen.
+- Prüfstand: neue Prüfungen (nichts wird automatisch archiviert, Klick schaltet nur Messwerte ein, zweiter Klick, kein Archiv, keine Messwerte, Knopf im Formular), drei Mutationen der Zielstellen gefangen.
+
 ## 0.7.3 (Build 15) — 23.09.2026
 
 - **"Was ist Neu" auf die verbundweite `NEWS_VERSIONS`-Konvention umgestellt** (Dashboard/Dietmar 23.09.2026, per EMS weitergegeben): der Hinweis zeigt jetzt gezielt nur die Lücke zwischen der zuletzt bestätigten und der gerade installierten Version, gruppiert nach Versionsnummer ("🆕 Neu bis Version X"), statt nur zu prüfen, ob die aktuelle Version mit dem letzten Eintrag übereinstimmt. Bestätigen merkt sich jetzt die tatsächlich installierte Bibliotheksversion, nicht nur den letzten Eintrag-Schlüssel — ein künftiges Update zeigt den Hinweis dadurch zuverlässig wieder, auch wenn dazwischen kein Eintrag lag. Rein internes Verhalten, keine Registeränderung.
