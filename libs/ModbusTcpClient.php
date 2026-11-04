@@ -154,7 +154,14 @@ class WPMBHUB_ModbusTcpClient
             return null;
         }
         $rfc = ord($pdu[0]);
-        if ($rfc & 0x80 || $rfc !== $fc) {
+        if ($rfc & 0x80) {
+            // Ausnahmeantwort des Geraets (z. B. 0x02 = Adresse nicht vorhanden): das Geraet
+            // antwortet also, nur nicht auf dieses Register.
+            $this->lastError = sprintf('Modbus-Ausnahme 0x%02X', ord($pdu[1]));
+            return null;
+        }
+        if ($rfc !== $fc) {
+            $this->lastError = 'unerwarteter Funktionscode 0x' . sprintf('%02X', $rfc);
             return null;
         }
 

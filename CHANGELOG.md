@@ -1,5 +1,10 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.7.6 (Build 18) — 04.11.2026
+
+- **Fehlerursache sichtbar.** Ein Tester (thorsten1, Stiebel WPF 15 mit ISG, Forum) meldete „Wärmepumpe nicht erreichbar“, obwohl derselbe Zugang bei ihm direkt per Modbus funktioniert. Das Modul konnte nicht sagen, warum: Keine Verbindung, Zeitüberschreitung und eine Ausnahmeantwort des Geräts (z. B. „Adresse nicht vorhanden“) zeigten alle nur „antwortet nicht“. Der Client merkt sich jetzt den Ausnahmecode, und die Instanz-Debugausgabe nennt je fehlgeschlagenem Register Art, Adresse und Ursache im Klartext (Thema „Modbus“). Keine Änderung am Lesen selbst.
+- Prüfstand: neue Prüfungen, darunter ein echter Client gegen einen Mini-Server, der mit einer Modbus-Ausnahme antwortet. Drei Mutationen gefangen.
+
 ## 0.7.5 (Build 17) — 30.10.2026
 
 - **Symcon-Review: Begründung für den eigenen Socket im Code.** Der Review fragte, warum `WPModbusHub` per `fsockopen` direkt zum Ziel verbindet statt über eine I/O-Instanz. Eine Erklärung steht jetzt im Kopf von `libs/ModbusTcpClient.php`: Herkunft aus MeterHub (Verbindungsdauer pro Lesezyklus, Ziel je Instanz), kein harter technischer Zwang, und der Weg über eine I/O-Instanz ist mit `WPModbusHubGateway` (Kind des Symcon-ModBus-Gateways) bereits vorhanden. Keine Funktionsänderung.

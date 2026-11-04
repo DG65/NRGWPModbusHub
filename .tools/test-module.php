@@ -236,6 +236,7 @@ class IPSModule
     }
     protected function SendDebug(string $topic, string $text, int $format): void
     {
+        $GLOBALS['ips']['debug'][] = ['topic' => $topic, 'text' => $text];
     }
     protected function LogMessage(string $text, int $type): void
     {
@@ -640,7 +641,7 @@ $newsMod->Create();
 $formNews = json_decode($newsMod->GetConfigurationForm(), true);
 $newsPanel = findFormElement($formNews['elements'], 'NewsPanel');
 check('News-Banner erscheint bei leerem SeenNews', $newsPanel !== null);
-check('News-Banner-Caption nennt die hoechste Version', ($newsPanel['caption'] ?? '') === '🆕 Neu bis Version 0.7.4', $newsPanel['caption'] ?? 'null');
+check('News-Banner-Caption nennt die hoechste Version', ($newsPanel['caption'] ?? '') === '🆕 Neu bis Version 0.7.6', $newsPanel['caption'] ?? 'null');
 $GLOBALS['ips']['libraryVersion'] = '0.9.9-beta.3';
 $newsMod->AckNews();
 $seenNews = new ReflectionMethod(WPModbusHub::class, 'ReadAttributeString');
@@ -663,7 +664,7 @@ $writeSeenNews->setAccessible(true);
 $writeSeenNews->invoke($oldNewsMod, 'SeenNews', '0.5.0');
 $formOldNews = json_decode($oldNewsMod->GetConfigurationForm(), true);
 $oldNewsPanel = findFormElement($formOldNews['elements'], 'NewsPanel');
-check('Wer eine sehr alte Version zuletzt sah, sieht trotzdem jeden vorhandenen Eintrag genau einmal (keine falsche Vervielfachung)', $oldNewsPanel !== null && count(array_filter($oldNewsPanel['items'], fn($i) => ($i['type'] ?? '') === 'Label')) === 5, json_encode($oldNewsPanel));
+check('Wer eine sehr alte Version zuletzt sah, sieht trotzdem jeden vorhandenen Eintrag genau einmal (keine falsche Vervielfachung)', $oldNewsPanel !== null && count(array_filter($oldNewsPanel['items'], fn($i) => ($i['type'] ?? '') === 'Label')) === 7, json_encode($oldNewsPanel));
 $writeSeenNews->invoke($oldNewsMod, 'SeenNews', '9.9.9');
 $formFutureNews = json_decode($oldNewsMod->GetConfigurationForm(), true);
 check('Wer scheinbar eine NEUERE Version als jeden Eintrag zuletzt sah, sieht keinen Banner', findFormElement($formFutureNews['elements'], 'NewsPanel') === null);
@@ -709,6 +710,48 @@ foreach ($formJson['elements'] as $el) {
     }
 }
 check('Logging: Formular bietet den Knopf im Bereich Allgemein an', $archButton !== null);
+
+// ---------------------------------------------------------------------------
+echo "Block 5b: Fehlerursache sichtbar (Tester-Meldung thorsten1, 04.11.2026)\n";
+// ---------------------------------------------------------------------------
+// Vorher hiess jeder Fehler (keine Verbindung, Zeitueberschreitung, Ausnahme des
+// Geraets) nur "antwortet nicht". Jetzt steht die Ursache pro Register in der
+// Instanz-Debugausgabe.
+class FailingModbusClient extends WPMBHUB_ModbusTcpClient
+{
+    public function readInput($startReg, $count)
+    {
+        $this->lastError = 'Modbus-Ausnahme 0x02';
+        return null;
+    }
+    public function readHolding($startReg, $count)
+    {
+        $this->lastError = 'connect';
+        return null;
+    }
+}
+$GLOBALS['ips']['debug'] = [];
+$failClient = new FailingModbusClient('192.168.1.168', 502, 1);
+$rrFail = $readRegisters->invoke($mod, ['Aussentemperatur' => ['regType' => 'input', 'addr' => 6, 'scale' => 10, 'signed' => true], 'WarmwasserSoll' => ['regType' => 'holding', 'addr' => 8, 'scale' => 10, 'signed' => true]], $failClient);
+check('Fehlerursache: kein Register lesbar liefert weiter null', $rrFail === null);
+$dbgModbus = array_values(array_filter($GLOBALS['ips']['debug'], fn ($d) => $d['topic'] === 'Modbus'));
+check('Fehlerursache: je fehlgeschlagenem Register eine Debugzeile', count($dbgModbus) === 2, (string)count($dbgModbus));
+check('Fehlerursache: Debugzeile nennt Ausnahme, Registerart und Adresse', strpos($dbgModbus[0]['text'], 'Modbus-Ausnahme 0x02') !== false && strpos($dbgModbus[0]['text'], 'input Register 6') !== false, $dbgModbus[0]['text'] ?? 'null');
+check('Fehlerursache: Verbindungsfehler wird im Klartext erklaert', strpos($dbgModbus[1]['text'], 'keine Verbindung') !== false, $dbgModbus[1]['text'] ?? 'null');
+
+// Echter Client gegen einen Mini-Server, der mit einer Modbus-Ausnahme antwortet (FC 0x84, Code 02).
+$srvScript = sys_get_temp_dir() . '/wpmbhub-exc-' . getmypid() . '.php';
+file_put_contents($srvScript, '<?php $s=stream_socket_server("tcp://127.0.0.1:0",$e,$m); fwrite(STDOUT, stream_socket_get_name($s,false)."\n"); fflush(STDOUT); $c=stream_socket_accept($s,5); if($c){ $h=fread($c,12); $tid=substr($h,0,2); fwrite($c,$tid."\x00\x00\x00\x03\x01\x84\x02"); fflush($c); usleep(300000);}');
+$proc = proc_open([PHP_BINARY, $srvScript], [1 => ['pipe', 'w']], $pipes);
+$addrLine = trim((string)fgets($pipes[1]));
+[$srvHost, $srvPort] = explode(':', $addrLine);
+$realClient = new WPMBHUB_ModbusTcpClient($srvHost, (int)$srvPort, 1);
+$excResult = $realClient->readInput(6, 1);
+check('Echter Client: Ausnahmeantwort liefert null', $excResult === null);
+check('Echter Client: Ausnahmecode steht in lastError', $realClient->lastError === 'Modbus-Ausnahme 0x02', $realClient->lastError);
+$realClient->close();
+proc_close($proc);
+@unlink($srvScript);
 
 // ---------------------------------------------------------------------------
 echo "Block 6: Vollstaendigkeit der Methodenaufrufe\n";
@@ -880,7 +923,7 @@ $gwNews = new WPModbusHubGateway();
 $gwNews->Create();
 $formGwNews = json_decode($gwNews->GetConfigurationForm(), true);
 $gwNewsPanel = findFormElement($formGwNews['elements'], 'NewsPanel');
-check('Gateway: News-Banner erscheint bei leerem SeenNews', $gwNewsPanel !== null && ($gwNewsPanel['caption'] ?? '') === '🆕 Neu bis Version 0.7.4', json_encode($gwNewsPanel['caption'] ?? null));
+check('Gateway: News-Banner erscheint bei leerem SeenNews', $gwNewsPanel !== null && ($gwNewsPanel['caption'] ?? '') === '🆕 Neu bis Version 0.7.6', json_encode($gwNewsPanel['caption'] ?? null));
 $gwNews->AckNews();
 $formGwNewsGone = json_decode($gwNews->GetConfigurationForm(), true);
 check('Gateway: News-Banner ist nach AckNews() weg (kein Bibliotheksstring -> letzter Schluessel als Fallback)', findFormElement($formGwNewsGone['elements'], 'NewsPanel') === null);

@@ -30,6 +30,15 @@ trait WPMBHUB_HeatpumpTrait
      * Register lässt die uebrigen unberuehrt (kein Alles-oder-nichts), NULL
      * nur wenn der gesamte Verbindungsaufbau fehlschlaegt.
      */
+    /** Klartext zur letzten Fehlerursache des Modbus-Clients, fuer die Debugausgabe. */
+    private function describeModbusError($client): string
+    {
+        $e = (string)($client->lastError ?? '');
+        $map = ['connect' => 'keine Verbindung (IP/Port erreichbar? Modbus am Geraet aktiviert? Nutzt schon etwas anderes die Verbindung?)',
+            'timeout' => 'keine Antwort innerhalb von 3 s', 'write' => 'Senden fehlgeschlagen', 'eof' => 'Verbindung vom Geraet geschlossen', 'frame' => 'ungueltige Antwort (Rahmenlaenge)'];
+        return $map[$e] ?? ($e !== '' ? $e : 'unbekannt');
+    }
+
     private function readRegisters(array $registerMap, WPMBHUB_ModbusTcpClient $client): ?array
     {
         $out = [];
@@ -43,6 +52,9 @@ trait WPMBHUB_HeatpumpTrait
                 ? $client->readHolding($def['addr'], $count)
                 : $client->readInput($def['addr'], $count);
             if ($regs === null) {
+                // Ursache sichtbar machen: ohne diese Zeile wirkt jeder Fehler (Verbindung,
+                // Zeitueberschreitung, Ausnahme des Geraets) gleich als "antwortet nicht".
+                $this->SendDebug('Modbus', sprintf('%s %s Register %d: %s', $ident, $def['regType'], $def['addr'], $this->describeModbusError($client)), 0);
                 continue;
             }
             $anySuccess = true;
