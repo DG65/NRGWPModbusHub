@@ -51,6 +51,24 @@ trait WPMBHUB_HeatpumpTrait
             $regs = ($def['regType'] === 'holding')
                 ? $client->readHolding($def['addr'], $count)
                 : $client->readInput($def['addr'], $count);
+            // Manche Geraete melden "Objekt nicht vorhanden" mit einem festen Ersatzwert (Stiebel ISG:
+            // 0x8000). Der darf nie als Temperatur erscheinen; eine Ausweichadresse (z. B. WPM 3 gegen
+            // WPM 3i) wird versucht, sonst bleibt das Feld leer.
+            if ($regs !== null && isset($def['invalidRaw']) && $client->u16($regs, 0) === $def['invalidRaw']) {
+                $regs = null;
+                if (isset($def['altAddr'])) {
+                    $alt = ($def['regType'] === 'holding')
+                        ? $client->readHolding($def['altAddr'], $count)
+                        : $client->readInput($def['altAddr'], $count);
+                    if ($alt !== null && $client->u16($alt, 0) !== $def['invalidRaw']) {
+                        $regs = $alt;
+                    }
+                }
+                if ($regs === null) {
+                    $this->SendDebug('Modbus', sprintf('%s %s Register %d: Objekt am Gerät nicht vorhanden (Ersatzwert 0x%04X)', $ident, $def['regType'], $def['addr'], $def['invalidRaw']), 0);
+                    continue;
+                }
+            }
             if ($regs === null) {
                 // Ursache sichtbar machen: ohne diese Zeile wirkt jeder Fehler (Verbindung,
                 // Zeitueberschreitung, Ausnahme des Geraets) gleich als "antwortet nicht".

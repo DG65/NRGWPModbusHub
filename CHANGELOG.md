@@ -1,5 +1,11 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.7.7 (Build 19) — 05.11.2026
+
+- **Fix: Stiebel-Eltron-Registerkarte hatte falsche Adressen.** Mit der Fehlerdiagnose aus 0.7.6 zeigte die Debugausgabe eines Testers (thorsten1, WPF 15 mit ISG, Forum) bei jedem Register „Modbus-Ausnahme 0x02“, also „Adresse nicht vorhanden“. Ursache: Beim Übernehmen der Karte aus dem Stiebel-PDF war der Block-Offset von 500 verloren gegangen (Adresse 6 statt 506), außerdem lag „Vorlauf“ auf einem Heizkreis-2-Wert. Jetzt gilt PDF-Adresse minus 1 (die ISG zählt 1-basiert), bestätigt an Warmwasser-Ist: PDF 522, am Direktzugang des Testers Input-Register 521. Neu: Rücklauftemperatur (PDF 516). Heizkreis-1-Soll liest PDF 510 und weicht bei der WPM 3i auf 509 aus.
+- Der Ersatzwert 0x8000, mit dem die ISG „Objekt nicht vorhanden“ meldet, wird nicht mehr als −3276,8 °C angezeigt. Das Feld bleibt leer, die Debugausgabe nennt den Grund.
+- Prüfstand: neue Prüfungen für Adressen, Ersatzwert und Ausweichadresse, fünf Mutationen gefangen.
+
 ## 0.7.6 (Build 18) — 04.11.2026
 
 - **Fehlerursache sichtbar.** Ein Tester (thorsten1, Stiebel WPF 15 mit ISG, Forum) meldete „Wärmepumpe nicht erreichbar“, obwohl derselbe Zugang bei ihm direkt per Modbus funktioniert. Das Modul konnte nicht sagen, warum: Keine Verbindung, Zeitüberschreitung und eine Ausnahmeantwort des Geräts (z. B. „Adresse nicht vorhanden“) zeigten alle nur „antwortet nicht“. Der Client merkt sich jetzt den Ausnahmecode, und die Instanz-Debugausgabe nennt je fehlgeschlagenem Register Art, Adresse und Ursache im Klartext (Thema „Modbus“). Keine Änderung am Lesen selbst.

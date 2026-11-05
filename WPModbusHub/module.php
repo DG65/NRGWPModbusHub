@@ -68,6 +68,9 @@ class WPModbusHub extends IPSModule
         '0.7.6' => [
             'Wenn die Wärmepumpe nicht antwortet, steht die Ursache jetzt je Register in der Instanz-Debugausgabe (keine Verbindung, Zeitüberschreitung oder Ausnahme des Geräts, z. B. „Adresse nicht vorhanden“). Vorher hieß jeder Fehler nur „antwortet nicht“.',
         ],
+        '0.7.7' => [
+            'Stiebel Eltron: Die Registeradressen waren falsch (die ISG antwortete mit „Adresse nicht vorhanden“). Jetzt gelten die Adressen aus dem Stiebel-PDF minus 1; neu dazu kommt die Rücklauftemperatur. Nicht vorhandene Werte (Ersatzwert 0x8000) zeigt das Modul nicht mehr als Temperatur an.',
+        ],
     ];
     private const LIBRARY_GUID = '{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}';
 

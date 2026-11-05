@@ -51,22 +51,29 @@ class WPMBHUB_Drivers
         ],
         // Stiebel Eltron (WPMsystem/WPM3/WPM3i/LWZ ueber ISG-Gateway,
         // "Modbus TCP/IP"-Softwareerweiterung). Registerkarte aus dem
-        // offiziellen Stiebel-Eltron-PDF "ISG Modbus_Stiebel_Bedienungs-
-        // anleitung" (Adressen einer unabhaengigen Referenzbibliothek
-        // gegengeprueft, die sie direkt daraus uebernimmt). Typ "2" der
-        // Herstellerdoku = s16, Faktor 0,1.
+        // offiziellen Stiebel-Eltron-PDF "ISG Modbus", Block 1 (Systemwerte,
+        // Read Input Register, FC 04). Typ "2" der Herstellerdoku = s16, Faktor 0,1.
+        // ADRESSEN: Das PDF nennt 1-basierte Adressen (Aussentemperatur = 507),
+        // auf der Leitung steht Dokumentation MINUS 1 (506). Bestaetigt am Direktzugang
+        // eines Nutzers (Forum thorsten1, 05.11.2026: Warmwasser-Ist im PDF 522,
+        // dort Input-Register 521). Fruehere Versionen (bis 0.7.6) fragten Adressen
+        // ohne den Block-Offset von 500 ab (z. B. 6 statt 506) und bekamen von der ISG
+        // nur "Adresse nicht vorhanden". Nicht vorhandene Objekte meldet die ISG mit dem
+        // Ersatzwert 0x8000 ('invalidRaw'), der nicht als Temperatur gezeigt wird.
         'stiebeleltron' => [
             'caption'      => 'Stiebel Eltron (ISG-Gateway, WPMsystem/WPM3/WPM3i/LWZ)',
-            'confidence'   => 'Registerkarte direkt aus dem offiziellen Stiebel-Eltron-PDF "ISG Modbus"-Bedienungsanleitung (Block 1, Systemwerte) -- nicht an echter Hardware verifiziert.',
+            'confidence'   => 'Registerkarte direkt aus dem offiziellen Stiebel-Eltron-PDF "ISG Modbus"-Bedienungsanleitung (Block 1, Systemwerte). Die Adressierung (PDF-Adresse minus 1) ist an einer WPF 15 bestätigt, die Werte selbst sind an echter Hardware noch nicht geprüft. Bitte Rückmeldung im Forum.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
             'registers'    => [
-                'Aussentemperatur'  => ['regType' => 'input', 'addr' => 6,  'scale' => 10, 'signed' => true],
-                'Vorlauftemperatur' => ['regType' => 'input', 'addr' => 11, 'scale' => 10, 'signed' => true],
-                'Warmwasser'        => ['regType' => 'input', 'addr' => 15, 'scale' => 10, 'signed' => true],
-                'WarmwasserSoll'    => ['regType' => 'input', 'addr' => 16, 'scale' => 10, 'signed' => true],
-                'Zone1Ist'          => ['regType' => 'input', 'addr' => 0,  'scale' => 10, 'signed' => true],
-                'Zone1Soll'         => ['regType' => 'input', 'addr' => 1,  'scale' => 10, 'signed' => true],
+                'Aussentemperatur'    => ['regType' => 'input', 'addr' => 506, 'scale' => 10, 'signed' => true, 'invalidRaw' => 0x8000],
+                'Vorlauftemperatur'   => ['regType' => 'input', 'addr' => 514, 'scale' => 10, 'signed' => true, 'invalidRaw' => 0x8000],
+                'Ruecklauftemperatur' => ['regType' => 'input', 'addr' => 515, 'scale' => 10, 'signed' => true, 'invalidRaw' => 0x8000],
+                'Warmwasser'          => ['regType' => 'input', 'addr' => 521, 'scale' => 10, 'signed' => true, 'invalidRaw' => 0x8000],
+                'WarmwasserSoll'      => ['regType' => 'input', 'addr' => 522, 'scale' => 10, 'signed' => true, 'invalidRaw' => 0x8000],
+                'Zone1Ist'            => ['regType' => 'input', 'addr' => 507, 'scale' => 10, 'signed' => true, 'invalidRaw' => 0x8000],
+                // Heizkreis-1-Soll: PDF 510 (WPMsystem/WPM3), bei der WPM 3i stattdessen 509.
+                'Zone1Soll'           => ['regType' => 'input', 'addr' => 509, 'scale' => 10, 'signed' => true, 'invalidRaw' => 0x8000, 'altAddr' => 508],
             ],
         ],
         // LG Therma V -- Registerkarte aus einer community-gepflegten

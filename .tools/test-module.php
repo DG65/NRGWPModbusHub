@@ -377,21 +377,39 @@ $fakeNibeCold->values = ['input:1' => 0x10000 - 35]; // -35 als 16-Bit-Zweierkom
 $valuesCold = $readRegisters->invoke($mod, ['Aussentemperatur' => WPModbusHub::DRIVERS['nibe']['registers']['Aussentemperatur']], $fakeNibeCold);
 check('NIBE: negative Aussentemperatur korrekt (-3.5)', ($valuesCold['Aussentemperatur'] ?? null) === -3.5, json_encode($valuesCold));
 
-// Stiebel Eltron: eigene Registeradressen (Block 1 ab 0), inkl. Zonen-Soll/Ist.
+// Stiebel Eltron: Adressen = PDF-Adresse minus 1 (Block 1 ab 501, ISG zaehlt 1-basiert).
+// Bestaetigt am Direktzugang eines Nutzers (Forum thorsten1, 05.11.2026): Warmwasser-Ist
+// im PDF 522, dort Input-Register 521. Vor 0.7.7 wurden Adressen wie 6 abgefragt und
+// die ISG antwortete "Adresse nicht vorhanden".
 $fakeStiebel = new FakeModbusClient('192.168.1.51', 502, 1);
 $fakeStiebel->values = [
-    'input:6'  => 45,   // Aussentemperatur 4.5°C
-    'input:11' => 351,  // Vorlauf 35.1°C
-    'input:15' => 470,  // Warmwasser Ist 47.0°C
-    'input:16' => 500,  // Warmwasser Soll 50.0°C
-    'input:0'  => 213,  // Zone1 Ist 21.3°C
-    'input:1'  => 210,  // Zone1 Soll 21.0°C
+    'input:506' => 45,   // Aussentemperatur 4.5°C (PDF 507)
+    'input:514' => 351,  // Vorlauf 35.1°C (PDF 515)
+    'input:515' => 301,  // Ruecklauf 30.1°C (PDF 516)
+    'input:521' => 470,  // Warmwasser Ist 47.0°C (PDF 522)
+    'input:522' => 500,  // Warmwasser Soll 50.0°C (PDF 523)
+    'input:507' => 213,  // Zone1 Ist 21.3°C (PDF 508)
+    'input:509' => 210,  // Zone1 Soll 21.0°C (PDF 510, WPM 3)
 ];
 $valuesStiebel = $readRegisters->invoke($mod, WPModbusHub::DRIVERS['stiebeleltron']['registers'], $fakeStiebel);
-check('Stiebel Eltron: alle sechs Felder korrekt dekodiert', $valuesStiebel === [
-    'Aussentemperatur' => 4.5, 'Vorlauftemperatur' => 35.1, 'Warmwasser' => 47.0,
+check('Stiebel Eltron: alle sieben Felder korrekt dekodiert', $valuesStiebel === [
+    'Aussentemperatur' => 4.5, 'Vorlauftemperatur' => 35.1, 'Ruecklauftemperatur' => 30.1, 'Warmwasser' => 47.0,
     'WarmwasserSoll' => 50.0, 'Zone1Ist' => 21.3, 'Zone1Soll' => 21.0,
 ], json_encode($valuesStiebel));
+check('Stiebel Eltron: Aussentemperatur liegt bei 506 (PDF 507 minus 1), nicht mehr bei 6', WPModbusHub::DRIVERS['stiebeleltron']['registers']['Aussentemperatur']['addr'] === 506);
+check('Stiebel Eltron: Warmwasser-Ist liegt bei 521 (am Direktzugang eines Nutzers bestaetigt)', WPModbusHub::DRIVERS['stiebeleltron']['registers']['Warmwasser']['addr'] === 521);
+check('Stiebel Eltron: keine Adresse unter 500 (alle Systemwerte liegen in Block 1 ab 501)', count(array_filter(WPModbusHub::DRIVERS['stiebeleltron']['registers'], fn ($d) => $d['addr'] < 500)) === 0);
+
+// Ersatzwert 0x8000 ("Objekt nicht vorhanden") darf nie als Temperatur erscheinen.
+$GLOBALS['ips']['debug'] = [];
+$fakeStiebelMissing = new FakeModbusClient('192.168.1.51', 502, 1);
+$fakeStiebelMissing->values = ['input:506' => 45, 'input:507' => 0x8000, 'input:509' => 0x8000, 'input:508' => 205];
+$mapMissing = ['Aussentemperatur' => WPModbusHub::DRIVERS['stiebeleltron']['registers']['Aussentemperatur'], 'Zone1Ist' => WPModbusHub::DRIVERS['stiebeleltron']['registers']['Zone1Ist'], 'Zone1Soll' => WPModbusHub::DRIVERS['stiebeleltron']['registers']['Zone1Soll']];
+$valuesMissing = $readRegisters->invoke($mod, $mapMissing, $fakeStiebelMissing);
+check('Stiebel Eltron: Ersatzwert 0x8000 ergibt kein Feld (keine -3276,8 °C)', !array_key_exists('Zone1Ist', $valuesMissing) && ($valuesMissing['Aussentemperatur'] ?? null) === 4.5, json_encode($valuesMissing));
+check('Stiebel Eltron: bei 0x8000 wird die Ausweichadresse (WPM 3i) versucht', ($valuesMissing['Zone1Soll'] ?? null) === 20.5, json_encode($valuesMissing));
+$missingDebug = array_values(array_filter($GLOBALS['ips']['debug'], fn ($d) => $d['topic'] === 'Modbus' && strpos($d['text'], 'nicht vorhanden') !== false));
+check('Stiebel Eltron: fehlendes Objekt steht im Klartext in der Debugausgabe', count($missingDebug) === 1 && strpos($missingDebug[0]['text'], 'Zone1Ist') === 0, json_encode($missingDebug));
 
 // LG: gemischt Input-/Holding-Register.
 $fakeLg = new FakeModbusClient('192.168.1.52', 502, 1);
@@ -641,7 +659,7 @@ $newsMod->Create();
 $formNews = json_decode($newsMod->GetConfigurationForm(), true);
 $newsPanel = findFormElement($formNews['elements'], 'NewsPanel');
 check('News-Banner erscheint bei leerem SeenNews', $newsPanel !== null);
-check('News-Banner-Caption nennt die hoechste Version', ($newsPanel['caption'] ?? '') === '🆕 Neu bis Version 0.7.6', $newsPanel['caption'] ?? 'null');
+check('News-Banner-Caption nennt die hoechste Version', ($newsPanel['caption'] ?? '') === '🆕 Neu bis Version ' . array_key_last(WPModbusHub::NEWS_VERSIONS), $newsPanel['caption'] ?? 'null');
 $GLOBALS['ips']['libraryVersion'] = '0.9.9-beta.3';
 $newsMod->AckNews();
 $seenNews = new ReflectionMethod(WPModbusHub::class, 'ReadAttributeString');
@@ -664,7 +682,7 @@ $writeSeenNews->setAccessible(true);
 $writeSeenNews->invoke($oldNewsMod, 'SeenNews', '0.5.0');
 $formOldNews = json_decode($oldNewsMod->GetConfigurationForm(), true);
 $oldNewsPanel = findFormElement($formOldNews['elements'], 'NewsPanel');
-check('Wer eine sehr alte Version zuletzt sah, sieht trotzdem jeden vorhandenen Eintrag genau einmal (keine falsche Vervielfachung)', $oldNewsPanel !== null && count(array_filter($oldNewsPanel['items'], fn($i) => ($i['type'] ?? '') === 'Label')) === 7, json_encode($oldNewsPanel));
+check('Wer eine sehr alte Version zuletzt sah, sieht trotzdem jeden vorhandenen Eintrag genau einmal (keine falsche Vervielfachung)', $oldNewsPanel !== null && count(array_filter($oldNewsPanel['items'], fn($i) => ($i['type'] ?? '') === 'Label')) === 2 * count(WPModbusHub::NEWS_VERSIONS) + array_sum(array_map('count', WPModbusHub::NEWS_VERSIONS)) - count(WPModbusHub::NEWS_VERSIONS), json_encode($oldNewsPanel));
 $writeSeenNews->invoke($oldNewsMod, 'SeenNews', '9.9.9');
 $formFutureNews = json_decode($oldNewsMod->GetConfigurationForm(), true);
 check('Wer scheinbar eine NEUERE Version als jeden Eintrag zuletzt sah, sieht keinen Banner', findFormElement($formFutureNews['elements'], 'NewsPanel') === null);
@@ -923,7 +941,7 @@ $gwNews = new WPModbusHubGateway();
 $gwNews->Create();
 $formGwNews = json_decode($gwNews->GetConfigurationForm(), true);
 $gwNewsPanel = findFormElement($formGwNews['elements'], 'NewsPanel');
-check('Gateway: News-Banner erscheint bei leerem SeenNews', $gwNewsPanel !== null && ($gwNewsPanel['caption'] ?? '') === '🆕 Neu bis Version 0.7.6', json_encode($gwNewsPanel['caption'] ?? null));
+check('Gateway: News-Banner erscheint bei leerem SeenNews', $gwNewsPanel !== null && ($gwNewsPanel['caption'] ?? '') === '🆕 Neu bis Version ' . array_key_last(WPModbusHubGateway::NEWS_VERSIONS), json_encode($gwNewsPanel['caption'] ?? null));
 $gwNews->AckNews();
 $formGwNewsGone = json_decode($gwNews->GetConfigurationForm(), true);
 check('Gateway: News-Banner ist nach AckNews() weg (kein Bibliotheksstring -> letzter Schluessel als Fallback)', findFormElement($formGwNewsGone['elements'], 'NewsPanel') === null);
