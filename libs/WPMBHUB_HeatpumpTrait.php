@@ -41,33 +41,59 @@ trait WPMBHUB_HeatpumpTrait
         return $map[$e] ?? ($e !== '' ? $e : WPMBHUB_Text::t('unknown'));
     }
 
+    /**
+     * Felder, die das Geraet selbst als "nicht vorhanden" meldet (Ersatzwert), aus dem letzten
+     * readRegisters()-Lauf. Sie sind kein Fehler: eine Luft-Waermepumpe hat keine Quellentemperatur.
+     * @var string[]
+     */
+    private $unavailableIdents = [];
+
+    /** True, wenn eines der gelesenen Register einen Ersatzwert ("Objekt nicht vorhanden") traegt. */
+    private function isInvalidReading($client, array $regs, array $def): bool
+    {
+        if (!isset($def['invalidRaw'])) {
+            return false;
+        }
+        foreach ($regs as $i => $_) {
+            if (in_array($client->u16($regs, $i), (array)$def['invalidRaw'], true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function readRegisterBlock($client, array $def, int $addr, int $count): ?array
+    {
+        return ($def['regType'] === 'holding') ? $client->readHolding($addr, $count) : $client->readInput($addr, $count);
+    }
+
     private function readRegisters(array $registerMap, WPMBHUB_ModbusTcpClient $client): ?array
     {
         $out = [];
         $anySuccess = false;
         $anyAttempt = false;
+        $this->unavailableIdents = [];
         foreach ($registerMap as $ident => $def) {
             $anyAttempt = true;
-            $isFloat32 = ($def['type'] ?? 'int16') === 'float32';
-            $count = $isFloat32 ? 2 : 1;
-            $regs = ($def['regType'] === 'holding')
-                ? $client->readHolding($def['addr'], $count)
-                : $client->readInput($def['addr'], $count);
+            $type = $def['type'] ?? 'int16';
+            $isFloat32 = $type === 'float32';
+            $count = ($isFloat32 || $type === 'kwhmwh') ? 2 : 1;
+            $regs = $this->readRegisterBlock($client, $def, $def['addr'], $count);
             // Manche Geraete melden "Objekt nicht vorhanden" mit einem festen Ersatzwert (Stiebel ISG:
-            // 0x8000). Der darf nie als Temperatur erscheinen; eine Ausweichadresse (z. B. WPM 3 gegen
-            // WPM 3i) wird versucht, sonst bleibt das Feld leer.
-            if ($regs !== null && isset($def['invalidRaw']) && $client->u16($regs, 0) === $def['invalidRaw']) {
+            // 0x8000, LWZ-Sensoren -60/-50). Der darf nie als Messwert erscheinen; eine Ausweichadresse
+            // (z. B. WPM 3 gegen WPM 3i) wird versucht, sonst bleibt das Feld leer.
+            if ($regs !== null && $this->isInvalidReading($client, $regs, $def)) {
+                $badRaw = $client->u16($regs, 0);
                 $regs = null;
                 if (isset($def['altAddr'])) {
-                    $alt = ($def['regType'] === 'holding')
-                        ? $client->readHolding($def['altAddr'], $count)
-                        : $client->readInput($def['altAddr'], $count);
-                    if ($alt !== null && $client->u16($alt, 0) !== $def['invalidRaw']) {
+                    $alt = $this->readRegisterBlock($client, $def, $def['altAddr'], $count);
+                    if ($alt !== null && !$this->isInvalidReading($client, $alt, $def)) {
                         $regs = $alt;
                     }
                 }
                 if ($regs === null) {
-                    $this->SendDebug('Modbus', WPMBHUB_Text::t('%s %s register %d: object does not exist on the device (substitute value 0x%04X)', $ident, $def['regType'], $def['addr'], $def['invalidRaw']), 0);
+                    $this->SendDebug('Modbus', WPMBHUB_Text::t('%s %s register %d: object does not exist on the device (substitute value 0x%04X)', $ident, $def['regType'], $def['addr'], $badRaw), 0);
+                    $this->unavailableIdents[] = $ident;
                     continue;
                 }
             }
@@ -83,6 +109,9 @@ trait WPMBHUB_HeatpumpTrait
                 // direkt in Grad Celsius (siehe floatLE()-Kommentar zur
                 // Wortreihenfolge).
                 $out[$ident] = $client->floatLE($regs, 0);
+            } elseif ($type === 'kwhmwh') {
+                // Stiebel-Zaehler: Register 1 = kWh-Teil (0..999), Register 2 = MWh-Teil.
+                $out[$ident] = (float)$client->u16($regs, 1) * 1000.0 + (float)$client->u16($regs, 0);
             } else {
                 $raw = !empty($def['signed']) ? $client->s16($regs, 0) : $client->u16($regs, 0);
                 $scale = $def['scale'] ?? 1;
@@ -99,18 +128,66 @@ trait WPMBHUB_HeatpumpTrait
         return $out;
     }
 
+    /**
+     * Liest die Reglerkennung des Geraets (Stiebel: WPM 3 = 390, WPM 3i = 391, WPMsystem = 449, LWZ = 103/104)
+     * und merkt sie, damit das Formular eine falsch gewaehlte Karte meldet. 0 = unbekannt/nicht gelesen.
+     */
+    private function readControllerCode($client, array $driver): void
+    {
+        $code = 0;
+        if (isset($driver['controller'])) {
+            $regs = $client->readInput($driver['controller']['addr'], 1);
+            if ($regs !== null && $client->u16($regs, 0) !== 0x8000) {
+                $code = $client->u16($regs, 0);
+            }
+            if ($code > 0 && !in_array($code, $driver['controller']['expect'], true)) {
+                $this->SendDebug('Modbus', WPMBHUB_Text::t('controller code %d does not fit the selected card', $code), 0);
+            }
+        }
+        $this->WriteAttributeInteger('ControllerCode', $code);
+    }
+
+    /** Hinweis, wenn die Reglerkennung des Geraets nicht zur gewaehlten Karte passt; sonst leer. */
+    private function controllerNote(array $driver): string
+    {
+        $code = $this->ReadAttributeInteger('ControllerCode');
+        if ($code > 0 && isset($driver['controller']) && !in_array($code, $driver['controller']['expect'], true)) {
+            return ' ' . WPMBHUB_Text::t('⚠️ The device reports controller code %d, which does not fit the selected card -- another Stiebel Eltron card (heat pump with WPM or integral ventilation unit LWZ) is probably the right one.', $code);
+        }
+        return '';
+    }
+
     private function maintainDeviceVariables(array $values, bool $reachable): void
     {
         $pos = 0;
         $this->MaintainVariable('Erreichbar', WPMBHUB_Text::t('Reachable'), VARIABLETYPE_BOOLEAN, '~Alert.Reversed', $pos++, true);
         $this->SetValue('Erreichbar', $reachable);
 
+        $registers = WPMBHUB_Drivers::DRIVERS[$this->ReadPropertyString('Manufacturer')]['registers'] ?? [];
         foreach (WPMBHUB_Drivers::FIELD_CAPTIONS as $ident => $caption) {
             if (!array_key_exists($ident, $values)) {
                 continue;
             }
-            $this->MaintainVariable($ident, WPMBHUB_Text::t($caption), VARIABLETYPE_FLOAT, 'NRG.Celsius', $pos++, true);
-            $this->SetValue($ident, (float)$values[$ident]);
+            $def = $registers[$ident] ?? [];
+            $kind = $def['kind'] ?? 'temperature';
+            $name = WPMBHUB_Text::t($caption);
+            switch ($kind) {
+                case 'energy':
+                    $this->MaintainVariable($ident, $name, VARIABLETYPE_FLOAT, '~Electricity', $pos++, true);
+                    $this->SetValue($ident, (float)$values[$ident]);
+                    break;
+                case 'counter':
+                    $this->MaintainVariable($ident, $name, VARIABLETYPE_INTEGER, '', $pos++, true);
+                    $this->SetValue($ident, (int)round($values[$ident]));
+                    break;
+                case 'enum':
+                    $this->MaintainVariable($ident, $name, VARIABLETYPE_INTEGER, (string)($def['profile'] ?? ''), $pos++, true);
+                    $this->SetValue($ident, (int)round($values[$ident]));
+                    break;
+                default:
+                    $this->MaintainVariable($ident, $name, VARIABLETYPE_FLOAT, 'NRG.Celsius', $pos++, true);
+                    $this->SetValue($ident, (float)$values[$ident]);
+            }
         }
     }
 
@@ -124,6 +201,8 @@ trait WPMBHUB_HeatpumpTrait
         $this->WriteAttributeInteger('LastCycleAt', time());
         $missing = array_diff(array_keys($registerMap), array_keys($values ?? []));
         $this->WriteAttributeString('LastMissing', implode(',', $missing));
+        // Vom Geraet selbst als "nicht vorhanden" gemeldete Felder (Ersatzwert) sind kein Lesefehler.
+        $this->WriteAttributeString('LastUnavailable', implode(',', array_intersect($this->unavailableIdents, $missing)));
     }
 
     /**
@@ -154,7 +233,8 @@ trait WPMBHUB_HeatpumpTrait
         $parts = [];
         $registers = WPMBHUB_Drivers::DRIVERS[$manufacturer]['registers'] ?? [];
         foreach (WPMBHUB_Drivers::FIELD_CAPTIONS as $ident => $caption) {
-            if (!isset($registers[$ident])) {
+            // Nur Temperaturen: Zaehler und Betriebsart machen die Statuszeile unleserlich lang.
+            if (!isset($registers[$ident]) || ($registers[$ident]['kind'] ?? 'temperature') !== 'temperature') {
                 continue;
             }
             $id = $this->contractFieldID($ident);
@@ -214,15 +294,21 @@ trait WPMBHUB_HeatpumpTrait
         if (time() - $lastCycle > 3 * $interval + 10) {
             return [WPMBHUB_Text::t('⚠️ The last update was %s, one is expected every %d s -- check the timer and the instance status. Last values: %s.', $this->ageText($lastCycle), $interval, $values), -1];
         }
-        $missingIdents = array_filter(explode(',', $this->ReadAttributeString('LastMissing')));
+        $unavailable = array_filter(explode(',', $this->ReadAttributeString('LastUnavailable')));
+        $missingIdents = array_diff(array_filter(explode(',', $this->ReadAttributeString('LastMissing'))), $unavailable);
+        $note = $this->controllerNote($driver);
         if (count($missingIdents) > 0) {
             $names = [];
             foreach ($missingIdents as $ident) {
                 $names[] = isset(WPMBHUB_Drivers::FIELD_CAPTIONS[$ident]) ? WPMBHUB_Text::t(WPMBHUB_Drivers::FIELD_CAPTIONS[$ident]) : $ident;
             }
-            return [WPMBHUB_Text::t('⚠️ %s answers, but %d of %d fields were not read (%s). Read %s: %s.', $name, count($names), count($driver['registers']), implode(', ', $names), $this->ageText($lastCycle), $values), -1];
+            return [WPMBHUB_Text::t('⚠️ %s answers, but %d of %d fields were not read (%s). Read %s: %s.', $name, count($names), count($driver['registers']), implode(', ', $names), $this->ageText($lastCycle), $values) . $note, -1];
         }
-        return [WPMBHUB_Text::t('✅ %s answers, read %s: %s.', $name, $this->ageText($lastCycle), $values), -1];
+        $line = WPMBHUB_Text::t('✅ %s answers, read %s: %s.', $name, $this->ageText($lastCycle), $values);
+        if (count($unavailable) > 0) {
+            $line .= ' ' . WPMBHUB_Text::t('(%d fields are not offered by this device.)', count($unavailable));
+        }
+        return [$line . $note, -1];
     }
 
     /**
@@ -294,6 +380,7 @@ trait WPMBHUB_HeatpumpTrait
             'dhwTargetTempID'      => $this->contractFieldID('WarmwasserSoll'),
             'mainInletTempID'      => $this->contractFieldID('Ruecklauftemperatur'),
             'mainOutletTempID'     => $this->contractFieldID('Vorlauftemperatur'),
+            'compressorStartsID'   => $this->contractFieldID('Verdichterstarts'),
             'bufferTempID'         => $this->contractFieldID('Speichertemperatur'),
             'quietModeID'          => 0,
             'ecoComfortModeID'     => 0,
@@ -313,6 +400,22 @@ trait WPMBHUB_HeatpumpTrait
 
     private function ensureSharedProfiles(): void
     {
+        // Betriebsart der Stiebel-Karten (nur lesend angezeigt). Die Namen entstehen einmal bei der Anlage des
+        // Profils in der Sprache, die Symcon dann hat.
+        $modes = [
+            'WPMBHUB.StiebelModeWPM' => [0 => WPMBHUB_Text::t('Emergency operation'), 1 => WPMBHUB_Text::t('Standby'), 2 => WPMBHUB_Text::t('Program'),
+                3 => WPMBHUB_Text::t('Comfort'), 4 => WPMBHUB_Text::t('ECO'), 5 => WPMBHUB_Text::t('Hot water')],
+            'WPMBHUB.StiebelModeLWZ' => [0 => WPMBHUB_Text::t('Emergency operation'), 1 => WPMBHUB_Text::t('Standby'), 3 => WPMBHUB_Text::t('Day mode'),
+                4 => WPMBHUB_Text::t('Setback mode'), 5 => WPMBHUB_Text::t('Hot water'), 11 => WPMBHUB_Text::t('Automatic'), 14 => WPMBHUB_Text::t('Manual')],
+        ];
+        foreach ($modes as $profile => $associations) {
+            if (!IPS_VariableProfileExists($profile)) {
+                IPS_CreateVariableProfile($profile, VARIABLETYPE_INTEGER);
+                foreach ($associations as $value => $text) {
+                    IPS_SetVariableProfileAssociation($profile, $value, $text, '', -1);
+                }
+            }
+        }
         if (!IPS_VariableProfileExists('NRG.Celsius')) {
             IPS_CreateVariableProfile('NRG.Celsius', VARIABLETYPE_FLOAT);
             IPS_SetVariableProfileText('NRG.Celsius', '', ' °C');

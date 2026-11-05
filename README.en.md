@@ -3,7 +3,7 @@
 # WPModbusHub — local Modbus connection for heat pumps (Symcon)
 
 ![Symcon](https://img.shields.io/badge/Symcon-PHPModul-blue)
-![Module Version](https://img.shields.io/badge/Module_Version-0.8.0-blue)
+![Module Version](https://img.shields.io/badge/Module_Version-0.9.0-blue)
 ![Symcon Version](https://img.shields.io/badge/Symcon_Version-9.0%2B-blue)
 ![License](https://img.shields.io/badge/License-PolyForm_Noncommercial_1.0.0-lightgrey)
 [![Check Style](https://github.com/DG65/NRGWPModbusHub/actions/workflows/check-style.yml/badge.svg)](https://github.com/DG65/NRGWPModbusHub/actions/workflows/check-style.yml)
@@ -28,17 +28,17 @@ Two modules in one library, same register maps, same contract, only the transpor
 
 ## Status
 
-As of 0.8.0 (5 Nov 2026) — **read-only by design** (no control commands) and **not yet verified on real hardware for most of the seven manufacturers** (confirmed: Proxon T300 completely, IDM ALM completely, five Waterkotte temperature registers, the Stiebel Eltron addressing on a WPF 15). The register maps come, as far as possible, from official manufacturer documentation or from a reference implementation officially adopted by the respective smart-home platform:
+As of 0.9.0 (5 Nov 2026) — **read-only by design** (no control commands) and **not yet verified on real hardware for most of the seven manufacturers** (confirmed: Proxon T300 completely, IDM ALM completely, five Waterkotte temperature registers, the Stiebel Eltron addressing on a WPF 15). The register maps come, as far as possible, from official manufacturer documentation or from a reference implementation officially adopted by the respective smart-home platform:
 
 - **NIBE** (S series, e.g. S1155/S1255/S2125) — register map from an actively maintained, independent reference library for NIBE heat pumps.
-- **Stiebel Eltron** (ISG gateway, WPMsystem/WPM3/WPM3i/LWZ) — register map taken directly from the official Stiebel Eltron "ISG Modbus" manual. The ISG counts 1-based: on the wire the PDF address minus 1 applies (confirmed on a WPF 15); the values themselves are not yet checked against the display.
+- **Stiebel Eltron** (ISG gateway) — two cards, both taken directly from the official Stiebel Eltron "ISG Modbus" documentation: **heat pumps with WPMsystem/WPM 3/WPM 3i** and **integral ventilation units LWZ/LWA** (their own registers, not interchangeable). The ISG counts 1-based: on the wire the documentation address minus 1 applies (confirmed on a WPF 15); the values themselves are not yet checked against the display. Besides the temperatures (on the WPM also the source temperature) the card provides heat quantity and electrical energy for heating and hot water as totals in kWh (kWh and MWh part added up), the operating mode and, on the LWZ, compressor starts. **The energy values are the ISG's own estimate** (compressor and heating element only, not pumps, fans or electronics; in practice 15 to 20 % below a real meter), not a meter reading. The form warns if the controller code of the device does not fit the selected card.
 - **LG Therma V** — register map from a community-maintained Home Assistant configuration, no official LG source found.
 - **Samsung EHS** (via the official accessory module MIM-B19N) — register map from a community collection that refers to Samsung's official MIM-B19N installation manual. Does **not** apply to the RS485/NASA route without that module (that would need another, separate module).
 - **Waterkotte** (EcoTouch controller, built-in Modbus/TCP interface) — register map taken directly from Waterkotte's own PDF "Software Technische Information — Modbus/TCP".
 - **IDM Energiesysteme** (Navigator control 2.0, e.g. ALM series) — register map taken directly from IDM's own PDF "Modbus TCP Navigatorregelung 2.0", fully confirmed on a running ALM (hot water actual is the tank sensor at the top, plus hot water bottom). The only manufacturer in this list with 32-bit floating-point values instead of integer × factor.
 - **Proxon T300** (Zimmermann ventilation and heating systems, domestic hot water heat pump) — four registers from Zimmermann's customer register list (hot water actual/target, tank sensors bottom/middle), all checked against the display on a real system. Natively speaks Modbus RTU on a serial port, not TCP — needs an RS485-to-Ethernet gateway in "Modbus TCP to RTU" mode in front of it. The FWT ventilation unit (supply/exhaust air, no flow/return) is deliberately not included.
 
-**Currently only temperatures are read** (outdoor, flow, partly return/hot water/buffer tank/heating zone) — no power or energy meters yet.
+**Temperatures are read** (outdoor, flow, partly return/hot water/buffer tank/heating zone/source); for Stiebel Eltron also energy totals, operating mode and compressor starts. Stiebel has no instantaneous power via Modbus. In the contract with EMS and Dashboard `PowerID` and `EnergyID` stay 0 for now.
 
 If you own one of the seven heat pumps and want to help with the first real test: very welcome, see the note in the form.
 

@@ -56,6 +56,10 @@ function IPS_SetVariableProfileDigits(string $name, int $digits): void
 {
     $GLOBALS['ips']['profiles'][$name]['digits'] = $digits;
 }
+function IPS_SetVariableProfileAssociation(string $name, $value, string $text, string $icon, int $color): void
+{
+    $GLOBALS['ips']['profiles'][$name]['associations'][$value] = $text;
+}
 const TEST_ARCHIVE_INSTANCE_ID = 55555;
 function IPS_GetInstanceListByModuleID(string $moduleID): array
 {
@@ -621,7 +625,7 @@ function findFormElement(array $items, string $name): ?array
 $GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
 $form = json_decode($mod->GetConfigurationForm(), true);
 $manufacturerSelect = findFormElement($form['elements'], 'Manufacturer');
-check('Formular hat ein Hersteller-Select mit sieben Optionen', $manufacturerSelect !== null && count($manufacturerSelect['options']) === 7);
+check('Formular hat ein Hersteller-Select mit acht Optionen', $manufacturerSelect !== null && count($manufacturerSelect['options']) === 8);
 
 $licenseHint = end($form['elements']);
 check('"Über dieses Modul" steht ganz unten', ($licenseHint['caption'] ?? '') === '🧡  Über dieses Modul');
@@ -927,7 +931,7 @@ check('ReadRaw: Schreib-Function wird abgelehnt (nur lesen)', strpos($gw->ReadRa
 // Formular / Vertrag
 $formGw = json_decode($gw->GetConfigurationForm(), true);
 $selGw = findFormElement($formGw['elements'], 'Manufacturer');
-check('Gateway-Formular: Hersteller-Select aus DRIVERS erzeugt (7 Optionen)', $selGw !== null && count($selGw['options']) === count(WPModbusHub::DRIVERS) && count($selGw['options']) === 7);
+check('Gateway-Formular: Hersteller-Select aus DRIVERS erzeugt (8 Optionen)', $selGw !== null && count($selGw['options']) === count(WPModbusHub::DRIVERS) && count($selGw['options']) === 8);
 check('Gateway-Formular: hat "Verbindung testen"-Knopf', strpos(json_encode($formGw, JSON_UNESCAPED_UNICODE), 'WPMBGW_TestConnection($id)') !== false);
 check('Gateway-Formular: "Über dieses Modul" steht ganz unten', (end($formGw['elements'])['caption'] ?? '') === '🧡  Über dieses Modul');
 
@@ -1163,17 +1167,17 @@ $cycle($de, $vals);
 check('Deutsch: Variablenname "Außentemperatur", "Erreichbar"', ($GLOBALS['ips']['variables']['Aussentemperatur']['name'] ?? '') === 'Außentemperatur' && ($GLOBALS['ips']['variables']['Erreichbar']['name'] ?? '') === 'Erreichbar');
 $formDe = json_decode($de->GetConfigurationForm(), true);
 $optDe = findFormElement($formDe['elements'], 'Manufacturer')['options'] ?? [];
-check('Deutsch: Herstellerliste aus den Treibern (7 Einträge, deutsche Namen)', count($optDe) === 7 && $optDe[0]['caption'] === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)' && $optDe[6]['value'] === 'proxon', json_encode(array_column($optDe, 'caption'), JSON_UNESCAPED_UNICODE));
+check('Deutsch: Herstellerliste aus den Treibern (8 Einträge, deutsche Namen)', count($optDe) === 8 && $optDe[0]['caption'] === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)' && $optDe[7]['value'] === 'proxon', json_encode(array_column($optDe, 'caption'), JSON_UNESCAPED_UNICODE));
 check('Deutsch: Abschnitt "🔧 Allgemein", Knopf "Logging für die Messwerte einschalten"',
     strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '"🔧 Allgemein"') !== false && strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '📈 Logging für die Messwerte einschalten') !== false);
 check('Deutsch: Statuszeile mit Dezimalkomma', strpos(statusOf($de)[0], 'Außentemperatur 7,5 °C') !== false, statusOf($de)[0]);
 check('Deutsch: GetFunctions-Caption deutsch', $de->GetFunctions()[0]['Caption'] === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)');
-check('Deutsch: "Neu"-Banner zeigt die deutsche Zeile zu 0.8.0', strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), 'Das Modul ist jetzt durchgehend zweisprachig') !== false && strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '🆕 Neu bis Version 0.8.0') !== false);
+check('Deutsch: "Neu"-Banner zeigt die deutschen Zeilen zu 0.8.0 und 0.9.0', strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), 'Das Modul ist jetzt durchgehend zweisprachig') !== false && strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), 'neue Karte für Lüftungsintegralgeräte') !== false && strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '🆕 Neu bis Version ' . array_key_last(WPModbusHub::NEWS_VERSIONS)) !== false);
 $deGw = new WPModbusHubGateway(12345);
 $deGw->Create();
 $formDeGw = json_decode($deGw->GetConfigurationForm(), true);
 $optDeGw = findFormElement($formDeGw['elements'], 'Manufacturer')['options'] ?? [];
-check('Deutsch: Gateway-Herstellerliste deutsch', ($optDeGw[0]['caption'] ?? '') === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)' && ($optDeGw[3]['caption'] ?? '') === 'Samsung EHS (über MIM-B19N-Zubehörmodul)', json_encode(array_column($optDeGw, 'caption'), JSON_UNESCAPED_UNICODE));
+check('Deutsch: Gateway-Herstellerliste deutsch', ($optDeGw[0]['caption'] ?? '') === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)' && ($optDeGw[4]['caption'] ?? '') === 'Samsung EHS (über MIM-B19N-Zubehörmodul)', json_encode(array_column($optDeGw, 'caption'), JSON_UNESCAPED_UNICODE));
 check('Deutsch: Gateway-"Neu"-Banner und Statuszeile deutsch', strpos(json_encode($formDeGw, JSON_UNESCAPED_UNICODE), 'Das Modul ist jetzt durchgehend zweisprachig') !== false && strpos(json_encode($formDeGw, JSON_UNESCAPED_UNICODE), 'Wärmepumpe (über ModBus-Gateway)') !== false);
 
 // --- Englisch: keine deutschen Reste
@@ -1205,10 +1209,10 @@ foreach ([['TCP', $en], ['Gateway', new WPModbusHubGateway(12345)]] as [$label, 
     $rest = array_values(array_filter($captionsOf($formEn), $germanLeft));
     check("Englisch: $label-Formular ohne deutsche Reste", $rest === [], implode(' | ', array_map(function ($t) { return mb_substr($t, 0, 70); }, array_slice($rest, 0, 4))));
     $optEn = findFormElement($formEn['elements'], 'Manufacturer')['options'] ?? [];
-    check("Englisch: $label-Herstellerliste englisch", ($optEn[0]['caption'] ?? '') === 'NIBE (S series, e.g. S1155/S1255/S2125)' && ($optEn[3]['caption'] ?? '') === 'Samsung EHS (via MIM-B19N accessory module)', json_encode(array_column($optEn, 'caption')));
+    check("Englisch: $label-Herstellerliste englisch", ($optEn[0]['caption'] ?? '') === 'NIBE (S series, e.g. S1155/S1255/S2125)' && ($optEn[4]['caption'] ?? '') === 'Samsung EHS (via MIM-B19N accessory module)', json_encode(array_column($optEn, 'caption')));
     check("Englisch: $label-Status-Texte (form.json status) übersetzt/neutral", count(array_filter(array_column($formEn['status'], 'caption'), $germanLeft)) === 0);
 }
-check('Englisch: "Neu"-Banner zeigt die englische Zeile zu 0.8.0', strpos(json_encode(json_decode($en->GetConfigurationForm(), true)), 'The module is now fully bilingual') !== false);
+check('Englisch: "Neu"-Banner zeigt die englischen Zeilen zu 0.8.0 und 0.9.0', strpos(json_encode(json_decode($en->GetConfigurationForm(), true)), 'The module is now fully bilingual') !== false && strpos(json_encode(json_decode($en->GetConfigurationForm(), true)), 'new card for integral ventilation units') !== false);
 check('Englisch: Statuszeile mit Dezimalpunkt', strpos(statusOf($en)[0], 'Outdoor temperature 7.5 °C') !== false, statusOf($en)[0]);
 $driversEn = array_filter(array_merge(...array_map(function ($d) { return [$d['caption'], $d['confidence']]; }, array_values(WPMBHUB_Drivers::DRIVERS))), $germanLeft);
 // Herstellernamen/PDF-Titel mit deutschen Wörtern (z. B. "Navigatorregelung", "Software Technische Information") sind Eigennamen.
@@ -1277,6 +1281,186 @@ check('Translate-Kosten: auch Fehlerzyklen mit Debugzeilen fragen Symcon nur bei
 // Ein Uebersetzer, der wirft (Instanz weg), darf den Zyklus nicht abbrechen
 WPMBHUB_Text::setzen(WPMBHUB_Text::mitMerkliste(function (string $t): string { throw new RuntimeException('Instanz weg'); }));
 check('Übersetzer wirft: Quelltext bleibt stehen, nichts bricht ab', WPMBHUB_Text::t('Hot water') === 'Hot water');
+
+// ---------------------------------------------------------------------------
+echo "Block 11: Stiebel Eltron -- WPM- und LWZ-Karte, Energie, Betriebsart, Reglerkennung (0.9.0)\n";
+// ---------------------------------------------------------------------------
+
+$GLOBALS['ips']['locale'] = json_decode((string)file_get_contents(__DIR__ . '/../libs/locale.json'), true)['translations']['de'];
+check('Stiebel: zwei Karten (WPM und LWZ) mit eigenen Adressen', isset(WPModbusHub::DRIVERS['stiebeleltron'], WPModbusHub::DRIVERS['stiebeleltron_lwz'])
+    && WPModbusHub::DRIVERS['stiebeleltron']['registers']['Aussentemperatur']['addr'] === 506 && WPModbusHub::DRIVERS['stiebeleltron_lwz']['registers']['Aussentemperatur']['addr'] === 6);
+
+// Alle Adressen gegen die offizielle Doku (Wire = Doku - 1): [Karte][Ident] => Doku-Adresse (bei kwhmwh: kWh-Teil)
+$doku = [
+    'stiebeleltron' => ['Aussentemperatur' => 507, 'Zone1Ist' => 508, 'Zone1Soll' => 510, 'Vorlauftemperatur' => 515, 'Ruecklauftemperatur' => 516, 'Warmwasser' => 522, 'WarmwasserSoll' => 523,
+        'Quellentemperatur' => 536, 'WaermemengeHeizen' => 3502, 'WaermemengeWarmwasser' => 3505, 'StromHeizen' => 3512, 'StromWarmwasser' => 3515, 'Betriebsart' => 1501],
+    'stiebeleltron_lwz' => ['Aussentemperatur' => 7, 'Zone1Ist' => 8, 'Zone1Soll' => 9, 'Vorlauftemperatur' => 12, 'Ruecklauftemperatur' => 13, 'Warmwasser' => 16, 'WarmwasserSoll' => 17,
+        'Verdichterstarts' => 31, 'WaermemengeHeizen' => 3002, 'WaermemengeWarmwasser' => 3005, 'StromHeizen' => 3023, 'StromWarmwasser' => 3026, 'Betriebsart' => 1001],
+];
+$bad = [];
+foreach ($doku as $card => $map) {
+    foreach ($map as $ident => $docAddr) {
+        $addr = WPModbusHub::DRIVERS[$card]['registers'][$ident]['addr'] ?? null;
+        if ($addr !== $docAddr - 1) {
+            $bad[] = "$card/$ident: $addr statt " . ($docAddr - 1);
+        }
+    }
+    foreach (WPModbusHub::DRIVERS[$card]['registers'] as $ident => $_) {
+        if (!isset($map[$ident])) {
+            $bad[] = "$card/$ident nicht in der Doku-Tabelle des Tests";
+        }
+    }
+}
+check('Stiebel: jede Adresse ist Doku-Adresse minus 1 (WPM Abschnitt 6, LWZ Abschnitt 7)', $bad === [], implode(' | ', $bad));
+check('Stiebel: Betriebsart und Zähler lesen Holding bzw. Input wie in der Doku', WPModbusHub::DRIVERS['stiebeleltron']['registers']['Betriebsart']['regType'] === 'holding'
+    && WPModbusHub::DRIVERS['stiebeleltron']['registers']['StromHeizen']['regType'] === 'input');
+
+// Lesen: kWh- und MWh-Teil werden addiert, Quellentemperatur, Betriebsart
+$fakeWpm = new FakeModbusClient('203.0.113.9', 502, 1);
+$fakeWpm->values = ['input:506' => 45, 'input:535' => 0xFFF6 /* -1,0 */, 'input:3501' => 250, 'input:3502' => 12, 'input:3504' => 999, 'input:3505' => 3,
+    'input:3511' => 7, 'input:3512' => 4, 'input:3514' => 1, 'input:3515' => 0, 'holding:1500' => 4];
+$modWpm = new WPModbusHub(12345);
+$GLOBALS['ips']['properties']['Manufacturer'] = 'stiebeleltron';
+$modWpm->Create();
+$readWpm = new ReflectionMethod($modWpm, 'readRegisters');
+$readWpm->setAccessible(true);
+$vWpm = $readWpm->invoke($modWpm, WPModbusHub::DRIVERS['stiebeleltron']['registers'], $fakeWpm);
+check('Stiebel WPM: Wärmemenge Heizen = 12 MWh + 250 kWh = 12250 kWh', ($vWpm['WaermemengeHeizen'] ?? null) === 12250.0, json_encode($vWpm));
+check('Stiebel WPM: Wärmemenge Warmwasser = 3 MWh + 999 kWh = 3999 kWh', ($vWpm['WaermemengeWarmwasser'] ?? null) === 3999.0);
+check('Stiebel WPM: Strom Heizen 4007 kWh, Strom Warmwasser 1 kWh (MWh-Teil 0)', ($vWpm['StromHeizen'] ?? null) === 4007.0 && ($vWpm['StromWarmwasser'] ?? null) === 1.0, json_encode($vWpm));
+check('Stiebel WPM: Quellentemperatur -1,0 °C, Betriebsart 4 (ECO)', ($vWpm['Quellentemperatur'] ?? null) === -1.0 && ($vWpm['Betriebsart'] ?? null) === 4.0);
+
+// Variablenarten und Profile
+$GLOBALS['ips']['variables'] = [];
+$mvWpm = new ReflectionMethod($modWpm, 'maintainDeviceVariables');
+$mvWpm->setAccessible(true);
+$mvWpm->invoke($modWpm, $vWpm, true);
+$vars = $GLOBALS['ips']['variables'];
+check('Stiebel WPM: Energie = Float mit ~Electricity, Betriebsart = Ganzzahl mit Modusprofil, Temperatur = Float °C',
+    $vars['WaermemengeHeizen']['type'] === VARIABLETYPE_FLOAT && $vars['WaermemengeHeizen']['profile'] === '~Electricity'
+    && $vars['Betriebsart']['type'] === VARIABLETYPE_INTEGER && $vars['Betriebsart']['profile'] === 'WPMBHUB.StiebelModeWPM' && $vars['Betriebsart']['value'] === 4
+    && $vars['Quellentemperatur']['profile'] === 'NRG.Celsius', json_encode(array_map(function ($v) { return [$v['type'], $v['profile']]; }, $vars)));
+check('Stiebel: Modusprofile angelegt, deutsche Namen (Programmbetrieb/Komfortbetrieb/ECO-Betrieb)', ($GLOBALS['ips']['profiles']['WPMBHUB.StiebelModeWPM']['associations'][3] ?? '') === 'Komfortbetrieb'
+    && ($GLOBALS['ips']['profiles']['WPMBHUB.StiebelModeLWZ']['associations'][11] ?? '') === 'Automatik', json_encode($GLOBALS['ips']['profiles']['WPMBHUB.StiebelModeLWZ'] ?? null, JSON_UNESCAPED_UNICODE));
+check('Stiebel: Variablenname deutsch', $vars['WaermemengeHeizen']['name'] === 'Wärmemenge Heizen (gesamt)' && $vars['StromHeizen']['name'] === 'Stromverbrauch Heizen (gesamt)');
+check('Stiebel: Statuszeile nennt nur Temperaturen, keine Zähler', strpos($statusText = (function () use ($modWpm) {
+    $m = new ReflectionMethod($modWpm, 'lastValuesText');
+    $m->setAccessible(true);
+    return $m->invoke($modWpm, 'stiebeleltron');
+})(), 'Wärmemenge') === false && strpos($statusText, 'Außentemperatur') !== false, $statusText);
+check('Stiebel: Vertrag bleibt ohne Energiefelder (EnergyID/PowerID 0), ohne Verdichterstarts compressorStartsID 0', $modWpm->GetFunctions()[0]['EnergyID'] === 0 && $modWpm->GetFunctions()[0]['PowerID'] === 0 && $modWpm->GetFunctions()[0]['compressorStartsID'] === 0);
+
+// LWZ: Sensorfehler -60/-50, Verdichterstarts im Vertrag
+$fakeLwz = new FakeModbusClient('203.0.113.9', 502, 1);
+$fakeLwz->values = ['input:6' => 0xFDA8 /* -60 */, 'input:11' => 0xFE0C /* -50 */, 'input:12' => 355, 'input:15' => 480, 'input:30' => 4321,
+    'input:3001' => 100, 'input:3002' => 5, 'holding:1000' => 11];
+$GLOBALS['ips']['properties']['Manufacturer'] = 'stiebeleltron_lwz';
+$GLOBALS['ips']['variables'] = [];
+$modLwz = new WPModbusHub(12345);
+$modLwz->Create();
+$readLwz = new ReflectionMethod($modLwz, 'readRegisters');
+$readLwz->setAccessible(true);
+$GLOBALS['ips']['debug'] = [];
+$vLwz = $readLwz->invoke($modLwz, WPModbusHub::DRIVERS['stiebeleltron_lwz']['registers'], $fakeLwz);
+check('Stiebel LWZ: Sensorfehler -60 und -50 erscheinen nicht als Temperatur', !array_key_exists('Aussentemperatur', $vLwz) && !array_key_exists('Vorlauftemperatur', $vLwz), json_encode($vLwz));
+check('Stiebel LWZ: gültige Werte, Verdichterstarts 4321, Wärmemenge 5100 kWh, Betriebsart 11', ($vLwz['Ruecklauftemperatur'] ?? null) === 35.5 && ($vLwz['Warmwasser'] ?? null) === 48.0
+    && ($vLwz['Verdichterstarts'] ?? null) === 4321.0 && ($vLwz['WaermemengeHeizen'] ?? null) === 5100.0 && ($vLwz['Betriebsart'] ?? null) === 11.0, json_encode($vLwz));
+$mvLwz = new ReflectionMethod($modLwz, 'maintainDeviceVariables');
+$mvLwz->setAccessible(true);
+$mvLwz->invoke($modLwz, $vLwz, true);
+check('Stiebel LWZ: Verdichterstarts = Ganzzahl ohne Profil, Betriebsart mit LWZ-Profil', $GLOBALS['ips']['variables']['Verdichterstarts']['type'] === VARIABLETYPE_INTEGER
+    && $GLOBALS['ips']['variables']['Betriebsart']['profile'] === 'WPMBHUB.StiebelModeLWZ');
+check('Stiebel LWZ: Vertrag nennt die Verdichterstarts (compressorStartsID)', $modLwz->GetFunctions()[0]['compressorStartsID'] === $GLOBALS['ips']['variables']['Verdichterstarts']['id']);
+
+// Nicht vorhandene Felder sind kein Lesefehler: Luft-Wärmepumpe ohne Quellentemperatur
+$GLOBALS['ips']['properties']['Manufacturer'] = 'stiebeleltron';
+$GLOBALS['ips']['properties']['WPMBHUB_Active'] = true;
+$GLOBALS['ips']['properties']['Host'] = '203.0.113.9';
+$GLOBALS['ips']['variables'] = [];
+$modAir = new WPModbusHub(12345);
+$modAir->Create();
+$fakeAir = new FakeModbusClient('203.0.113.9', 502, 1);
+foreach (WPModbusHub::DRIVERS['stiebeleltron']['registers'] as $id => $def) {
+    $n = ($def['type'] ?? '') === 'kwhmwh' ? 2 : 1;
+    for ($i = 0; $i < $n; $i++) {
+        $fakeAir->values[$def['regType'] . ':' . ($def['addr'] + $i)] = 100;
+    }
+}
+$fakeAir->values['input:535'] = 0x8000;
+$readAir = new ReflectionMethod($modAir, 'readRegisters');
+$readAir->setAccessible(true);
+$recAir = new ReflectionMethod($modAir, 'recordCycle');
+$recAir->setAccessible(true);
+$vAir = $readAir->invoke($modAir, WPModbusHub::DRIVERS['stiebeleltron']['registers'], $fakeAir);
+$recAir->invoke($modAir, WPModbusHub::DRIVERS['stiebeleltron']['registers'], $vAir);
+$mvAir = new ReflectionMethod($modAir, 'maintainDeviceVariables');
+$mvAir->setAccessible(true);
+$mvAir->invoke($modAir, $vAir, true);
+setAttr($modAir, 'LastSeenAt', time());
+[$lineAir] = statusOf($modAir);
+check('Stiebel: vom Gerät als "nicht vorhanden" gemeldetes Feld (Quellentemperatur 0x8000) ergibt ✅ mit Hinweis, kein ⚠️', strpos($lineAir, '✅ ') === 0 && strpos($lineAir, '(Das Gerät bietet 1 Feld(er) nicht an.)') !== false, $lineAir);
+// Echter Lesefehler (Register fehlt, kein Ersatzwert) bleibt ⚠️
+unset($fakeAir->values['input:521']);
+$vAir2 = $readAir->invoke($modAir, WPModbusHub::DRIVERS['stiebeleltron']['registers'], $fakeAir);
+$recAir->invoke($modAir, WPModbusHub::DRIVERS['stiebeleltron']['registers'], $vAir2);
+[$lineAir2] = statusOf($modAir);
+check('Stiebel: echter Lesefehler eines Felds bleibt ⚠️ und nennt es', strpos($lineAir2, '⚠️ ') === 0 && strpos($lineAir2, 'Warmwasser') !== false && strpos($lineAir2, 'Quellentemperatur') === false, $lineAir2);
+
+// Reglerkennung
+$rc = new ReflectionMethod($modAir, 'readControllerCode');
+$rc->setAccessible(true);
+$fakeAir->values['input:5001'] = 390;
+$rc->invoke($modAir, $fakeAir, WPModbusHub::DRIVERS['stiebeleltron']);
+$recAir->invoke($modAir, WPModbusHub::DRIVERS['stiebeleltron']['registers'], $vAir);
+[$lineOk] = statusOf($modAir);
+check('Reglerkennung 390 (WPM 3) passt zur WPM-Karte: kein Hinweis', strpos($lineOk, 'Reglerkennung') === false, $lineOk);
+$fakeAir->values['input:5001'] = 103;
+$rc->invoke($modAir, $fakeAir, WPModbusHub::DRIVERS['stiebeleltron']);
+[$lineMis] = statusOf($modAir);
+check('Reglerkennung 103 (LWZ) bei gewählter WPM-Karte: Hinweis auf die andere Stiebel-Karte', strpos($lineMis, 'Reglerkennung 103') !== false && strpos($lineMis, 'Lüftungsintegralgerät LWZ') !== false, $lineMis);
+$fakeAir->values['input:5001'] = 0x8000;
+$rc->invoke($modAir, $fakeAir, WPModbusHub::DRIVERS['stiebeleltron']);
+[$lineNone] = statusOf($modAir);
+check('Reglerkennung 0x8000 (nicht angeboten): kein Hinweis', strpos($lineNone, 'Reglerkennung') === false, $lineNone);
+$fakeAir->values['input:5001'] = 104;
+$rc->invoke($modAir, $fakeAir, WPModbusHub::DRIVERS['stiebeleltron_lwz']);
+$GLOBALS['ips']['properties']['Manufacturer'] = 'stiebeleltron_lwz';
+[$lineLwz] = statusOf($modAir);
+check('Reglerkennung 104 bei LWZ-Karte: kein Hinweis', strpos($lineLwz, 'Reglerkennung') === false, $lineLwz);
+$GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
+$fakeAir->values['input:5001'] = 103;
+$rc->invoke($modAir, $fakeAir, WPModbusHub::DRIVERS['nibe']);
+check('Hersteller ohne Reglerkennung (NIBE): Kennung 0, nie ein Hinweis', (function () use ($modAir) {
+    $m = new ReflectionMethod($modAir, 'ReadAttributeInteger');
+    $m->setAccessible(true);
+    return $m->invoke($modAir, 'ControllerCode') === 0;
+})());
+
+// Ganzer Zyklus über das Gateway: Update() liest Felder UND die Reglerkennung, das Formular warnt bei falscher Karte
+$GLOBALS['ips']['variables'] = [];
+$GLOBALS['ips']['properties']['Manufacturer'] = 'stiebeleltron';
+$GLOBALS['ips']['properties']['WPMBGW_Active'] = true;
+$GLOBALS['ips']['properties']['WPMBGW_Interval'] = 60;
+$GLOBALS['ips']['parent'] = 4711;
+$tableWpm = [];
+foreach (WPModbusHub::DRIVERS['stiebeleltron']['registers'] as $id => $def) {
+    $n = ($def['type'] ?? '') === 'kwhmwh' ? 2 : 1;
+    for ($i = 0; $i < $n; $i++) {
+        $tableWpm[$def['regType'] . ':' . ($def['addr'] + $i)] = 120;
+    }
+}
+$tableWpm['input:5001'] = 104; // LWZ-Kennung, gewählt ist aber die WPM-Karte
+$logUp = [];
+$GLOBALS['ips']['parentResponder'] = makeGatewayResponder($tableWpm, $logUp);
+$gwUp = new WPModbusHubGateway(12345);
+$gwUp->Create();
+$gwUp->Update();
+$readsController = count(array_filter($logUp, function ($r) { return $r['Address'] === 5001; })) === 1;
+check('Gateway-Update liest die Reglerkennung (Adresse 5001) genau einmal je Zyklus', $readsController, json_encode(array_column($logUp, 'Address')));
+[$lineUp] = statusOf($gwUp);
+check('Gateway-Update: Formular warnt, dass 104 (LWZ) nicht zur gewählten WPM-Karte passt', strpos($lineUp, 'Reglerkennung 104') !== false, $lineUp);
+check('Gateway-Update: Energie und Betriebsart landen als Variablen', isset($GLOBALS['ips']['variables']['StromHeizen'], $GLOBALS['ips']['variables']['Betriebsart']) && $GLOBALS['ips']['variables']['StromHeizen']['value'] === 120120.0, json_encode(array_keys($GLOBALS['ips']['variables'])));
+$GLOBALS['ips']['parent'] = 0;
 
 // ---------------------------------------------------------------------------
 echo "\n";

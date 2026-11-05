@@ -76,6 +76,11 @@ class WPModbusHub extends IPSModule
         '0.8.0' => [
             'The module is now fully bilingual (German/English): form, status messages, notes and the names of new variables follow the Symcon language.',
         ],
+        '0.9.0' => [
+            'Stiebel Eltron: new card for integral ventilation units (LWZ/LWA). Their registers differ from the heat pumps with WPM, so the former single card read wrong addresses for them. If you own an LWZ, choose "Stiebel Eltron (ISG gateway, integral ventilation units LWZ/LWA)".',
+            'Stiebel Eltron: new values source temperature (brine/water units), heat quantity and electrical energy for heating and hot water as totals in kWh (kWh and MWh part added up), operating mode and, on the LWZ, compressor starts. The energy values are the ISG\'s own estimate, not a meter reading.',
+            'The form warns if the controller code of the Stiebel Eltron device does not fit the selected card. Fields that a device does not offer (e.g. the source temperature of an air unit) no longer count as read errors.',
+        ],
     ];
     private const LIBRARY_GUID = '{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}';
 
@@ -114,6 +119,9 @@ class WPModbusHub extends IPSModule
         // erfolglos) und die dabei nicht gelesenen Felder (Idents, Komma-getrennt).
         $this->RegisterAttributeInteger('LastCycleAt', 0);
         $this->RegisterAttributeString('LastMissing', '');
+        $this->RegisterAttributeString('LastUnavailable', '');
+        // Reglerkennung des Geraets (Stiebel: 5002), 0 = unbekannt; fuer den Hinweis bei falsch gewaehlter Karte.
+        $this->RegisterAttributeInteger('ControllerCode', 0);
         // Einmalig dismissible Forum-Hinweis (SUITE.md "Einheitliche Formular-
         // Optik", Forumsthread seit 18.09.2026 live), siehe ForumHint().
         $this->RegisterAttributeBoolean('ForumHintGone', false);
@@ -377,6 +385,9 @@ class WPModbusHub extends IPSModule
         }
         $client = new WPMBHUB_ModbusTcpClient($host, $this->ReadPropertyInteger('Port'), $this->ReadPropertyInteger('UnitId'));
         $values = $this->readRegisters(self::DRIVERS[$manufacturer]['registers'], $client);
+        if ($values !== null) {
+            $this->readControllerCode($client, self::DRIVERS[$manufacturer]);
+        }
         $client->close();
         $this->recordCycle(self::DRIVERS[$manufacturer]['registers'], $values);
 

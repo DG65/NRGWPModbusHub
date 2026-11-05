@@ -24,6 +24,13 @@ class WPMBHUB_Drivers
         'Speichertemperatur'  => 'Buffer tank temperature',
         'Zone1Ist'            => 'Heating zone 1 actual temperature',
         'Zone1Soll'           => 'Heating zone 1 target temperature',
+        'Quellentemperatur'   => 'Source temperature',
+        'WaermemengeHeizen'     => 'Heat quantity heating (total)',
+        'WaermemengeWarmwasser' => 'Heat quantity hot water (total)',
+        'StromHeizen'         => 'Electrical energy heating (total)',
+        'StromWarmwasser'     => 'Electrical energy hot water (total)',
+        'Verdichterstarts'    => 'Compressor starts',
+        'Betriebsart'         => 'Operating mode',
     ];
 
     // Registerprofile je Hersteller ('caption' und 'confidence' sind englische Quelltexte, uebersetzt
@@ -33,6 +40,14 @@ class WPMBHUB_Drivers
     // IDM) liest 2 Register statt 1 und dekodiert per floatLE() statt
     // s16()/u16() -- scale/signed werden dann ignoriert. Optional 'offset' (bislang
     // nur Proxon) wird NACH der Division addiert: Wert = Roh/scale + offset.
+    // Optional 'type'=>'kwhmwh' (Stiebel-Energiezaehler): liest zwei aufeinanderfolgende
+    // Register, das erste ist der kWh-Teil (0..999), das zweite der MWh-Teil; Wert in kWh =
+    // MWh * 1000 + kWh. Optional 'kind' bestimmt die Variable: 'temperature' (Standard,
+    // Float, NRG.Celsius), 'energy' (Float, ~Electricity), 'counter' (Ganzzahl),
+    // 'enum' (Ganzzahl mit Profil 'profile'). 'invalidRaw' (ein Rohwert oder eine Liste):
+    // Ersatzwerte fuer "Objekt nicht vorhanden". Auf Herstellerebene optional
+    // 'controller' => ['addr' => Register, 'expect' => [Kennungen]]: die Reglerkennung des
+    // Geraets, damit eine falsch gewaehlte Karte auffaellt.
     // Ident-Namen bewusst identisch zu WPHub (Aussentemperatur/Warmwasser/…)
     // -- GetFunctions() loest sie genau wie dort ueber contractFieldID() auf.
     const DRIVERS = [
@@ -63,10 +78,12 @@ class WPMBHUB_Drivers
         // nur "Adresse nicht vorhanden". Nicht vorhandene Objekte meldet die ISG mit dem
         // Ersatzwert 0x8000 ('invalidRaw'), der nicht als Temperatur gezeigt wird.
         'stiebeleltron' => [
-            'caption'      => 'Stiebel Eltron (ISG gateway, WPMsystem/WPM3/WPM3i/LWZ)',
-            'confidence'   => 'Register map taken directly from the official Stiebel Eltron "ISG Modbus" manual (block 1, system values). The addressing (PDF address minus 1) is confirmed on a WPF 15, the values themselves are not yet checked on real hardware. Please give feedback in the forum.',
+            'caption'      => 'Stiebel Eltron (ISG gateway, heat pumps with WPMsystem/WPM 3/WPM 3i)',
+            'confidence'   => 'Register map taken directly from the official Stiebel Eltron "ISG Modbus" documentation, section heat pumps with WPM (blocks 1, 2 and 4). The addressing (documentation address minus 1) is confirmed on a WPF 15, the values themselves are not yet checked on real hardware. Energy values are the ISG\'s own estimate (compressor and heating element only, not pumps, fans or electronics), not a meter reading. Please give feedback in the forum.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
+            // Reglerkennung (Doku 5002): WPM 3 = 390, WPM 3i = 391, WPMsystem = 449.
+            'controller'   => ['addr' => 5001, 'expect' => [390, 391, 449]],
             'registers'    => [
                 'Aussentemperatur'    => ['regType' => 'input', 'addr' => 506, 'scale' => 10, 'signed' => true, 'invalidRaw' => 0x8000],
                 'Vorlauftemperatur'   => ['regType' => 'input', 'addr' => 514, 'scale' => 10, 'signed' => true, 'invalidRaw' => 0x8000],
@@ -76,6 +93,44 @@ class WPMBHUB_Drivers
                 'Zone1Ist'            => ['regType' => 'input', 'addr' => 507, 'scale' => 10, 'signed' => true, 'invalidRaw' => 0x8000],
                 // Heizkreis-1-Soll: PDF 510 (WPMsystem/WPM3), bei der WPM 3i stattdessen 509.
                 'Zone1Soll'           => ['regType' => 'input', 'addr' => 509, 'scale' => 10, 'signed' => true, 'invalidRaw' => 0x8000, 'altAddr' => 508],
+                // Quellentemperatur (Doku 536), nur Sole/Wasser-Geraete; Luftgeraete melden 0x8000.
+                'Quellentemperatur'   => ['regType' => 'input', 'addr' => 535, 'scale' => 10, 'signed' => true, 'invalidRaw' => 0x8000],
+                // Block 4 "Energetische Daten": Summe = kWh-Teil (Doku 3502 usw.) + MWh-Teil.
+                'WaermemengeHeizen'     => ['regType' => 'input', 'addr' => 3501, 'type' => 'kwhmwh', 'kind' => 'energy', 'invalidRaw' => 0x8000],
+                'WaermemengeWarmwasser' => ['regType' => 'input', 'addr' => 3504, 'type' => 'kwhmwh', 'kind' => 'energy', 'invalidRaw' => 0x8000],
+                'StromHeizen'           => ['regType' => 'input', 'addr' => 3511, 'type' => 'kwhmwh', 'kind' => 'energy', 'invalidRaw' => 0x8000],
+                'StromWarmwasser'       => ['regType' => 'input', 'addr' => 3514, 'type' => 'kwhmwh', 'kind' => 'energy', 'invalidRaw' => 0x8000],
+                // Block 2 (Holding, nur gelesen): Betriebsart 0 Notbetrieb, 1 Bereitschaft, 2 Programm, 3 Komfort, 4 ECO, 5 Warmwasser.
+                'Betriebsart'           => ['regType' => 'holding', 'addr' => 1500, 'scale' => 1, 'signed' => false, 'kind' => 'enum', 'profile' => 'WPMBHUB.StiebelModeWPM', 'invalidRaw' => 0x8000],
+            ],
+        ],
+        // Stiebel Eltron Lueftungsintegralgeraete (LWZ/LWA ueber ISG): EIGENE Registerkarte, Doku Abschnitt 7.
+        // Adressen beginnen bei 1 (Block 1), 1001 (Block 2), 3001 (Block 4); auf der Leitung gilt wie bei den
+        // WPM-Geraeten Doku minus 1. Sensorfehler meldet die LWZ-Reihe mit -60 (Unterbrechung) und -50 (Kurzschluss),
+        // das sind die Rohwerte 0xFDA8 und 0xFE0C. Nicht an echter Hardware geprueft.
+        'stiebeleltron_lwz' => [
+            'caption'      => 'Stiebel Eltron (ISG gateway, integral ventilation units LWZ/LWA)',
+            'confidence'   => 'Register map taken directly from the official Stiebel Eltron "ISG Modbus" documentation, section integral ventilation units LWZ/LWA (blocks 1, 2 and 4), not verified on real hardware. Addressing as for the WPM card: documentation address minus 1. Sensor errors (-60/-50) are not shown as a temperature. Energy values are the ISG\'s own estimate (heat generators only, not pumps, fans or electronics), not a meter reading. Please give feedback in the forum.',
+            'defaultPort'  => 502,
+            'defaultUnitId' => 1,
+            // Reglerkennung (Doku 5002): LWZ/LWA = 103 oder 104.
+            'controller'   => ['addr' => 5001, 'expect' => [103, 104]],
+            'registers'    => [
+                'Aussentemperatur'    => ['regType' => 'input', 'addr' => 6,  'scale' => 10, 'signed' => true, 'invalidRaw' => [0x8000, 0xFDA8, 0xFE0C]],
+                'Zone1Ist'            => ['regType' => 'input', 'addr' => 7,  'scale' => 10, 'signed' => true, 'invalidRaw' => [0x8000, 0xFDA8, 0xFE0C]],
+                'Zone1Soll'           => ['regType' => 'input', 'addr' => 8,  'scale' => 10, 'signed' => true, 'invalidRaw' => [0x8000, 0xFDA8, 0xFE0C]],
+                'Vorlauftemperatur'   => ['regType' => 'input', 'addr' => 11, 'scale' => 10, 'signed' => true, 'invalidRaw' => [0x8000, 0xFDA8, 0xFE0C]],
+                'Ruecklauftemperatur' => ['regType' => 'input', 'addr' => 12, 'scale' => 10, 'signed' => true, 'invalidRaw' => [0x8000, 0xFDA8, 0xFE0C]],
+                'Warmwasser'          => ['regType' => 'input', 'addr' => 15, 'scale' => 10, 'signed' => true, 'invalidRaw' => [0x8000, 0xFDA8, 0xFE0C]],
+                'WarmwasserSoll'      => ['regType' => 'input', 'addr' => 16, 'scale' => 10, 'signed' => true, 'invalidRaw' => [0x8000, 0xFDA8, 0xFE0C]],
+                // Verdichterstarts (Doku 31), nur die LWZ-Reihe liefert diesen Zaehler.
+                'Verdichterstarts'      => ['regType' => 'input', 'addr' => 30, 'scale' => 1, 'signed' => false, 'kind' => 'counter', 'invalidRaw' => 0x8000],
+                'WaermemengeHeizen'     => ['regType' => 'input', 'addr' => 3001, 'type' => 'kwhmwh', 'kind' => 'energy', 'invalidRaw' => 0x8000],
+                'WaermemengeWarmwasser' => ['regType' => 'input', 'addr' => 3004, 'type' => 'kwhmwh', 'kind' => 'energy', 'invalidRaw' => 0x8000],
+                'StromHeizen'           => ['regType' => 'input', 'addr' => 3022, 'type' => 'kwhmwh', 'kind' => 'energy', 'invalidRaw' => 0x8000],
+                'StromWarmwasser'       => ['regType' => 'input', 'addr' => 3025, 'type' => 'kwhmwh', 'kind' => 'energy', 'invalidRaw' => 0x8000],
+                // Block 2 (Holding, nur gelesen): 0 Notbetrieb, 1 Bereitschaft, 3 Tagbetrieb, 4 Absenkbetrieb, 5 Warmwasser, 11 Automatik, 14 Handbetrieb.
+                'Betriebsart'           => ['regType' => 'holding', 'addr' => 1000, 'scale' => 1, 'signed' => false, 'kind' => 'enum', 'profile' => 'WPMBHUB.StiebelModeLWZ', 'invalidRaw' => 0x8000],
             ],
         ],
         // LG Therma V -- Registerkarte aus einer community-gepflegten

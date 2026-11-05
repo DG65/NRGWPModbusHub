@@ -1,5 +1,14 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.9.0 (Build 21) — 05.11.2026
+
+- **Stiebel Eltron: zwei Karten statt einer.** Die Karte hieß „WPMsystem/WPM3/WPM3i/LWZ“, enthielt aber nur die WPM-Register. Die Lüftungsintegralgeräte (LWZ/LWA) haben laut offizieller Stiebel-Dokumentation (Abschnitt 7) eigene Register ab Adresse 1; wer eine LWZ gewählt hatte, las falsche Adressen. Neu: „Stiebel Eltron (ISG-Gateway, Wärmepumpen mit WPMsystem/WPM 3/WPM 3i)“ und „… Lüftungsintegralgeräte LWZ/LWA“. Die Hersteller-Kennung `stiebeleltron` der bestehenden Instanzen bleibt die WPM-Karte. LWZ-Sensorfehler (−60 Unterbrechung, −50 Kurzschluss) erscheinen nicht mehr als Temperatur.
+- **Neue Werte (Stiebel):** Quellentemperatur (WPM, nur Sole/Wasser-Geräte), Wärmemenge und Stromverbrauch je für Heizen und Warmwasser als Summe in kWh (kWh-Teil plus 1000 × MWh-Teil), Betriebsart (nur gelesen, Profil `WPMBHUB.StiebelModeWPM`/`…LWZ`) und bei der LWZ die Verdichterstarts (`compressorStartsID` im Vertrag). Der Registerzugriff bleibt rein lesend. Die Energiewerte sind die eigene Schätzung des ISG (nur Verdichter und Heizstab), das steht im Hinweis zur Karte. `PowerID`/`EnergyID` bleiben 0: eine Momentanleistung gibt es bei Stiebel per Modbus nicht, und ob EMS/Dashboard geschätzte Summen als `EnergyID` wollen, ist nicht geklärt.
+- **Reglerkennung (Doku 5002):** WPM 3 = 390, WPM 3i = 391, WPMsystem = 449, LWZ = 103/104. Passt sie nicht zur gewählten Karte, meldet die Statuszeile das und nennt die andere Karte.
+- **Nicht angebotene Felder sind kein Lesefehler mehr:** Meldet das Gerät den Ersatzwert 0x8000 (z. B. Quellentemperatur an einer Luft-Wärmepumpe), zeigt die Statuszeile ✅ mit dem Hinweis, wie viele Felder das Gerät nicht anbietet, statt eines ⚠️.
+- Neue Schema-Felder in `WPMBHUB_Drivers`: `type` => `kwhmwh`, `kind` (`temperature`/`energy`/`counter`/`enum`), `profile`, `invalidRaw` auch als Liste, `controller` je Hersteller.
+- Prüfstand Block 11: jede Stiebel-Adresse gegen die Dokumentationstabelle (Doku minus 1), Summen, Variablenarten, LWZ-Sensorfehler, Reglerkennung, ganzer Gateway-Zyklus, zehn Mutationen.
+
 ## 0.8.0 (Build 20) — 05.11.2026
 
 - **Zweisprachig (Deutsch/Englisch).** Formular, Statusmeldungen, Hinweise, Log- und Diagnosetexte, die Herstellerliste, die Vertrauenshinweise der Registerkarten und die Namen neuer Variablen folgen jetzt der Symcon-Sprache. Quelltexte sind englisch (Code und `form.json`), die deutsche Fassung steht in `libs/locale.json`; `php .tools/locale-bauen.php` kopiert sie in beide Modulordner (Symcon liest `locale.json` nur dort). Englische Dokumentation: `README.en.md`.

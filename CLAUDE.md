@@ -50,7 +50,8 @@ einer reinen Forenzusammenfassung:
 | Hersteller | Quelle | Vertrauensstufe |
 |---|---|---|
 | NIBE | Aktiv gepflegte, unabhängige Referenzbibliothek für NIBE-Wärmepumpen | hoch |
-| Stiebel Eltron | Direkt aus dem offiziellen Stiebel-Eltron-PDF „ISG Modbus"-Bedienungsanleitung | hoch |
+| Stiebel Eltron (WPM) | Offizielle Stiebel-Dokumentation „ISG Modbus“ (lokal `Stiebel-ISG-Modbus-Software-Dokumentation.pdf/.txt` im Projektordner, NICHT committen), Abschnitt 6; Adressierung Doku minus 1 an einer WPF 15 bestätigt (thorsten1, 05.11.2026) | hoch, Werte noch nicht gegen das Display |
+| Stiebel Eltron (LWZ/LWA) | Dieselbe Dokumentation, Abschnitt 7 (eigene Register ab Adresse 1), Karte `stiebeleltron_lwz` seit 0.9.0 | mittel, an keiner LWZ geprüft |
 | LG Therma V | Community-gepflegte Modbus-Konfiguration, keine offizielle LG-Quelle gefunden | mittel |
 | Samsung EHS | Community-Sammlung, beruft sich auf Samsungs offizielle MIM-B19N-Anleitung (DB68-07538A) | mittel |
 | Waterkotte | Direkt aus Waterkottes eigenem PDF „Software Technische Information -- Modbus/TCP" (Firmware 01.07.xx, 07.2017), von Dietmar besorgt | hoch |
@@ -68,8 +69,9 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
 ## Was bewusst NICHT Teil von v1 ist
 
 - **Keine Steuerbefehle** (nur lesend) — analog zu WPHubs Vaillant-Anbindung beim Start.
-- **Keine Leistungs-/Energiezähler** — die bisherigen Registerkarten decken nur
-  Temperaturen ab. `PowerID`/`EnergyID` bleiben bewusst 0 im Vertrag.
+- **Energiewerte nur bei Stiebel (seit 0.9.0)** als Variablen, `PowerID`/`EnergyID` bleiben bewusst 0 im Vertrag
+  (Stiebel hat per Modbus keine Momentanleistung; die Summen sind eine ISG-Schätzung, ob Konsumenten sie als `EnergyID`
+  wollen, ist nicht geklärt). Andere Hersteller liefern weiter nur Temperaturen.
 - **Mitsubishi Ecodan, Daikin, Bosch/Buderus, Viessmann** — beim Research (16./17.09.2026)
   geprüft, aber keine ausreichend konkrete/verlässliche Registerkarte gefunden bzw. Zeit
   gefehlt, sie zu verifizieren. Bewusst nicht mit geratenen Adressen aufgenommen. Nächste
@@ -331,7 +333,7 @@ fuer WPHub/WPModbusHub/SamsungEhs klaeren (Belege siehe Chat-Transkript). Ergebn
 WPModbusHub: **NIBE** hat eine eigene 7-Punkt-Kurve (Reg. 39-45, R/W) UND ein einfaches
 Steigung+Offset-Paar je Klimasystem 1-3 (Reg. 24/28 usw., R/W) -- beste Quellenlage dieser
 Liste. **Stiebel Eltron** hat ein Steigungsregister (41504, Faktor 0.01, Holding R/W), aber
-HK2-Aequivalent und Wertebereich nicht sauber belegt (PDFs nicht textextrahierbar).
+HK2-Aequivalent und Wertebereich nicht sauber belegt (stand 18.09.2026 so; die Stiebel-Dokumentation ist seit 05.11.2026 als Text lesbar, siehe Registerkarten oben).
 **LG Therma V:** nichts gefunden, die aktiv gepflegte Community-Doku kennt keine
 Kurvenregister. **Samsung (MIM-B19N Modbus):** unklar, vermutete Register 89-91 nicht
 verlaesslich belegt.
@@ -386,3 +388,16 @@ wie bei Automat rauskommt.“ Umgesetzt für beide Module (WPModbusHub, WPModbus
   fragen nach dem ersten Mal 0-mal bei Symcon nach). Dezimalzeichen: Schlüssel `.` → `,`.
 - **Vor dem Store-Release live messen** (Stolperstein 24): Laufzeit von `WPMBHUB_Update` und `IPS_GetConfigurationForm`, `IPS_GetTimer`
   mit `NextRun` > 5 s in der Vergangenheit = Alarmzeichen. Englisch nie in einer echten Konsole gesehen (nur Prüfstand).
+
+## Stiebel-Eltron-Erweiterung (0.9.0, 05.11.2026)
+
+Auslöser: thorsten1 (WPF 15, ISG web) vermisste Wärmemenge, Leistungsaufnahme, Takt, Quellentemperatur; Dietmar: „Ja, fang damit an“.
+Befund aus der offiziellen Dokumentation: (1) WPM- und LWZ-Registerkarten sind verschieden, die alte Einzelkarte war nur WPM
+(Abschnitt 6) und hieß trotzdem „…/LWZ“. (2) Wärmemenge/Stromaufnahme sind Zählerstände aus kWh-Teil (0–999) und MWh-Teil;
+Tageswerte nur ganze kWh und bewusst nicht aufgenommen. (3) „Leistungsaufnahme“ im ISG ist ein Stromzähler (Schätzung,
+nur Verdichter und Heizstab), keine Momentanleistung. (4) Verdichterstarts gibt es nur bei der LWZ (Register 31); „Takt“ bei
+thorsten1 stammt vermutlich aus der Weboberfläche. (5) Reglerkennung Register 5002 erkennt die Geräteart. Registerschema: `type`
+`kwhmwh`, `kind`, `profile`, `invalidRaw` als Liste, `controller`. Die Community kennt zusätzlich: Register 2001 (LWZ-Betriebsstatus)
+soll teils falsch/verschoben melden, Quellentemperatur fehlt bei manchen Geräten, WPMsystem-Einzelregister liefern teils nichts.
+Nicht aufgenommen: Tageswerte, Wärmepumpen 2–6, Heizstab-Wärmemenge, SG Ready (4001–4003, schreibbar), Quellendruck (braucht Druckprofil).
+EEBUS: erst ISG Connect (nicht ISG web) und nur über die EEBUS-Sitzungen, nicht in diesem Modul.
