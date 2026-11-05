@@ -1,5 +1,9 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.9.1 (Build 22) — 05.11.2026
+
+- **Englische Texte gegengelesen und an Stiebels englische Dokumentation angeglichen** (Anlass: Verbundregel zur Zweisprachigkeit, SUITE.md Konvention 9). Die Energievariablen heißen englisch jetzt „Heat energy produced, heating (total)“, „Electrical energy consumed, heating (total)“ usw. statt „Heat quantity …“; die Betriebsarten tragen eindeutige Namen („Standby mode“, „Programmed operation“, „Comfort mode“, „ECO mode“, „Hot water mode“, „Manual mode“), deutsch wie in Stiebels Dokumentation („Bereitschaftsbetrieb“, „Warmwasserbetrieb“ …). Nur Anzeigetexte, keine Kennungen und keine Funktion geändert.
+
 ## 0.9.0 (Build 21) — 05.11.2026
 
 - **Stiebel Eltron: zwei Karten statt einer.** Die Karte hieß „WPMsystem/WPM3/WPM3i/LWZ“, enthielt aber nur die WPM-Register. Die Lüftungsintegralgeräte (LWZ/LWA) haben laut offizieller Stiebel-Dokumentation (Abschnitt 7) eigene Register ab Adresse 1; wer eine LWZ gewählt hatte, las falsche Adressen. Neu: „Stiebel Eltron (ISG-Gateway, Wärmepumpen mit WPMsystem/WPM 3/WPM 3i)“ und „… Lüftungsintegralgeräte LWZ/LWA“. Die Hersteller-Kennung `stiebeleltron` der bestehenden Instanzen bleibt die WPM-Karte. LWZ-Sensorfehler (−60 Unterbrechung, −50 Kurzschluss) erscheinen nicht mehr als Temperatur.

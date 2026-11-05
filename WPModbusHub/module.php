@@ -78,7 +78,7 @@ class WPModbusHub extends IPSModule
         ],
         '0.9.0' => [
             'Stiebel Eltron: new card for integral ventilation units (LWZ/LWA). Their registers differ from the heat pumps with WPM, so the former single card read wrong addresses for them. If you own an LWZ, choose "Stiebel Eltron (ISG gateway, integral ventilation units LWZ/LWA)".',
-            'Stiebel Eltron: new values source temperature (brine/water units), heat quantity and electrical energy for heating and hot water as totals in kWh (kWh and MWh part added up), operating mode and, on the LWZ, compressor starts. The energy values are the ISG\'s own estimate, not a meter reading.',
+            'Stiebel Eltron: new values source temperature (brine/water units), heat energy produced and electrical energy consumed for heating and hot water as totals in kWh (kWh and MWh part added up), operating mode and, on the LWZ, compressor starts. The energy values are the ISG\'s own estimate, not a meter reading.',
             'The form warns if the controller code of the Stiebel Eltron device does not fit the selected card. Fields that a device does not offer (e.g. the source temperature of an air unit) no longer count as read errors.',
         ],
     ];

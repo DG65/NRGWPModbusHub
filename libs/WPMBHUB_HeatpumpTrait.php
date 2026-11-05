@@ -403,10 +403,10 @@ trait WPMBHUB_HeatpumpTrait
         // Betriebsart der Stiebel-Karten (nur lesend angezeigt). Die Namen entstehen einmal bei der Anlage des
         // Profils in der Sprache, die Symcon dann hat.
         $modes = [
-            'WPMBHUB.StiebelModeWPM' => [0 => WPMBHUB_Text::t('Emergency operation'), 1 => WPMBHUB_Text::t('Standby'), 2 => WPMBHUB_Text::t('Program'),
-                3 => WPMBHUB_Text::t('Comfort'), 4 => WPMBHUB_Text::t('ECO'), 5 => WPMBHUB_Text::t('Hot water')],
-            'WPMBHUB.StiebelModeLWZ' => [0 => WPMBHUB_Text::t('Emergency operation'), 1 => WPMBHUB_Text::t('Standby'), 3 => WPMBHUB_Text::t('Day mode'),
-                4 => WPMBHUB_Text::t('Setback mode'), 5 => WPMBHUB_Text::t('Hot water'), 11 => WPMBHUB_Text::t('Automatic'), 14 => WPMBHUB_Text::t('Manual')],
+            'WPMBHUB.StiebelModeWPM' => [0 => WPMBHUB_Text::t('Emergency operation'), 1 => WPMBHUB_Text::t('Standby mode'), 2 => WPMBHUB_Text::t('Programmed operation'),
+                3 => WPMBHUB_Text::t('Comfort mode'), 4 => WPMBHUB_Text::t('ECO mode'), 5 => WPMBHUB_Text::t('Hot water mode')],
+            'WPMBHUB.StiebelModeLWZ' => [0 => WPMBHUB_Text::t('Emergency operation'), 1 => WPMBHUB_Text::t('Standby mode'), 3 => WPMBHUB_Text::t('Day mode'),
+                4 => WPMBHUB_Text::t('Setback mode'), 5 => WPMBHUB_Text::t('Hot water mode'), 11 => WPMBHUB_Text::t('Automatic'), 14 => WPMBHUB_Text::t('Manual mode')],
         ];
         foreach ($modes as $profile => $associations) {
             if (!IPS_VariableProfileExists($profile)) {
