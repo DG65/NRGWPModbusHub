@@ -81,6 +81,11 @@ class WPModbusHub extends IPSModule
             'Stiebel Eltron: new values source temperature (brine/water units), heat energy produced and electrical energy consumed for heating and hot water as totals in kWh (kWh and MWh part added up), operating mode and, on the LWZ, compressor starts. The energy values are the ISG\'s own estimate, not a meter reading.',
             'The form warns if the controller code of the Stiebel Eltron device does not fit the selected card. Fields that a device does not offer (e.g. the source temperature of an air unit) no longer count as read errors.',
         ],
+        '0.9.1' => [
+            'The update interval can now be set down to 5 seconds. A device that cannot be reached no longer holds up the read cycle: it ends after the first connection error instead of waiting 3 seconds per field.',
+            '"Heating zone" is now called "Heating circuit" (for newly created variables).',
+            'Stiebel Eltron (heat pumps with WPM): the room setpoints comfort and ECO temperature of heating circuit 1 can be read and changed. They stay locked until you have read and confirmed the notice in the form under "Change settings on the device". Writing is not yet tested on real hardware.',
+        ],
     ];
     private const LIBRARY_GUID = '{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}';
 
@@ -120,6 +125,8 @@ class WPModbusHub extends IPSModule
         $this->RegisterAttributeInteger('LastCycleAt', 0);
         $this->RegisterAttributeString('LastMissing', '');
         $this->RegisterAttributeString('LastUnavailable', '');
+        // Belehrung zum Schreiben (Stiebel-Raumsollwerte) vom Nutzer im Formular bestaetigt; Attribut, nie Property.
+        $this->RegisterAttributeBoolean('WriteNoticeAccepted', false);
         // Reglerkennung des Geraets (Stiebel: 5002), 0 = unbekannt; fuer den Hinweis bei falsch gewaehlter Karte.
         $this->RegisterAttributeInteger('ControllerCode', 0);
         // Einmalig dismissible Forum-Hinweis (SUITE.md "Einheitliche Formular-
@@ -179,6 +186,123 @@ class WPModbusHub extends IPSModule
         }
     }
 
+    /** Dieses Modul kann schreibbare Sollwerte anbieten (nur der eigene TCP-Weg, nicht das ModBus-Gateway). */
+    private function writeSupported(): bool
+    {
+        return true;
+    }
+
+    private const WRITE_MIN_INTERVAL_S = 30;
+
+    /** Gibt es beim gewaehlten Hersteller schreibbare Felder? Nur dann zeigt das Formular die Belehrung. */
+    private function hasWritableFields(string $manufacturer): bool
+    {
+        foreach ((self::DRIVERS[$manufacturer]['registers'] ?? []) as $def) {
+            if (isset($def['write'])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Panel "Einstellungen am Geraet aendern" mit der Belehrung; nur bei Herstellern mit schreibbaren Feldern. */
+    private function writeNoticePanel(): ?array
+    {
+        if (!$this->hasWritableFields($this->ReadPropertyString('Manufacturer'))) {
+            return null;
+        }
+        $accepted = $this->ReadAttributeBoolean('WriteNoticeAccepted');
+        return [
+            'type'     => 'ExpansionPanel',
+            'name'     => 'WriteNoticePanel',
+            'expanded' => !$accepted,
+            'caption'  => WPMBHUB_Text::t('⚙️ Change settings on the device'),
+            'items'    => [
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('⚠️ Reading is harmless, writing changes the settings of your heat pump controller. After you confirm this notice, the two room setpoints (comfort and ECO temperature of heating circuit 1) are available and can be changed in Symcon.')],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Please note: A wrong or constantly changing value affects comfort and energy consumption, and the controller stores settings permanently. Do not write them at short intervals or from automations that run every few seconds. The module writes at most once every 30 seconds per value, checks the range (5 to 30 °C) and reads the value back. You use this function at your own risk; the notes of the manufacturer apply. Writing is not yet tested on real hardware.')],
+                ['type' => 'Label', 'name' => 'WriteNoticeState', 'caption' => $accepted ? WPMBHUB_Text::t('✅ Writing is enabled.') : WPMBHUB_Text::t('🔒 Writing is locked.')],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('I have read and understood this -- enable writing'), 'confirm' => WPMBHUB_Text::t('Really enable writing of the room setpoints on this device?'), 'onClick' => 'WPMBHUB_AcceptWriteNotice($id);'],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('Lock writing again'), 'onClick' => 'WPMBHUB_RevokeWriteNotice($id);'],
+            ],
+        ];
+    }
+
+    public function AcceptWriteNotice(): void
+    {
+        $this->WriteAttributeBoolean('WriteNoticeAccepted', true);
+        $this->LogMessage(WPMBHUB_Text::t('Writing of the room setpoints was enabled by the user in the form.'), KL_NOTIFY);
+        $this->UpdateFormField('WriteNoticeState', 'caption', WPMBHUB_Text::t('✅ Writing is enabled.'));
+        // Die beiden Variablen sofort anlegen, nicht erst mit dem naechsten Intervall.
+        $this->Update();
+    }
+
+    public function RevokeWriteNotice(): void
+    {
+        $this->WriteAttributeBoolean('WriteNoticeAccepted', false);
+        $this->LogMessage(WPMBHUB_Text::t('Writing of the room setpoints was locked again by the user.'), KL_NOTIFY);
+        $this->UpdateFormField('WriteNoticeState', 'caption', WPMBHUB_Text::t('🔒 Writing is locked.'));
+        // Die vorhandenen Variablen bleiben (gehoeren dem Nutzer), verlieren aber ihre Bedienbarkeit und werden nicht mehr gelesen.
+        foreach ((self::DRIVERS[$this->ReadPropertyString('Manufacturer')]['registers'] ?? []) as $ident => $def) {
+            if (isset($def['write']) && @$this->GetIDForIdent($ident) !== false) {
+                $this->DisableAction($ident);
+            }
+        }
+    }
+
+    /**
+     * Aenderung eines schreibbaren Sollwerts (Variable mit Aktion). Nur mit bestaetigter Belehrung, nur Felder mit
+     * 'write' in der Registerkarte, Bereich und Schrittweite aus der Karte, hoechstens alle 30 s je Wert, danach
+     * Zuruecklesen: angezeigt wird, was das Geraet wirklich meldet.
+     */
+    public function RequestAction($Ident, $Value)
+    {
+        $ident = (string)$Ident;
+        $manufacturer = $this->ReadPropertyString('Manufacturer');
+        $def = self::DRIVERS[$manufacturer]['registers'][$ident] ?? null;
+        if ($def === null || !isset($def['write'])) {
+            throw new Exception(WPMBHUB_Text::t('"%s" cannot be changed.', $ident));
+        }
+        if (!$this->ReadAttributeBoolean('WriteNoticeAccepted')) {
+            throw new Exception(WPMBHUB_Text::t('Writing is locked. Confirm the notice first in the form under "Change settings on the device".'));
+        }
+        if (!is_numeric($Value)) {
+            throw new Exception(WPMBHUB_Text::t('"%s" is not a number.', (string)$Value));
+        }
+        $w = $def['write'];
+        $target = (float)$Value;
+        if ($target < $w['min'] || $target > $w['max']) {
+            throw new Exception(WPMBHUB_Text::t('The value %s is outside the allowed range %s to %s.', $target, $w['min'], $w['max']));
+        }
+        $target = round($target / $w['step']) * $w['step'];
+        if (time() - (int)$this->GetBuffer('LastWrite_' . $ident) < self::WRITE_MIN_INTERVAL_S) {
+            throw new Exception(WPMBHUB_Text::t('Please wait: at most one change every %d seconds per value.', self::WRITE_MIN_INTERVAL_S));
+        }
+        $host = trim($this->ReadPropertyString('Host'));
+        if ($host === '') {
+            throw new Exception(WPMBHUB_Text::t('no IP address entered'));
+        }
+        $client = new WPMBHUB_ModbusTcpClient($host, $this->ReadPropertyInteger('Port'), $this->ReadPropertyInteger('UnitId'));
+        $scale = $def['scale'] ?? 1;
+        $written = $client->writeHolding($def['addr'], (int)round($target * $scale));
+        $error = $written ? '' : $this->describeModbusError($client);
+        $back = $written ? $client->readHolding($def['addr'], 1) : null;
+        $client->close();
+        if (!$written) {
+            $this->SendDebug('Modbus', WPMBHUB_Text::t('%s %s register %d: %s', $ident, $def['regType'], $def['addr'], $error), 0);
+            throw new Exception(WPMBHUB_Text::t('Writing failed: %s', $error));
+        }
+        $this->SetBuffer('LastWrite_' . $ident, (string)time());
+        if ($back === null) {
+            throw new Exception(WPMBHUB_Text::t('The value was written, but reading it back failed. The displayed value is updated with the next read cycle.'));
+        }
+        $actual = $client->s16($back, 0) / $scale;
+        $this->SetValue($ident, (float)$actual);
+        $this->LogMessage(WPMBHUB_Text::t('Setpoint "%s" changed to %s °C by user action (the device reports %s °C).', WPMBHUB_Text::t(WPMBHUB_Drivers::FIELD_CAPTIONS[$ident] ?? $ident), $target, $actual), KL_NOTIFY);
+        if (abs($actual - $target) > 0.05) {
+            throw new Exception(WPMBHUB_Text::t('The device did not take over the value (it reports %s °C).', $actual));
+        }
+    }
+
     private function statusLine(): array
     {
         return $this->connectionStatusLine(
@@ -224,6 +348,11 @@ class WPModbusHub extends IPSModule
         $newsBanner = $this->newsBanner();
         if ($newsBanner !== null) {
             array_unshift($form['elements'], $newsBanner);
+        }
+
+        $writeNotice = $this->writeNoticePanel();
+        if ($writeNotice !== null) {
+            $form['elements'][] = $writeNotice;
         }
 
         $forumHint = $this->ForumHint();
@@ -303,7 +432,7 @@ class WPModbusHub extends IPSModule
             'caption'  => WPMBHUB_Text::t('👋  What is this module for?'),
             'items'    => [
                 ['type' => 'Label', 'caption' => WPMBHUB_Text::t('WPModbusHub reads heat pumps from several manufacturers directly via Modbus TCP on the local network -- without internet, without a manufacturer account. It complements WPHub (manufacturer clouds) and HeishaMon (Panasonic, local) with manufacturers that have a built-in or retrofittable Modbus interface.')],
-                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Read-only by design (no control commands). Not every manufacturer is verified on real hardware yet -- the register maps come from official manufacturer documents or actively maintained reference integrations, see the note at the selected manufacturer.')],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Read-only by default. Only the two room setpoints of Stiebel Eltron heat pumps can be changed, and only after you confirm a notice in the form. Not every manufacturer is verified on real hardware yet -- the register maps come from official manufacturer documents or actively maintained reference integrations, see the note at the selected manufacturer.')],
                 ['type' => 'Button', 'caption' => WPMBHUB_Text::t('Understood – do not show again'), 'onClick' => 'WPMBHUB_AckPurposeIntro($id);'],
             ],
         ];
@@ -384,12 +513,12 @@ class WPModbusHub extends IPSModule
             return;
         }
         $client = new WPMBHUB_ModbusTcpClient($host, $this->ReadPropertyInteger('Port'), $this->ReadPropertyInteger('UnitId'));
-        $values = $this->readRegisters(self::DRIVERS[$manufacturer]['registers'], $client);
+        $values = $this->readRegisters($this->activeRegisters($manufacturer), $client);
         if ($values !== null) {
             $this->readControllerCode($client, self::DRIVERS[$manufacturer]);
         }
         $client->close();
-        $this->recordCycle(self::DRIVERS[$manufacturer]['registers'], $values);
+        $this->recordCycle($this->activeRegisters($manufacturer), $values);
 
         $reachable = ($values !== null && count($values) > 0);
         $this->maintainDeviceVariables($values ?? [], $reachable);

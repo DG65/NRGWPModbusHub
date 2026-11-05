@@ -62,6 +62,27 @@ trait WPMBHUB_HeatpumpTrait
         return false;
     }
 
+    /** Schreibbare Sollwerte gibt es nur im WPModbusHub (TCP); das Gateway-Modul ueberschreibt nichts, hier false. */
+    private function writeSupported(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Die Register, die diese Instanz tatsaechlich liest: schreibbare Felder (kind 'setpoint') nur, wenn das Modul
+     * Schreiben kann UND der Nutzer die Belehrung im Formular bestaetigt hat (Attribut WriteNoticeAccepted).
+     */
+    private function activeRegisters(string $manufacturer): array
+    {
+        $registers = WPMBHUB_Drivers::DRIVERS[$manufacturer]['registers'] ?? [];
+        if ($this->writeSupported() && $this->ReadAttributeBoolean('WriteNoticeAccepted')) {
+            return $registers;
+        }
+        return array_filter($registers, function ($def) {
+            return !isset($def['write']);
+        });
+    }
+
     private function readRegisterBlock($client, array $def, int $addr, int $count): ?array
     {
         return ($def['regType'] === 'holding') ? $client->readHolding($addr, $count) : $client->readInput($addr, $count);
@@ -174,7 +195,7 @@ trait WPMBHUB_HeatpumpTrait
         $this->MaintainVariable('Erreichbar', WPMBHUB_Text::t('Reachable'), VARIABLETYPE_BOOLEAN, '~Alert.Reversed', $pos++, true);
         $this->SetValue('Erreichbar', $reachable);
 
-        $registers = WPMBHUB_Drivers::DRIVERS[$this->ReadPropertyString('Manufacturer')]['registers'] ?? [];
+        $registers = $this->activeRegisters($this->ReadPropertyString('Manufacturer'));
         foreach (WPMBHUB_Drivers::FIELD_CAPTIONS as $ident => $caption) {
             if (!array_key_exists($ident, $values)) {
                 continue;
@@ -190,6 +211,13 @@ trait WPMBHUB_HeatpumpTrait
                 case 'counter':
                     $this->MaintainVariable($ident, $name, VARIABLETYPE_INTEGER, '', $pos++, true);
                     $this->SetValue($ident, (int)round($values[$ident]));
+                    break;
+                case 'setpoint':
+                    $this->MaintainVariable($ident, $name, VARIABLETYPE_FLOAT, 'WPMBHUB.RoomSetpoint', $pos++, true);
+                    $this->SetValue($ident, (float)$values[$ident]);
+                    if ($this->writeSupported() && isset($def['write'])) {
+                        $this->EnableAction($ident);
+                    }
                     break;
                 case 'enum':
                     $this->MaintainVariable($ident, $name, VARIABLETYPE_INTEGER, (string)($def['profile'] ?? ''), $pos++, true);
@@ -242,7 +270,7 @@ trait WPMBHUB_HeatpumpTrait
     private function lastValuesText(string $manufacturer): string
     {
         $parts = [];
-        $registers = WPMBHUB_Drivers::DRIVERS[$manufacturer]['registers'] ?? [];
+        $registers = $this->activeRegisters($manufacturer);
         foreach (WPMBHUB_Drivers::FIELD_CAPTIONS as $ident => $caption) {
             // Nur Temperaturen: Zaehler und Betriebsart machen die Statuszeile unleserlich lang.
             if (!isset($registers[$ident]) || ($registers[$ident]['kind'] ?? 'temperature') !== 'temperature') {
@@ -313,7 +341,7 @@ trait WPMBHUB_HeatpumpTrait
             foreach ($missingIdents as $ident) {
                 $names[] = isset(WPMBHUB_Drivers::FIELD_CAPTIONS[$ident]) ? WPMBHUB_Text::t(WPMBHUB_Drivers::FIELD_CAPTIONS[$ident]) : $ident;
             }
-            return [WPMBHUB_Text::t('⚠️ %s answers, but %d of %d fields were not read (%s). Read %s: %s.', $name, count($names), count($driver['registers']), implode(', ', $names), $this->ageText($lastCycle), $values) . $note, -1];
+            return [WPMBHUB_Text::t('⚠️ %s answers, but %d of %d fields were not read (%s). Read %s: %s.', $name, count($names), count($this->activeRegisters($manufacturer)), implode(', ', $names), $this->ageText($lastCycle), $values) . $note, -1];
         }
         $line = WPMBHUB_Text::t('✅ %s answers, read %s: %s.', $name, $this->ageText($lastCycle), $values);
         if (count($unavailable) > 0) {
@@ -413,6 +441,12 @@ trait WPMBHUB_HeatpumpTrait
     {
         // Betriebsart der Stiebel-Karten (nur lesend angezeigt). Die Namen entstehen einmal bei der Anlage des
         // Profils in der Sprache, die Symcon dann hat.
+        if (!IPS_VariableProfileExists('WPMBHUB.RoomSetpoint')) {
+            IPS_CreateVariableProfile('WPMBHUB.RoomSetpoint', VARIABLETYPE_FLOAT);
+            IPS_SetVariableProfileValues('WPMBHUB.RoomSetpoint', 5, 30, 1);
+            IPS_SetVariableProfileText('WPMBHUB.RoomSetpoint', '', ' °C');
+            IPS_SetVariableProfileDigits('WPMBHUB.RoomSetpoint', 1);
+        }
         $modes = [
             'WPMBHUB.StiebelModeWPM' => [0 => WPMBHUB_Text::t('Emergency operation'), 1 => WPMBHUB_Text::t('Standby mode'), 2 => WPMBHUB_Text::t('Programmed operation'),
                 3 => WPMBHUB_Text::t('Comfort mode'), 4 => WPMBHUB_Text::t('ECO mode'), 5 => WPMBHUB_Text::t('Hot water mode')],

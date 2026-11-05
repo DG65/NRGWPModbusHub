@@ -56,6 +56,10 @@ function IPS_SetVariableProfileDigits(string $name, int $digits): void
 {
     $GLOBALS['ips']['profiles'][$name]['digits'] = $digits;
 }
+function IPS_SetVariableProfileValues(string $name, $min, $max, $step): void
+{
+    $GLOBALS['ips']['profiles'][$name]['values'] = [$min, $max, $step];
+}
 function IPS_SetVariableProfileAssociation(string $name, $value, string $text, string $icon, int $color): void
 {
     $GLOBALS['ips']['profiles'][$name]['associations'][$value] = $text;
@@ -129,6 +133,7 @@ class IPSModule
     public $InstanceID = 12345;
     protected $attributes = [];
     protected $timers = [];
+    protected $buffers = [];
     public $status = 0;
 
     public function __construct($InstanceID = 12345)
@@ -274,6 +279,22 @@ class IPSModule
                 'id'      => $GLOBALS['ips']['nextVarId']++,
             ];
         }
+    }
+    protected function EnableAction(string $ident): void
+    {
+        $GLOBALS['ips']['actions'][$ident] = true;
+    }
+    protected function DisableAction(string $ident): void
+    {
+        unset($GLOBALS['ips']['actions'][$ident]);
+    }
+    protected function GetBuffer(string $name): string
+    {
+        return (string)($this->buffers[$name] ?? '');
+    }
+    protected function SetBuffer(string $name, string $value): void
+    {
+        $this->buffers[$name] = $value;
     }
     protected function SetValue(string $ident, $value): void
     {
@@ -1293,7 +1314,8 @@ check('Stiebel: zwei Karten (WPM und LWZ) mit eigenen Adressen', isset(WPModbusH
 // Alle Adressen gegen die offizielle Doku (Wire = Doku - 1): [Karte][Ident] => Doku-Adresse (bei kwhmwh: kWh-Teil)
 $doku = [
     'stiebeleltron' => ['Aussentemperatur' => 507, 'Zone1Ist' => 508, 'Zone1Soll' => 510, 'Vorlauftemperatur' => 515, 'Ruecklauftemperatur' => 516, 'Warmwasser' => 522, 'WarmwasserSoll' => 523,
-        'Quellentemperatur' => 536, 'WaermemengeHeizen' => 3502, 'WaermemengeWarmwasser' => 3505, 'StromHeizen' => 3512, 'StromWarmwasser' => 3515, 'Betriebsart' => 1501],
+        'Quellentemperatur' => 536, 'WaermemengeHeizen' => 3502, 'WaermemengeWarmwasser' => 3505, 'StromHeizen' => 3512, 'StromWarmwasser' => 3515, 'Betriebsart' => 1501,
+        'Zone1Komfort' => 1502, 'Zone1Eco' => 1503],
     'stiebeleltron_lwz' => ['Aussentemperatur' => 7, 'Zone1Ist' => 8, 'Zone1Soll' => 9, 'Vorlauftemperatur' => 12, 'Ruecklauftemperatur' => 13, 'Warmwasser' => 16, 'WarmwasserSoll' => 17,
         'Verdichterstarts' => 31, 'WaermemengeHeizen' => 3002, 'WaermemengeWarmwasser' => 3005, 'StromHeizen' => 3023, 'StromWarmwasser' => 3026, 'Betriebsart' => 1001],
 ];
@@ -1507,6 +1529,168 @@ check('Gateway-Update liest die Reglerkennung (Adresse 5001) genau einmal je Zyk
 check('Gateway-Update: Formular warnt, dass 104 (LWZ) nicht zur gewählten WPM-Karte passt', strpos($lineUp, 'Reglerkennung 104') !== false, $lineUp);
 check('Gateway-Update: Energie und Betriebsart landen als Variablen', isset($GLOBALS['ips']['variables']['StromHeizen'], $GLOBALS['ips']['variables']['Betriebsart']) && $GLOBALS['ips']['variables']['StromHeizen']['value'] === 120120.0, json_encode(array_keys($GLOBALS['ips']['variables'])));
 $GLOBALS['ips']['parent'] = 0;
+
+// ---------------------------------------------------------------------------
+echo "Block 12: schreibbare Raumsollwerte (Stiebel WPM) hinter der Belehrung\n";
+// ---------------------------------------------------------------------------
+
+$GLOBALS['ips']['locale'] = json_decode((string)file_get_contents(__DIR__ . '/../libs/locale.json'), true)['translations']['de'];
+$GLOBALS['ips']['variables'] = [];
+$GLOBALS['ips']['actions'] = [];
+$GLOBALS['ips']['properties']['Manufacturer'] = 'stiebeleltron';
+$GLOBALS['ips']['properties']['Host'] = '127.0.0.1';
+$GLOBALS['ips']['properties']['WPMBHUB_Active'] = false; // Update() im Test nicht ins Netz schicken
+$wm = new WPModbusHub(12345);
+$wm->Create();
+$mvW = new ReflectionMethod($wm, 'maintainDeviceVariables');
+$mvW->setAccessible(true);
+$rrW = new ReflectionMethod($wm, 'readRegisters');
+$rrW->setAccessible(true);
+$arW = new ReflectionMethod($wm, 'activeRegisters');
+$arW->setAccessible(true);
+
+check('Vor der Belehrung: die beiden Sollwerte gehören nicht zu den gelesenen Registern', !isset($arW->invoke($wm, 'stiebeleltron')['Zone1Komfort']) && !isset($arW->invoke($wm, 'stiebeleltron')['Zone1Eco']) && isset($arW->invoke($wm, 'stiebeleltron')['Aussentemperatur']));
+$fakeW = new FakeModbusClient('127.0.0.1', 502, 1);
+$fakeW->values = ['input:506' => 45, 'holding:1501' => 215, 'holding:1502' => 180];
+$vW = $readW = $rrW->invoke($wm, $arW->invoke($wm, 'stiebeleltron'), $fakeW);
+$mvW->invoke($wm, $vW, true);
+check('Vor der Belehrung: keine Sollwert-Variablen, kein Lesen der Holding-Register 1501/1502', !isset($GLOBALS['ips']['variables']['Zone1Komfort']) && !isset($GLOBALS['ips']['variables']['Zone1Eco']) && !array_key_exists('Zone1Komfort', $vW));
+$formW = json_decode($wm->GetConfigurationForm(), true);
+$panelW = findFormElement($formW['elements'], 'WriteNoticePanel');
+check('Formular zeigt die Belehrung (deutsch) mit Bestätigungsknopf und Rückfrage', $panelW !== null && strpos(json_encode($panelW, JSON_UNESCAPED_UNICODE), 'Einstellungen am Gerät ändern') !== false
+    && strpos(json_encode($panelW, JSON_UNESCAPED_UNICODE), 'Ich habe das gelesen und verstanden') !== false && strpos(json_encode($panelW, JSON_UNESCAPED_UNICODE), 'wirklich freigeben') !== false
+    && strpos(json_encode($panelW, JSON_UNESCAPED_UNICODE), 'WPMBHUB_AcceptWriteNotice($id)') !== false);
+check('Belehrung nennt Haftung, Schreibabstand und dass es nicht an echter Hardware getestet ist', strpos(json_encode($panelW, JSON_UNESCAPED_UNICODE), 'eigene Verantwortung') !== false && strpos(json_encode($panelW, JSON_UNESCAPED_UNICODE), 'alle 30 Sekunden') !== false && strpos(json_encode($panelW, JSON_UNESCAPED_UNICODE), 'noch nicht getestet') !== false);
+check('Vor der Belehrung: RequestAction wird abgelehnt', (function () use ($wm) {
+    try {
+        $wm->RequestAction('Zone1Komfort', 22);
+    } catch (\Exception $e) {
+        return strpos($e->getMessage(), 'gesperrt') !== false;
+    }
+    return false;
+})());
+$GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
+check('Hersteller ohne schreibbare Felder (NIBE): keine Belehrung im Formular', findFormElement(json_decode($wm->GetConfigurationForm(), true)['elements'], 'WriteNoticePanel') === null);
+$GLOBALS['ips']['properties']['Manufacturer'] = 'stiebeleltron';
+
+// Belehrung bestätigen
+$wm->AcceptWriteNotice();
+check('Nach der Bestätigung: Sollwerte gehören zu den gelesenen Registern', isset($arW->invoke($wm, 'stiebeleltron')['Zone1Komfort'], $arW->invoke($wm, 'stiebeleltron')['Zone1Eco']));
+$vW2 = $rrW->invoke($wm, $arW->invoke($wm, 'stiebeleltron'), $fakeW);
+$mvW->invoke($wm, $vW2, true);
+check('Nach der Bestätigung: beide Variablen entstehen mit Bereichsprofil 5..30 und Aktion', ($GLOBALS['ips']['variables']['Zone1Komfort']['value'] ?? null) === 21.5 && ($GLOBALS['ips']['variables']['Zone1Eco']['value'] ?? null) === 18.0
+    && $GLOBALS['ips']['variables']['Zone1Komfort']['profile'] === 'WPMBHUB.RoomSetpoint' && ($GLOBALS['ips']['profiles']['WPMBHUB.RoomSetpoint']['values'] ?? null) === [5, 30, 1]
+    && !empty($GLOBALS['ips']['actions']['Zone1Komfort']) && !empty($GLOBALS['ips']['actions']['Zone1Eco']), json_encode($GLOBALS['ips']['variables']['Zone1Komfort'] ?? null));
+check('Nach der Bestätigung: Variablennamen "Heizkreis 1 Komforttemperatur" und "Heizkreis 1 ECO-Temperatur"', $GLOBALS['ips']['variables']['Zone1Komfort']['name'] === 'Heizkreis 1 Komforttemperatur' && $GLOBALS['ips']['variables']['Zone1Eco']['name'] === 'Heizkreis 1 ECO-Temperatur');
+check('Statuszeile nennt die Sollwerte nicht als Temperaturwerte (nur Messwerte)', (function () use ($wm) {
+    $m = new ReflectionMethod($wm, 'lastValuesText');
+    $m->setAccessible(true);
+    return strpos($m->invoke($wm, 'stiebeleltron'), 'Komforttemperatur') === false;
+})());
+
+// Schreiben gegen einen Mini-Server (Function 6 mit Echo, Function 3 zum Zurücklesen)
+function startWriteServer(string $mode)
+{
+    $script = sys_get_temp_dir() . '/wpmbhub-wr-' . getmypid() . '-' . $mode . '.php';
+    file_put_contents($script, '<?php $mode=$argv[1]; $s=stream_socket_server("tcp://127.0.0.1:0",$e,$m); fwrite(STDOUT, stream_socket_get_name($s,false)."\n"); fflush(STDOUT); $store=[];
+while($c=@stream_socket_accept($s,2)){ while(($h=fread($c,12))!==false && strlen($h)===12){ $tid=substr($h,0,2); $fc=ord($h[7]); $reg=(ord($h[8])<<8)|ord($h[9]); $val=(ord($h[10])<<8)|ord($h[11]);
+ if($mode==="exception"){ fwrite($c,$tid."\x00\x00\x00\x03\x01".chr($fc|0x80)."\x02"); fflush($c); continue; }
+ if($fc===6){ $store[$reg]=($mode==="ignore")?($store[$reg]??0):$val; $echo=($mode==="wrongecho")?$val+10:$val; fwrite($c,$tid."\x00\x00\x00\x06\x01\x06".pack("nn",$reg,$echo)); }
+ elseif($fc===3){ fwrite($c,$tid."\x00\x00\x00\x05\x01\x03\x02".pack("n",$store[$reg]??0)); }
+ fflush($c);} fclose($c);}');
+    $proc = proc_open([PHP_BINARY, $script, $mode], [1 => ['pipe', 'w']], $pipes);
+    $addr = trim((string)fgets($pipes[1]));
+    [$h, $p] = explode(':', $addr);
+    return [$proc, $pipes, (int)$p, $script];
+}
+$tryAction = function ($mod, string $ident, $value): string {
+    try {
+        $mod->RequestAction($ident, $value);
+        return 'ok';
+    } catch (\Exception $e) {
+        return $e->getMessage();
+    }
+};
+$setProp = function (int $port) {
+    $GLOBALS['ips']['properties']['Host'] = '127.0.0.1';
+    $GLOBALS['ips']['properties']['Port'] = $port;
+    $GLOBALS['ips']['properties']['UnitId'] = 1;
+};
+$clearBuf = function ($mod) {
+    $b = new ReflectionProperty($mod, 'buffers');
+    $b->setAccessible(true);
+    $b->setValue($mod, []);
+};
+
+[$procOk, $pipesOk, $portOk, $scriptOk] = startWriteServer('echo');
+$setProp($portOk);
+$clearBuf($wm);
+$GLOBALS['ips']['debug'] = [];
+$res = $tryAction($wm, 'Zone1Komfort', 22);
+check('Schreiben: 22 °C wird geschrieben (Wert 220), zurückgelesen und als Variablenwert gezeigt', $res === 'ok' && $GLOBALS['ips']['variables']['Zone1Komfort']['value'] === 22.0, $res);
+$res2 = $tryAction($wm, 'Zone1Komfort', 23);
+check('Schreiben: eine zweite Änderung innerhalb von 30 s wird abgelehnt', strpos($res2, 'höchstens eine Änderung alle 30 Sekunden') !== false && $GLOBALS['ips']['variables']['Zone1Komfort']['value'] === 22.0, $res2);
+check('Schreiben: jeder Wert hat seinen eigenen 30-s-Abstand (ECO sofort möglich)', $tryAction($wm, 'Zone1Eco', 17) === 'ok' && $GLOBALS['ips']['variables']['Zone1Eco']['value'] === 17.0);
+$clearBuf($wm);
+check('Schreiben: Wert über dem Bereich wird abgelehnt', strpos($tryAction($wm, 'Zone1Komfort', 35), 'außerhalb des erlaubten Bereichs 5 bis 30') !== false);
+check('Schreiben: Wert unter dem Bereich wird abgelehnt', strpos($tryAction($wm, 'Zone1Komfort', 4.9), 'außerhalb') !== false);
+check('Schreiben: Text statt Zahl wird abgelehnt', strpos($tryAction($wm, 'Zone1Komfort', 'warm'), 'keine Zahl') !== false);
+check('Schreiben: Schrittweite 1 (21,6 wird 22)', $tryAction($wm, 'Zone1Komfort', 21.6) === 'ok' && $GLOBALS['ips']['variables']['Zone1Komfort']['value'] === 22.0);
+check('Schreiben: ein Messwert (Aussentemperatur) ist nicht änderbar', strpos($tryAction($wm, 'Aussentemperatur', 5), 'lässt sich nicht ändern') !== false);
+check('Schreiben: der Vorgang steht im Meldungslog mit Name und Wert', count(array_filter($GLOBALS['ips']['log'], fn ($l) => strpos($l, 'per Nutzeraktion auf 22 °C geändert') !== false)) >= 1);
+proc_close($procOk);
+@unlink($scriptOk);
+
+[$procW, $pipesW, $portW, $scriptW] = startWriteServer('wrongecho');
+$setProp($portW);
+$clearBuf($wm);
+$resW = $tryAction($wm, 'Zone1Komfort', 20);
+check('Schreiben: antwortet das Gerät mit einem anderen Wert, gibt es einen Fehler', strpos($resW, 'anderen Wert') !== false, $resW);
+proc_close($procW);
+@unlink($scriptW);
+
+[$procI, $pipesI, $portI, $scriptI] = startWriteServer('ignore');
+$setProp($portI);
+$clearBuf($wm);
+$GLOBALS['ips']['variables']['Zone1Komfort']['value'] = 22.0;
+$resI = $tryAction($wm, 'Zone1Komfort', 19);
+check('Schreiben: übernimmt das Gerät den Wert nicht (Zurücklesen weicht ab), wird das gemeldet und der echte Wert angezeigt', strpos($resI, 'nicht übernommen') !== false && $GLOBALS['ips']['variables']['Zone1Komfort']['value'] === 0.0, $resI . ' / ' . json_encode($GLOBALS['ips']['variables']['Zone1Komfort']['value']));
+proc_close($procI);
+@unlink($scriptI);
+
+[$procE, $pipesE, $portE, $scriptE] = startWriteServer('exception');
+$setProp($portE);
+$clearBuf($wm);
+$resE = $tryAction($wm, 'Zone1Komfort', 20);
+check('Schreiben: Ausnahme des Geräts (Adresse/Wert abgelehnt) wird mit Ausnahmecode gemeldet', strpos($resE, 'Schreiben fehlgeschlagen') !== false && strpos($resE, 'Modbus-Ausnahme 0x02') !== false, $resE);
+proc_close($procE);
+@unlink($scriptE);
+
+// Gateway schreibt nie
+$gwClient = new WPMBHUB_ModbusGatewayClient(function (string $json) { return false; });
+check('Gateway-Client: Schreiben wird nicht unterstützt (kein geratenes Puffer-Format)', $gwClient->writeHolding(1501, 220) === false && strpos($gwClient->lastError, 'nicht unterstützt') !== false, $gwClient->lastError);
+$GLOBALS['ips']['properties']['Manufacturer'] = 'stiebeleltron';
+$gwW = new WPModbusHubGateway(12345);
+$gwW->Create();
+$arG = new ReflectionMethod($gwW, 'activeRegisters');
+$arG->setAccessible(true);
+check('Gateway-Modul: die schreibbaren Felder werden nie angeboten, auch nicht nach einer Freigabe im TCP-Modul', !isset($arG->invoke($gwW, 'stiebeleltron')['Zone1Komfort']) && findFormElement(json_decode($gwW->GetConfigurationForm(), true)['elements'], 'WriteNoticePanel') === null);
+
+// Sperren
+$GLOBALS['ips']['properties']['Host'] = '127.0.0.1';
+$wm->RevokeWriteNotice();
+check('Sperren: Aktion der Variablen entfällt, Schreiben wird wieder abgelehnt, Variablen bleiben', empty($GLOBALS['ips']['actions']['Zone1Komfort']) && empty($GLOBALS['ips']['actions']['Zone1Eco'])
+    && isset($GLOBALS['ips']['variables']['Zone1Komfort']) && strpos($tryAction($wm, 'Zone1Komfort', 21), 'gesperrt') !== false);
+check('Sperren: danach werden die Sollwerte nicht mehr gelesen', !isset($arW->invoke($wm, 'stiebeleltron')['Zone1Komfort']));
+
+// Englische Belehrung ohne deutsche Reste
+$GLOBALS['ips']['locale'] = [];
+$wmEn = new WPModbusHub(12345);
+$wmEn->Create();
+$panelEn = findFormElement(json_decode($wmEn->GetConfigurationForm(), true)['elements'], 'WriteNoticePanel');
+$restEn = array_values(array_filter($captionsOf($panelEn), $germanLeft));
+check('Englisch: Belehrung ohne deutsche Reste und mit Bestätigungsknopf', $panelEn !== null && $restEn === [] && strpos(json_encode($panelEn), 'I have read and understood this') !== false, implode(' | ', $restEn));
+$GLOBALS['ips']['locale'] = json_decode((string)file_get_contents(__DIR__ . '/../libs/locale.json'), true)['translations']['de'];
 
 // ---------------------------------------------------------------------------
 echo "\n";

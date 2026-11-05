@@ -66,6 +66,16 @@ class WPMBHUB_ModbusGatewayClient extends WPMBHUB_ModbusTcpClient
         return $this->request(4, (int)$startReg, (int)$count);
     }
 
+    /**
+     * Schreiben ueber das ModBus-Gateway ist NICHT gebaut: das Puffer-Format fuer Schreib-Functions ist weder in
+     * SymconBC noch in den Schwestermodulen belegt, und es wird nicht geraten (Verbundregel).
+     */
+    public function writeHolding($reg, $value): bool
+    {
+        $this->lastError = WPMBHUB_Text::t('writing via the ModBus gateway is not supported');
+        return false;
+    }
+
     public function close(): void
     {
     }

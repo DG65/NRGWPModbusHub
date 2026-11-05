@@ -31,6 +31,8 @@ class WPMBHUB_Drivers
         'StromWarmwasser'     => 'Electrical energy consumed, hot water (total)',
         'Verdichterstarts'    => 'Compressor starts',
         'Betriebsart'         => 'Operating mode',
+        'Zone1Komfort'        => 'Heating circuit 1 comfort temperature',
+        'Zone1Eco'            => 'Heating circuit 1 ECO temperature',
     ];
 
     // Registerprofile je Hersteller ('caption' und 'confidence' sind englische Quelltexte, uebersetzt
@@ -47,7 +49,10 @@ class WPMBHUB_Drivers
     // 'enum' (Ganzzahl mit Profil 'profile'). 'invalidRaw' (ein Rohwert oder eine Liste):
     // Ersatzwerte fuer "Objekt nicht vorhanden". Auf Herstellerebene optional
     // 'controller' => ['addr' => Register, 'expect' => [Kennungen]]: die Reglerkennung des
-    // Geraets, damit eine falsch gewaehlte Karte auffaellt.
+    // Geraets, damit eine falsch gewaehlte Karte auffaellt. 'kind' => 'setpoint' mit
+    // 'write' => ['min','max','step'] ist ein SCHREIBBARER Sollwert (Holding-Register, Function 6,
+    // Wert * scale): er wird nur nach der Belehrung im Formular gelesen und angeboten, und nur im
+    // WPModbusHub (TCP), nicht ueber das ModBus-Gateway.
     // Ident-Namen bewusst identisch zu WPHub (Aussentemperatur/Warmwasser/…)
     // -- GetFunctions() loest sie genau wie dort ueber contractFieldID() auf.
     const DRIVERS = [
@@ -102,6 +107,9 @@ class WPMBHUB_Drivers
                 'StromWarmwasser'       => ['regType' => 'input', 'addr' => 3514, 'type' => 'kwhmwh', 'kind' => 'energy', 'invalidRaw' => 0x8000],
                 // Block 2 (Holding, nur gelesen): Betriebsart 0 Notbetrieb, 1 Bereitschaft, 2 Programm, 3 Komfort, 4 ECO, 5 Warmwasser.
                 'Betriebsart'           => ['regType' => 'holding', 'addr' => 1500, 'scale' => 1, 'signed' => false, 'kind' => 'enum', 'profile' => 'WPMBHUB.StiebelModeWPM', 'invalidRaw' => 0x8000],
+                // Raumsollwerte Heizkreis 1 (Doku 1502/1503, Holding r/w, 5..30 Grad, Schritt 1): schreibbar, siehe oben.
+                'Zone1Komfort'          => ['regType' => 'holding', 'addr' => 1501, 'scale' => 10, 'signed' => true, 'kind' => 'setpoint', 'invalidRaw' => 0x8000, 'write' => ['min' => 5, 'max' => 30, 'step' => 1]],
+                'Zone1Eco'              => ['regType' => 'holding', 'addr' => 1502, 'scale' => 10, 'signed' => true, 'kind' => 'setpoint', 'invalidRaw' => 0x8000, 'write' => ['min' => 5, 'max' => 30, 'step' => 1]],
             ],
         ],
         // Stiebel Eltron Lueftungsintegralgeraete (LWZ/LWA ueber ISG): EIGENE Registerkarte, Doku Abschnitt 7.

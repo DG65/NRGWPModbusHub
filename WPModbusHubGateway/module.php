@@ -57,6 +57,10 @@ class WPModbusHubGateway extends IPSModule
             'Stiebel Eltron: new values source temperature (brine/water units), heat energy produced and electrical energy consumed for heating and hot water as totals in kWh (kWh and MWh part added up), operating mode and, on the LWZ, compressor starts. The energy values are the ISG\'s own estimate, not a meter reading.',
             'The form warns if the controller code of the Stiebel Eltron device does not fit the selected card. Fields that a device does not offer (e.g. the source temperature of an air unit) no longer count as read errors.',
         ],
+        '0.9.1' => [
+            'The update interval can now be set down to 5 seconds. A device that cannot be reached no longer holds up the read cycle: it ends after the first connection error instead of waiting 3 seconds per field.',
+            '"Heating zone" is now called "Heating circuit" (for newly created variables).',
+        ],
     ];
     private const LIBRARY_GUID = '{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}';
     const DRIVERS = WPMBHUB_Drivers::DRIVERS;
@@ -316,11 +320,11 @@ class WPModbusHubGateway extends IPSModule
             return;
         }
         $client = $this->gatewayClient();
-        $values = $this->readRegisters(self::DRIVERS[$manufacturer]['registers'], $client);
+        $values = $this->readRegisters($this->activeRegisters($manufacturer), $client);
         if ($values !== null) {
             $this->readControllerCode($client, self::DRIVERS[$manufacturer]);
         }
-        $this->recordCycle(self::DRIVERS[$manufacturer]['registers'], $values);
+        $this->recordCycle($this->activeRegisters($manufacturer), $values);
 
         $reachable = ($values !== null && count($values) > 0);
         $this->maintainDeviceVariables($values ?? [], $reachable);
@@ -349,7 +353,7 @@ class WPModbusHubGateway extends IPSModule
         if (!isset(self::DRIVERS[$manufacturer])) {
             return WPMBHUB_Text::t('❌ Unknown manufacturer "%s".', $manufacturer);
         }
-        $registers = self::DRIVERS[$manufacturer]['registers'];
+        $registers = $this->activeRegisters($manufacturer);
         $ident = isset($registers['Aussentemperatur']) ? 'Aussentemperatur' : array_key_first($registers);
         $def = $registers[$ident];
         $function = ($def['regType'] === 'holding') ? 3 : 4;

@@ -177,6 +177,34 @@ class WPMBHUB_ModbusTcpClient
         return $regs;
     }
 
+    /**
+     * Schreibt ein einzelnes Holding-Register (Function 6, Antwort ist das Echo der Anfrage).
+     * true nur, wenn das Geraet Adresse und Wert unveraendert zurueckmeldet.
+     */
+    public function writeHolding($reg, $value): bool
+    {
+        $value = (int)$value & 0xFFFF;
+        $pdu = $this->transact(pack('Cnn', 6, (int)$reg, $value));
+        if ($pdu === null || strlen($pdu) < 2) {
+            return false;
+        }
+        $rfc = ord($pdu[0]);
+        if ($rfc & 0x80) {
+            $this->lastError = WPMBHUB_Text::t('Modbus exception 0x%02X', ord($pdu[1]));
+            return false;
+        }
+        if ($rfc !== 6 || strlen($pdu) < 5) {
+            $this->lastError = WPMBHUB_Text::t('unexpected function code 0x%02X', $rfc);
+            return false;
+        }
+        $echo = unpack('nreg/nval', substr($pdu, 1, 4));
+        if ($echo['reg'] !== (int)$reg || $echo['val'] !== $value) {
+            $this->lastError = WPMBHUB_Text::t('the device answered with a different value');
+            return false;
+        }
+        return true;
+    }
+
     public function u16($regs, $offset)
     {
         return isset($regs[$offset]) ? ($regs[$offset] & 0xFFFF) : 0;

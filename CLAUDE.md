@@ -68,7 +68,7 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
 
 ## Was bewusst NICHT Teil von v1 ist
 
-- **Keine Steuerbefehle** (nur lesend) — analog zu WPHubs Vaillant-Anbindung beim Start.
+- **Keine Steuerbefehle**, mit EINER Ausnahme seit 0.9.1: die beiden Stiebel-Raumsollwerte (`Zone1Komfort`/`Zone1Eco`, Register 1502/1503, Function 6), schreibbar nur im TCP-Modul und erst nach bestätigter Belehrung (Attribut `WriteNoticeAccepted`). Weitere schreibbare Felder immer so: `'write' => [min, max, step]` in der Registerkarte, Belehrung, Rücklesen, 30-s-Abstand.
 - **Energiewerte nur bei Stiebel (seit 0.9.0)** als Variablen, `PowerID`/`EnergyID` bleiben bewusst 0 im Vertrag
   (Stiebel hat per Modbus keine Momentanleistung; die Summen sind eine ISG-Schätzung, ob Konsumenten sie als `EnergyID`
   wollen, ist nicht geklärt). Andere Hersteller liefern weiter nur Temperaturen.
@@ -401,3 +401,7 @@ thorsten1 stammt vermutlich aus der Weboberfläche. (5) Reglerkennung Register 5
 soll teils falsch/verschoben melden, Quellentemperatur fehlt bei manchen Geräten, WPMsystem-Einzelregister liefern teils nichts.
 Nicht aufgenommen: Tageswerte, Wärmepumpen 2–6, Heizstab-Wärmemenge, SG Ready (4001–4003, schreibbar), Quellendruck (braucht Druckprofil).
 EEBUS: erst ISG Connect (nicht ISG web) und nur über die EEBUS-Sitzungen, nicht in diesem Modul.
+
+## Schreibbare Raumsollwerte (0.9.1, 05.11.2026)
+
+thorsten1 wollte „Raum Soll“; Dietmar: „Mache doch beide [Komfort und ECO] und beide sollten auch schreibbar sein“, dann: „meinetwegen erst nach einer Belehrung etc.“ und auf die Rückfrage zu den Variablen: sie sollen erst nach der Belehrung entstehen, aber steuerbar sein. Umsetzung: Trait `activeRegisters()` filtert Felder mit `write` weg, solange `writeSupported()` (nur TCP-Modul) und das Attribut `WriteNoticeAccepted` nicht beides wahr sind; `AcceptWriteNotice()` setzt das Attribut und ruft `Update()` (Variablen sofort); `RevokeWriteNotice()` nimmt `DisableAction` zurück, löscht nichts. `WPMBHUB_ModbusTcpClient::writeHolding()` (Function 6, Echo geprüft). Gateway-Weg bewusst NICHT: das Puffer-Format für Schreib-Functions ist im Verbund nirgends belegt (RLTHub/MeterHub lesen nur), Websuche fand es nicht; erst an einer Quelle verifizieren. Keine LWZ-Entsprechung (Doku 1002/1003) gebaut, weil an keiner LWZ prüfbar. Der Prüfstand testet das Schreiben gegen einen echten Mini-Server (Echo, falsches Echo, ignorierter Wert, Ausnahme).
