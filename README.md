@@ -38,7 +38,7 @@ Stand 0.9.0 (05.11.2026) — **bewusst nur lesend** (keine Steuerbefehle) und **
 - **IDM Energiesysteme** (Navigatorregelung 2.0, z. B. ALM-Serie) — Registerkarte direkt aus IDMs eigenem PDF „Modbus TCP Navigatorregelung 2.0", an einer laufenden ALM vollständig bestätigt (Warmwasser-Ist ist der Speicherfühler oben, zusätzlich Warmwasser unten). Einziger Hersteller dieser Liste mit 32-Bit-Fließkommawerten statt Ganzzahl×Faktor.
 - **Proxon T300** (Zimmermann Lüftungs- und Wärmesysteme, Trinkwasser-Wärmepumpe) — vier Register aus Zimmermanns Kunden-Registerliste (Warmwasser Ist/Soll, Behälterfühler unten/mitte), alle an einer echten Anlage gegen das Display geprüft. Spricht nativ Modbus RTU über einen seriellen Anschluss, nicht TCP — braucht ein RS485-zu-Ethernet-Gateway im „Modbus TCP zu RTU"-Modus davor. Die FWT-Lüftungszentrale (Zu-/Abluft, kein Vorlauf/Rücklauf) ist bewusst nicht enthalten.
 
-**Ausgelesen werden Temperaturen** (Außentemperatur, Vorlauf, teils Rücklauf/Warmwasser/Pufferspeicher/Heizzone/Quelle), bei Stiebel Eltron zusätzlich Energiesummen, Betriebsart und Verdichterstarts. Eine Momentanleistung gibt es per Modbus bei Stiebel nicht. Im Vertrag mit EMS und Dashboard bleiben `PowerID` und `EnergyID` vorerst 0.
+**Ausgelesen werden Temperaturen** (Außentemperatur, Vorlauf, teils Rücklauf/Warmwasser/Pufferspeicher/Heizkreis/Quelle), bei Stiebel Eltron zusätzlich Energiesummen, Betriebsart und Verdichterstarts. Eine Momentanleistung gibt es per Modbus bei Stiebel nicht. Im Vertrag mit EMS und Dashboard bleiben `PowerID` und `EnergyID` vorerst 0.
 
 Wer eine der sieben Wärmepumpen hat und beim ersten echten Test helfen möchte: sehr willkommen, siehe Formular-Hinweis.
 

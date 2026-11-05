@@ -3,6 +3,9 @@
 ## 0.9.1 (Build 22) — 05.11.2026
 
 - **Englische Texte gegengelesen und an Stiebels englische Dokumentation angeglichen** (Anlass: Verbundregel zur Zweisprachigkeit, SUITE.md Konvention 9). Die Energievariablen heißen englisch jetzt „Heat energy produced, heating (total)“, „Electrical energy consumed, heating (total)“ usw. statt „Heat quantity …“; die Betriebsarten tragen eindeutige Namen („Standby mode“, „Programmed operation“, „Comfort mode“, „ECO mode“, „Hot water mode“, „Manual mode“), deutsch wie in Stiebels Dokumentation („Bereitschaftsbetrieb“, „Warmwasserbetrieb“ …). Nur Anzeigetexte, keine Kennungen und keine Funktion geändert.
+- **Aktualisierungsintervall ab 5 Sekunden** (bisher mindestens 30). Wunsch von thorsten1 (WPF 15), der sein ISG selbst im 5-s-Takt abfragt. Der Standard bleibt 60 s.
+- **Nicht erreichbares Gerät hält den Zyklus nicht mehr minutenlang auf:** Jedes Feld wartete bei einem Verbindungsfehler 3 s, ein Zyklus über 17 Felder dauerte fast eine Minute und hätte kurze Intervalle überholt. Jetzt endet der Zyklus nach einem Verbindungsfehler oder zwei Zeitüberschreitungen in Folge (Debugzeile „Abbruch nach Verbindungsfehlern“). Eine Ausnahme des Geräts, z. B. „Adresse nicht vorhanden“, betrifft nur dieses Register und bricht nichts ab.
+- **„Heizzone“ heißt jetzt „Heizkreis“** (englisch „Heating circuit“), weil Stiebel, Waterkotte und IDM so sagen. Gilt für neu angelegte Variablen; Idents und Vertragsfelder (`z1…`) bleiben.
 
 ## 0.9.0 (Build 21) — 05.11.2026
 

@@ -41,7 +41,7 @@
                     "type": "NumberSpinner",
                     "name": "WPMBHUB_Interval",
                     "caption": "Update interval (seconds)",
-                    "minimum": 30,
+                    "minimum": 5,
                     "maximum": 600,
                     "suffix": " s"
                 },

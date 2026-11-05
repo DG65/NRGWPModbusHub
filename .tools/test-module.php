@@ -766,7 +766,7 @@ $failClient = new FailingModbusClient('192.168.1.168', 502, 1);
 $rrFail = $readRegisters->invoke($mod, ['Aussentemperatur' => ['regType' => 'input', 'addr' => 6, 'scale' => 10, 'signed' => true], 'WarmwasserSoll' => ['regType' => 'holding', 'addr' => 8, 'scale' => 10, 'signed' => true]], $failClient);
 check('Fehlerursache: kein Register lesbar liefert weiter null', $rrFail === null);
 $dbgModbus = array_values(array_filter($GLOBALS['ips']['debug'], fn ($d) => $d['topic'] === 'Modbus'));
-check('Fehlerursache: je fehlgeschlagenem Register eine Debugzeile', count($dbgModbus) === 2, (string)count($dbgModbus));
+check('Fehlerursache: je fehlgeschlagenem Register eine Debugzeile, danach der Abbruch nach dem Verbindungsfehler', count($dbgModbus) === 3 && strpos($dbgModbus[2]['text'], 'Abbruch nach Verbindungsfehlern') !== false, (string)count($dbgModbus));
 check('Fehlerursache: Debugzeile nennt Ausnahme, Registerart und Adresse', strpos($dbgModbus[0]['text'], 'Modbus-Ausnahme 0x02') !== false && strpos($dbgModbus[0]['text'], 'input Register 6') !== false, $dbgModbus[0]['text'] ?? 'null');
 check('Fehlerursache: Verbindungsfehler wird im Klartext erklaert', strpos($dbgModbus[1]['text'], 'keine Verbindung') !== false, $dbgModbus[1]['text'] ?? 'null');
 
@@ -1435,6 +1435,52 @@ check('Hersteller ohne Reglerkennung (NIBE): Kennung 0, nie ein Hinweis', (funct
     $m->setAccessible(true);
     return $m->invoke($modAir, 'ControllerCode') === 0;
 })());
+
+// Nicht erreichbares Gerät: der Zyklus bricht ab, statt je Feld 3 s zu warten (kurze Intervalle ab 5 s)
+class CountingFailClient extends WPMBHUB_ModbusTcpClient
+{
+    public int $reads = 0;
+    public string $failWith = 'connect';
+    public function readInput($startReg, $count)
+    {
+        $this->reads++;
+        $this->lastError = $this->failWith;
+        return null;
+    }
+    public function readHolding($startReg, $count)
+    {
+        return $this->readInput($startReg, $count);
+    }
+}
+$GLOBALS['ips']['properties']['Manufacturer'] = 'stiebeleltron';
+$modAbort = new WPModbusHub(12345);
+$modAbort->Create();
+$readAbort = new ReflectionMethod($modAbort, 'readRegisters');
+$readAbort->setAccessible(true);
+$nRegs = count(WPModbusHub::DRIVERS['stiebeleltron']['registers']);
+$cc = new CountingFailClient('203.0.113.9', 502, 1);
+$GLOBALS['ips']['debug'] = [];
+$resAbort = $readAbort->invoke($modAbort, WPModbusHub::DRIVERS['stiebeleltron']['registers'], $cc);
+check("Verbindungsfehler: nach dem ersten Register Schluss ($nRegs Felder, 1 Versuch statt $nRegs mal 3 s)", $resAbort === null && $cc->reads === 1 && $nRegs > 10, "reads={$cc->reads}");
+$cc2 = new CountingFailClient('203.0.113.9', 502, 1);
+$cc2->failWith = 'timeout';
+$readAbort->invoke($modAbort, WPModbusHub::DRIVERS['stiebeleltron']['registers'], $cc2);
+check('Zeitüberschreitung: nach zwei Versuchen in Folge Schluss', $cc2->reads === 2, "reads={$cc2->reads}");
+$cc3 = new CountingFailClient('203.0.113.9', 502, 1);
+$cc3->failWith = 'Modbus-Ausnahme 0x02';
+$readAbort->invoke($modAbort, WPModbusHub::DRIVERS['stiebeleltron']['registers'], $cc3);
+check('Ausnahme des Geräts (Adresse nicht vorhanden) bricht NICHT ab: alle Felder werden versucht', $cc3->reads === $nRegs, "reads={$cc3->reads}");
+$cc4 = new CountingFailClient('203.0.113.9', 502, 1);
+$cc4->failWith = 'timeout';
+$cc4->values = [];
+check('Intervall: Formular erlaubt ab 5 s (beide Module)', json_decode(file_get_contents(__DIR__ . '/../WPModbusHub/form.json'), true)['elements'][1]['items'][1]['minimum'] === 5
+    && json_decode(file_get_contents(__DIR__ . '/../WPModbusHubGateway/form.json'), true)['elements'][1]['items'][1]['minimum'] === 5);
+$GLOBALS['ips']['properties']['WPMBHUB_Interval'] = 5;
+$GLOBALS['ips']['properties']['WPMBHUB_Active'] = true;
+$GLOBALS['ips']['properties']['Host'] = '203.0.113.9';
+$modAbort->ApplyChanges();
+check('Intervall 5 s wird übernommen (Timer 5000 ms)', $modAbort->GetTimerInterval('WPMBHUB_UpdateTimer') === 5000, (string)$modAbort->GetTimerInterval('WPMBHUB_UpdateTimer'));
+$GLOBALS['ips']['properties']['WPMBHUB_Interval'] = 60;
 
 // Ganzer Zyklus über das Gateway: Update() liest Felder UND die Reglerkennung, das Formular warnt bei falscher Karte
 $GLOBALS['ips']['variables'] = [];

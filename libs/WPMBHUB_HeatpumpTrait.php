@@ -73,6 +73,7 @@ trait WPMBHUB_HeatpumpTrait
         $anySuccess = false;
         $anyAttempt = false;
         $this->unavailableIdents = [];
+        $transportErrors = 0;
         foreach ($registerMap as $ident => $def) {
             $anyAttempt = true;
             $type = $def['type'] ?? 'int16';
@@ -101,8 +102,18 @@ trait WPMBHUB_HeatpumpTrait
                 // Ursache sichtbar machen: ohne diese Zeile wirkt jeder Fehler (Verbindung,
                 // Zeitueberschreitung, Ausnahme des Geraets) gleich als "antwortet nicht".
                 $this->SendDebug('Modbus', WPMBHUB_Text::t('%s %s register %d: %s', $ident, $def['regType'], $def['addr'], $this->describeModbusError($client)), 0);
+                // Ist das Geraet gar nicht erreichbar, wuerde jedes weitere Feld 3 s warten: ein Zyklus dauerte
+                // dann fast eine Minute und ueberholte kurze Intervalle. Nach einem Verbindungsfehler oder zwei
+                // Zeitueberschreitungen in Folge wird der Zyklus beendet; eine Ausnahme des Geraets (z. B.
+                // "Adresse nicht vorhanden") betrifft nur dieses Register und bricht nichts ab.
+                $transportErrors = in_array((string)($client->lastError ?? ''), ['timeout', 'eof', 'write'], true) ? $transportErrors + 1 : 0;
+                if (($client->lastError ?? '') === 'connect' || $transportErrors >= 2) {
+                    $this->SendDebug('Modbus', WPMBHUB_Text::t('stopped after connection errors -- the remaining fields are not read in this cycle'), 0);
+                    break;
+                }
                 continue;
             }
+            $transportErrors = 0;
             $anySuccess = true;
             if ($isFloat32) {
                 // Kein Skalierungsfaktor -- IEEE754 traegt den Wert schon

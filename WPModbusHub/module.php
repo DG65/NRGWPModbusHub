@@ -136,7 +136,7 @@ class WPModbusHub extends IPSModule
         $this->ensureSharedProfiles();
 
         $active   = $this->ReadPropertyBoolean('WPMBHUB_Active');
-        $interval = max(30, $this->ReadPropertyInteger('WPMBHUB_Interval'));
+        $interval = max(5, $this->ReadPropertyInteger('WPMBHUB_Interval'));
         $hasHost  = trim($this->ReadPropertyString('Host')) !== '';
 
         if (!$active) {
@@ -184,7 +184,7 @@ class WPModbusHub extends IPSModule
         return $this->connectionStatusLine(
             $this->ReadPropertyBoolean('WPMBHUB_Active'),
             trim($this->ReadPropertyString('Host')) === '' ? WPMBHUB_Text::t('no IP address entered') : '',
-            max(30, $this->ReadPropertyInteger('WPMBHUB_Interval')),
+            max(5, $this->ReadPropertyInteger('WPMBHUB_Interval')),
             WPMBHUB_Text::t('Check IP address, port and unit ID.')
         );
     }

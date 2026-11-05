@@ -107,7 +107,7 @@ class WPModbusHubGateway extends IPSModule
             $this->SetStatus(104);
             return;
         }
-        $interval = max(30, $this->ReadPropertyInteger('WPMBGW_Interval'));
+        $interval = max(5, $this->ReadPropertyInteger('WPMBGW_Interval'));
         $this->SetTimerInterval('WPMBGW_UpdateTimer', $interval * 1000);
         $this->SetStatus($this->hasGatewayParent() ? 102 : 201);
     }
@@ -133,7 +133,7 @@ class WPModbusHubGateway extends IPSModule
         return $this->connectionStatusLine(
             $this->ReadPropertyBoolean('WPMBGW_Active'),
             $this->hasGatewayParent() ? '' : WPMBHUB_Text::t('no ModBus gateway connected (choose one at the top under "Gateway")'),
-            max(30, $this->ReadPropertyInteger('WPMBGW_Interval')),
+            max(5, $this->ReadPropertyInteger('WPMBGW_Interval')),
             WPMBHUB_Text::t('Check the device ID at the ModBus gateway, baud rate/parity at the Serial Port and the wiring ("Test connection").')
         );
     }

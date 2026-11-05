@@ -38,7 +38,7 @@ As of 0.9.0 (5 Nov 2026) — **read-only by design** (no control commands) and *
 - **IDM Energiesysteme** (Navigator control 2.0, e.g. ALM series) — register map taken directly from IDM's own PDF "Modbus TCP Navigatorregelung 2.0", fully confirmed on a running ALM (hot water actual is the tank sensor at the top, plus hot water bottom). The only manufacturer in this list with 32-bit floating-point values instead of integer × factor.
 - **Proxon T300** (Zimmermann ventilation and heating systems, domestic hot water heat pump) — four registers from Zimmermann's customer register list (hot water actual/target, tank sensors bottom/middle), all checked against the display on a real system. Natively speaks Modbus RTU on a serial port, not TCP — needs an RS485-to-Ethernet gateway in "Modbus TCP to RTU" mode in front of it. The FWT ventilation unit (supply/exhaust air, no flow/return) is deliberately not included.
 
-**Temperatures are read** (outdoor, flow, partly return/hot water/buffer tank/heating zone/source); for Stiebel Eltron also energy totals, operating mode and compressor starts. Stiebel has no instantaneous power via Modbus. In the contract with EMS and Dashboard `PowerID` and `EnergyID` stay 0 for now.
+**Temperatures are read** (outdoor, flow, partly return/hot water/buffer tank/heating circuit/source); for Stiebel Eltron also energy totals, operating mode and compressor starts. Stiebel has no instantaneous power via Modbus. In the contract with EMS and Dashboard `PowerID` and `EnergyID` stay 0 for now.
 
 If you own one of the seven heat pumps and want to help with the first real test: very welcome, see the note in the form.
 
