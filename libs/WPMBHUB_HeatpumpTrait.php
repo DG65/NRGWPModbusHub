@@ -34,9 +34,11 @@ trait WPMBHUB_HeatpumpTrait
     private function describeModbusError($client): string
     {
         $e = (string)($client->lastError ?? '');
-        $map = ['connect' => 'keine Verbindung (IP/Port erreichbar? Modbus am Geraet aktiviert? Nutzt schon etwas anderes die Verbindung?)',
-            'timeout' => 'keine Antwort innerhalb von 3 s', 'write' => 'Senden fehlgeschlagen', 'eof' => 'Verbindung vom Geraet geschlossen', 'frame' => 'ungueltige Antwort (Rahmenlaenge)'];
-        return $map[$e] ?? ($e !== '' ? $e : 'unbekannt');
+        $map = ['connect' => WPMBHUB_Text::t('no connection (is IP/port reachable? Modbus enabled on the device? Is something else already using the connection?)'),
+            'timeout' => WPMBHUB_Text::t('no answer within 3 s'), 'write' => WPMBHUB_Text::t('sending failed'),
+            'eof' => WPMBHUB_Text::t('connection closed by the device'), 'frame' => WPMBHUB_Text::t('invalid answer (frame length)')];
+        // Die Clients liefern ihre Meldungen schon uebersetzt (WPMBHUB_Text), nur die Kurzcodes werden hier aufgeloest.
+        return $map[$e] ?? ($e !== '' ? $e : WPMBHUB_Text::t('unknown'));
     }
 
     private function readRegisters(array $registerMap, WPMBHUB_ModbusTcpClient $client): ?array
@@ -65,14 +67,14 @@ trait WPMBHUB_HeatpumpTrait
                     }
                 }
                 if ($regs === null) {
-                    $this->SendDebug('Modbus', sprintf('%s %s Register %d: Objekt am Gerät nicht vorhanden (Ersatzwert 0x%04X)', $ident, $def['regType'], $def['addr'], $def['invalidRaw']), 0);
+                    $this->SendDebug('Modbus', WPMBHUB_Text::t('%s %s register %d: object does not exist on the device (substitute value 0x%04X)', $ident, $def['regType'], $def['addr'], $def['invalidRaw']), 0);
                     continue;
                 }
             }
             if ($regs === null) {
                 // Ursache sichtbar machen: ohne diese Zeile wirkt jeder Fehler (Verbindung,
                 // Zeitueberschreitung, Ausnahme des Geraets) gleich als "antwortet nicht".
-                $this->SendDebug('Modbus', sprintf('%s %s Register %d: %s', $ident, $def['regType'], $def['addr'], $this->describeModbusError($client)), 0);
+                $this->SendDebug('Modbus', WPMBHUB_Text::t('%s %s register %d: %s', $ident, $def['regType'], $def['addr'], $this->describeModbusError($client)), 0);
                 continue;
             }
             $anySuccess = true;
@@ -100,14 +102,14 @@ trait WPMBHUB_HeatpumpTrait
     private function maintainDeviceVariables(array $values, bool $reachable): void
     {
         $pos = 0;
-        $this->MaintainVariable('Erreichbar', 'Erreichbar', VARIABLETYPE_BOOLEAN, '~Alert.Reversed', $pos++, true);
+        $this->MaintainVariable('Erreichbar', WPMBHUB_Text::t('Reachable'), VARIABLETYPE_BOOLEAN, '~Alert.Reversed', $pos++, true);
         $this->SetValue('Erreichbar', $reachable);
 
         foreach (WPMBHUB_Drivers::FIELD_CAPTIONS as $ident => $caption) {
             if (!array_key_exists($ident, $values)) {
                 continue;
             }
-            $this->MaintainVariable($ident, $caption, VARIABLETYPE_FLOAT, 'NRG.Celsius', $pos++, true);
+            $this->MaintainVariable($ident, WPMBHUB_Text::t($caption), VARIABLETYPE_FLOAT, 'NRG.Celsius', $pos++, true);
             $this->SetValue($ident, (float)$values[$ident]);
         }
     }
@@ -125,26 +127,26 @@ trait WPMBHUB_HeatpumpTrait
     }
 
     /**
-     * "vor 42 s" / "vor 5 min" / "vor 3 h" / "vor 2 Tagen".
+     * "42 s ago" / "5 min ago" / "3 h ago" / "2 days ago" (deutsch "vor 42 s" ...).
      */
     private function ageText(int $timestamp): string
     {
         $sec = max(0, time() - $timestamp);
         if ($sec < 120) {
-            return 'vor ' . $sec . ' s';
+            return WPMBHUB_Text::t('%d s ago', $sec);
         }
         if ($sec < 7200) {
-            return 'vor ' . intdiv($sec, 60) . ' min';
+            return WPMBHUB_Text::t('%d min ago', intdiv($sec, 60));
         }
         if ($sec < 172800) {
-            return 'vor ' . intdiv($sec, 3600) . ' h';
+            return WPMBHUB_Text::t('%d h ago', intdiv($sec, 3600));
         }
-        return 'vor ' . intdiv($sec, 86400) . ' Tagen';
+        return WPMBHUB_Text::t('%d days ago', intdiv($sec, 86400));
     }
 
     /**
      * Die zuletzt gelesenen Werte des gewaehlten Herstellerprofils als Text,
-     * z. B. "Außentemperatur 7,5 °C, Vorlauftemperatur 38,2 °C". Nur Felder, die
+     * z. B. "Außentemperatur 7,5 °C, Vorlauftemperatur 38,2 °C" (englisch mit Punkt). Nur Felder, die
      * das Profil kennt UND zu denen eine Variable existiert.
      */
     private function lastValuesText(string $manufacturer): string
@@ -159,7 +161,7 @@ trait WPMBHUB_HeatpumpTrait
             if ($id === 0) {
                 continue;
             }
-            $parts[] = $caption . ' ' . number_format((float)GetValue($id), 1, ',', '') . ' °C';
+            $parts[] = WPMBHUB_Text::t($caption) . ' ' . WPMBHUB_Text::zahl((float)GetValue($id)) . ' °C';
         }
         return implode(', ', $parts);
     }
@@ -178,23 +180,23 @@ trait WPMBHUB_HeatpumpTrait
     {
         if (!$active) {
             if ($missing !== '') {
-                return ['ℹ️ Noch nicht eingerichtet: ' . $missing . '. Danach den Schalter „aktiv“ einschalten und übernehmen.', -1];
+                return [WPMBHUB_Text::t('ℹ️ Not set up yet: %s. Then switch "active" on and apply.', $missing), -1];
             }
-            return ['ℹ️ Ausgeschaltet -- Schalter „aktiv“ einschalten und übernehmen, dann wird die Wärmepumpe gelesen.', -1];
+            return [WPMBHUB_Text::t('ℹ️ Switched off -- switch "active" on and apply, then the heat pump is read.'), -1];
         }
         if ($missing !== '') {
-            return ['⛔ Pflichtangabe fehlt: ' . $missing . '.', 0xFF0000];
+            return [WPMBHUB_Text::t('⛔ Required entry missing: %s.', $missing), 0xFF0000];
         }
 
         $manufacturer = $this->ReadPropertyString('Manufacturer');
         $driver = WPMBHUB_Drivers::DRIVERS[$manufacturer] ?? null;
         if ($driver === null) {
-            return ['⛔ Unbekannter Hersteller „' . $manufacturer . '“ -- bitte neu auswählen.', 0xFF0000];
+            return [WPMBHUB_Text::t('⛔ Unknown manufacturer "%s" -- please choose again.', $manufacturer), 0xFF0000];
         }
-        $name = $driver['caption'];
+        $name = WPMBHUB_Text::t($driver['caption']);
         $lastCycle = $this->ReadAttributeInteger('LastCycleAt');
         if ($lastCycle === 0) {
-            return ['ℹ️ Noch kein Lesezyklus gelaufen -- der erste folgt innerhalb von ' . $interval . ' s nach dem Übernehmen.', -1];
+            return [WPMBHUB_Text::t('ℹ️ No read cycle has run yet -- the first follows within %d s after applying.', $interval), -1];
         }
 
         $reachableID = $this->contractFieldID('Erreichbar');
@@ -203,24 +205,24 @@ trait WPMBHUB_HeatpumpTrait
         $values = $this->lastValuesText($manufacturer);
 
         if (!$reachable) {
-            $text = '⚠️ ' . $name . ' antwortet nicht (letzte Antwort: ' . ($lastSeen > 0 ? $this->ageText($lastSeen) : 'noch nie') . '). ' . $hint;
+            $text = WPMBHUB_Text::t('⚠️ %s does not answer (last answer: %s).', $name, $lastSeen > 0 ? $this->ageText($lastSeen) : WPMBHUB_Text::t('never')) . ' ' . $hint;
             if ($values !== '') {
-                $text .= ' Letzte bekannte Werte: ' . $values . '.';
+                $text .= ' ' . WPMBHUB_Text::t('Last known values: %s.', $values);
             }
             return [$text, -1];
         }
         if (time() - $lastCycle > 3 * $interval + 10) {
-            return ['⚠️ Die letzte Aktualisierung liegt ' . str_replace('vor ', '', $this->ageText($lastCycle)) . ' zurück, erwartet wären ' . $interval . ' s -- Timer und Instanzstatus prüfen. Letzte Werte: ' . $values . '.', -1];
+            return [WPMBHUB_Text::t('⚠️ The last update was %s, one is expected every %d s -- check the timer and the instance status. Last values: %s.', $this->ageText($lastCycle), $interval, $values), -1];
         }
         $missingIdents = array_filter(explode(',', $this->ReadAttributeString('LastMissing')));
         if (count($missingIdents) > 0) {
             $names = [];
             foreach ($missingIdents as $ident) {
-                $names[] = WPMBHUB_Drivers::FIELD_CAPTIONS[$ident] ?? $ident;
+                $names[] = isset(WPMBHUB_Drivers::FIELD_CAPTIONS[$ident]) ? WPMBHUB_Text::t(WPMBHUB_Drivers::FIELD_CAPTIONS[$ident]) : $ident;
             }
-            return ['⚠️ ' . $name . ' antwortet, aber ' . count($names) . ' von ' . count($driver['registers']) . ' Feldern wurden nicht gelesen (' . implode(', ', $names) . '). Gelesen ' . $this->ageText($lastCycle) . ': ' . $values . '.', -1];
+            return [WPMBHUB_Text::t('⚠️ %s answers, but %d of %d fields were not read (%s). Read %s: %s.', $name, count($names), count($driver['registers']), implode(', ', $names), $this->ageText($lastCycle), $values), -1];
         }
-        return ['✅ ' . $name . ' antwortet, gelesen ' . $this->ageText($lastCycle) . ': ' . $values . '.', -1];
+        return [WPMBHUB_Text::t('✅ %s answers, read %s: %s.', $name, $this->ageText($lastCycle), $values), -1];
     }
 
     /**
@@ -235,7 +237,7 @@ trait WPMBHUB_HeatpumpTrait
         try {
             $archiveIDs = @IPS_GetInstanceListByModuleID('{43192F0B-135B-4CE7-A0A7-1475603F3060}');
             if (!is_array($archiveIDs) || count($archiveIDs) === 0) {
-                return '❌ Keine Archiv-Instanz gefunden -- das Logging kann nicht eingeschaltet werden.';
+                return WPMBHUB_Text::t('❌ No archive instance found -- logging cannot be enabled.');
             }
             $archiveID = (int)$archiveIDs[0];
             $new = 0;
@@ -255,11 +257,13 @@ trait WPMBHUB_HeatpumpTrait
                 IPS_ApplyChanges($archiveID);
             }
             if ($new === 0 && $already === 0) {
-                return 'ℹ️ Noch keine Messwerte vorhanden -- erst einen Abruf abwarten und dann erneut klicken.';
+                return WPMBHUB_Text::t('ℹ️ No measured values yet -- wait for a poll first, then click again.');
             }
-            return '✅ Logging eingeschaltet für ' . $new . ' Messwert(e)' . ($already > 0 ? ' (' . $already . ' waren schon eingeschaltet)' : '') . '.';
+            return $already > 0
+                ? WPMBHUB_Text::t('✅ Logging enabled for %d measured value(s) (%d were already enabled).', $new, $already)
+                : WPMBHUB_Text::t('✅ Logging enabled for %d measured value(s).', $new);
         } catch (\Throwable $e) {
-            return '❌ Logging konnte nicht eingeschaltet werden: ' . $e->getMessage();
+            return WPMBHUB_Text::t('❌ Logging could not be enabled: %s', $e->getMessage());
         }
     }
 

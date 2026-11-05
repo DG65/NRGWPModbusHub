@@ -9,23 +9,25 @@ class WPMBHUB_Drivers
 {
     const MANUFACTURER_DEFAULT = 'nibe';
 
-    // Anzeigenamen der Felder (Ident => Beschriftung), in der Reihenfolge, in der die
-    // Variablen angelegt werden. Genutzt von maintainDeviceVariables() und der
-    // Statuszeile im Formular.
+    // Anzeigenamen der Felder (Ident => Beschriftung, englischer Quelltext), in der Reihenfolge, in der
+    // die Variablen angelegt werden. Genutzt von maintainDeviceVariables() und der Statuszeile im
+    // Formular; uebersetzt wird erst beim Anzeigen (WPMBHUB_Text::t()). Die Idents bleiben deutsch --
+    // sie sind der Vertrag mit WPHub/EMS/Dashboard.
     const FIELD_CAPTIONS = [
-        'Aussentemperatur'    => 'Außentemperatur',
-        'Vorlauftemperatur'   => 'Vorlauftemperatur',
-        'Ruecklauftemperatur' => 'Rücklauftemperatur',
-        'Warmwasser'          => 'Warmwasser',
-        'WarmwasserSoll'      => 'Warmwasser Sollwert',
-        'WarmwasserUnten'     => 'Warmwasser unten',
-        'WarmwasserMitte'     => 'Warmwasser Mitte',
-        'Speichertemperatur'  => 'Pufferspeichertemperatur',
-        'Zone1Ist'            => 'Heizzone 1 Isttemperatur',
-        'Zone1Soll'           => 'Heizzone 1 Solltemperatur',
+        'Aussentemperatur'    => 'Outdoor temperature',
+        'Vorlauftemperatur'   => 'Flow temperature',
+        'Ruecklauftemperatur' => 'Return temperature',
+        'Warmwasser'          => 'Hot water',
+        'WarmwasserSoll'      => 'Hot water setpoint',
+        'WarmwasserUnten'     => 'Hot water bottom',
+        'WarmwasserMitte'     => 'Hot water middle',
+        'Speichertemperatur'  => 'Buffer tank temperature',
+        'Zone1Ist'            => 'Heating zone 1 actual temperature',
+        'Zone1Soll'           => 'Heating zone 1 target temperature',
     ];
 
-    // Registerprofile je Hersteller. Jedes Feld: [regType('input'|'holding'),
+    // Registerprofile je Hersteller ('caption' und 'confidence' sind englische Quelltexte, uebersetzt
+    // wird beim Anzeigen). Jedes Feld: [regType('input'|'holding'),
     // addr(0-basierte Modbus-Wire-Adresse), scale(Divisor), signed(bool)] fuer
     // den Standardfall s16×Faktor. Optional 'type'=>'float32' (bislang nur
     // IDM) liest 2 Register statt 1 und dekodiert per floatLE() statt
@@ -38,8 +40,8 @@ class WPMBHUB_Drivers
         // aus einer aktiv gepflegten, unabhaengigen Referenzbibliothek fuer
         // NIBE-Waermepumpen. Hoechste Vertrauensstufe dieser Liste.
         'nibe' => [
-            'caption'      => 'NIBE (S-Serie, z. B. S1155/S1255/S2125)',
-            'confidence'   => 'Registerkarte aus einer aktiv gepflegten, unabhängigen Referenzbibliothek für NIBE-Wärmepumpen -- nicht an echter Hardware verifiziert.',
+            'caption'      => 'NIBE (S series, e.g. S1155/S1255/S2125)',
+            'confidence'   => 'Register map from an actively maintained, independent reference library for NIBE heat pumps -- not verified on real hardware.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
             'registers'    => [
@@ -61,8 +63,8 @@ class WPMBHUB_Drivers
         // nur "Adresse nicht vorhanden". Nicht vorhandene Objekte meldet die ISG mit dem
         // Ersatzwert 0x8000 ('invalidRaw'), der nicht als Temperatur gezeigt wird.
         'stiebeleltron' => [
-            'caption'      => 'Stiebel Eltron (ISG-Gateway, WPMsystem/WPM3/WPM3i/LWZ)',
-            'confidence'   => 'Registerkarte direkt aus dem offiziellen Stiebel-Eltron-PDF "ISG Modbus"-Bedienungsanleitung (Block 1, Systemwerte). Die Adressierung (PDF-Adresse minus 1) ist an einer WPF 15 bestätigt, die Werte selbst sind an echter Hardware noch nicht geprüft. Bitte Rückmeldung im Forum.',
+            'caption'      => 'Stiebel Eltron (ISG gateway, WPMsystem/WPM3/WPM3i/LWZ)',
+            'confidence'   => 'Register map taken directly from the official Stiebel Eltron "ISG Modbus" manual (block 1, system values). The addressing (PDF address minus 1) is confirmed on a WPF 15, the values themselves are not yet checked on real hardware. Please give feedback in the forum.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
             'registers'    => [
@@ -82,7 +84,7 @@ class WPMBHUB_Drivers
         // LG-Quelle gefunden).
         'lg' => [
             'caption'      => 'LG Therma V',
-            'confidence'   => 'Registerkarte aus einer community-gepflegten Konfiguration, keine offizielle LG-Quelle gefunden -- nicht an echter Hardware verifiziert. Bitte Rueckmeldung im Forum, falls Werte nicht passen.',
+            'confidence'   => 'Register map from a community-maintained configuration, no official LG source found -- not verified on real hardware. Please give feedback in the forum if values do not match.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
             'registers'    => [
@@ -102,8 +104,8 @@ class WPMBHUB_Drivers
         // war -- ein Warmwasser-Register war in der Quelle selbst
         // auskommentiert/unsicher und wurde deshalb nicht uebernommen.
         'samsung' => [
-            'caption'      => 'Samsung EHS (über MIM-B19N-Zubehörmodul)',
-            'confidence'   => 'Registerkarte aus einer Community-Sammlung, die sich auf Samsungs offizielle Installationsanleitung des MIM-B19N-Moduls beruft -- nicht an echter Hardware verifiziert. Gilt NUR für das offizielle Modbus-Zubehörmodul, nicht für die RS485/NASA-Route ohne dieses Modul.',
+            'caption'      => 'Samsung EHS (via MIM-B19N accessory module)',
+            'confidence'   => 'Register map from a community collection that refers to Samsung\'s official installation manual of the MIM-B19N module -- not verified on real hardware. Applies ONLY to the official Modbus accessory module, not to the RS485/NASA route without that module.',
             'defaultPort'  => 502,
             'defaultUnitId' => 2,
             'registers'    => [
@@ -123,8 +125,8 @@ class WPMBHUB_Drivers
         // read-only Zielwerte gelegt (A31/A37 "geforderte Temperatur"), nicht
         // auf die BMS-Vorgabe-Register A32/A38 -- dieses Modul schreibt nicht.
         'waterkotte' => [
-            'caption'      => 'Waterkotte (EcoTouch-Regler)',
-            'confidence'   => 'Registerkarte direkt aus Waterkottes eigenem PDF "Software Technische Information -- Modbus/TCP" (Firmware 01.07.xx). Außen-, Vorlauf-, Rücklauf-, Speicher- und Heizkreistemperatur sind zusätzlich an einer laufenden Anlage gegengeprüft; Warmwasser Ist/Soll und Heizzone Soll stammen nur aus dem PDF.',
+            'caption'      => 'Waterkotte (EcoTouch controller)',
+            'confidence'   => 'Register map taken directly from Waterkotte\'s own PDF "Software Technische Information -- Modbus/TCP" (firmware 01.07.xx). Outdoor, flow, return, buffer and heating circuit temperature are additionally checked on a running system; hot water actual/target and heating zone target come from the PDF only.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
             'registers'    => [
@@ -164,8 +166,8 @@ class WPMBHUB_Drivers
         // Vorlauf, Ruecklauf, Speicher, Warmwasser Soll, Heizkreis A Ist/Soll
         // "passen", damit auch die vertauschte Wortreihenfolge der Floats.
         'idm' => [
-            'caption'      => 'IDM Energiesysteme (Navigatorregelung 2.0, z. B. ALM)',
-            'confidence'   => 'Registerkarte direkt aus IDMs eigenem PDF "Modbus TCP Navigatorregelung 2.0" (Dok. 812170_Rev.10). An einer laufenden IDM ALM vollständig bestätigt (alle Felder passen). Warmwasser Ist ist der Speicherfühler oben (B48), zusätzlich Warmwasser unten (B41); die Zapftemperatur gibt es nur mit IDM-Warmwasserstation und ist deshalb nicht enthalten.',
+            'caption'      => 'IDM Energiesysteme (Navigator control 2.0, e.g. ALM)',
+            'confidence'   => 'Register map taken directly from IDM\'s own PDF "Modbus TCP Navigatorregelung 2.0" (doc. 812170_Rev.10). Fully confirmed on a running IDM ALM (all fields match). Hot water actual is the tank sensor at the top (B48), plus hot water bottom (B41); the tap temperature only exists with an IDM hot water station and is therefore not included.',
             'defaultPort'  => 502,
             'defaultUnitId' => 1,
             'registers'    => [
@@ -216,8 +218,8 @@ class WPMBHUB_Drivers
         //      "Modbus TCP zu RTU"-Gatewaymodus (echte Protokollumsetzung inkl.
         //      MBAP-Header, NICHT nur rohes Byte-Tunneling).
         'proxon' => [
-            'caption'      => 'Proxon T300 (Zimmermann, Trinkwasser-Wärmepumpe)',
-            'confidence'   => 'Vier Register aus Zimmermanns eigener Kunden-Excel für die T300-Warmwasser-Wärmepumpe, am 19.09.2026 an einer laufenden Anlage über WPModbusHubGateway gegen das Display geprüft (Warmwasser Ist/Soll und die beiden Behälterfühler unten/mitte). Proxon spricht nativ Modbus RTU über RS485: mit USB-RS485-Dongle am Symcon-Host das Modul WPModbusHubGateway (über Symcons ModBus-Gateway) verwenden, mit Modbus-TCP-Weg ein RS485-zu-Ethernet-Gateway im „Modbus TCP zu RTU“-Modus. Die FWT-Lüftungszentrale (Zu-/Abluft, kein Vorlauf/Rücklauf) ist bewusst nicht enthalten.',
+            'caption'      => 'Proxon T300 (Zimmermann, domestic hot water heat pump)',
+            'confidence'   => 'Four registers from Zimmermann\'s own customer Excel for the T300 hot water heat pump, checked against the display on a running system on 19.09.2026 via WPModbusHubGateway (hot water actual/target and the two tank sensors bottom/middle). Proxon natively speaks Modbus RTU over RS485: with a USB-RS485 dongle on the Symcon host use the WPModbusHubGateway module (via Symcon\'s ModBus Gateway), on the Modbus TCP route use an RS485-to-Ethernet gateway in "Modbus TCP to RTU" mode. The FWT ventilation unit (supply/exhaust air, no flow/return) is deliberately not included.',
             'defaultPort'  => 502,
             'defaultUnitId' => 41,
             'registers'    => [

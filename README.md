@@ -1,7 +1,9 @@
-# WPModbusHub — lokale Modbus-Anbindung für Wärmepumpen (IP-Symcon)
+🇬🇧 [English version](README.en.md)
+
+# WPModbusHub — lokale Modbus-Anbindung für Wärmepumpen (Symcon)
 
 ![Symcon](https://img.shields.io/badge/Symcon-PHPModul-blue)
-![Modul Version](https://img.shields.io/badge/Modul_Version-0.7.7-blue)
+![Modul Version](https://img.shields.io/badge/Modul_Version-0.8.0-blue)
 ![Symcon Version](https://img.shields.io/badge/Symcon_Version-9.0%2B-blue)
 ![License](https://img.shields.io/badge/License-PolyForm_Noncommercial_1.0.0-lightgrey)
 [![Check Style](https://github.com/DG65/NRGWPModbusHub/actions/workflows/check-style.yml/badge.svg)](https://github.com/DG65/NRGWPModbusHub/actions/workflows/check-style.yml)
@@ -26,10 +28,10 @@ Zwei Module in einer Bibliothek, gleiche Registerkarten, gleicher Vertrag, nur d
 
 ## Status
 
-Stand 0.7.2 (21.09.2026) — **bewusst nur lesend** (keine Steuerbefehle) und **bei den meisten der sieben Hersteller noch nicht an echter Hardware verifiziert** (bestätigt: Proxon T300 vollständig, IDM ALM vollständig, Waterkotte fünf Temperaturregister). Die Registerkarten stammen so weit wie möglich aus offizieller Herstellerdokumentation oder einer von der jeweiligen Smart-Home-Plattform offiziell übernommenen Referenzimplementierung:
+Stand 0.8.0 (05.11.2026) — **bewusst nur lesend** (keine Steuerbefehle) und **bei den meisten der sieben Hersteller noch nicht an echter Hardware verifiziert** (bestätigt: Proxon T300 vollständig, IDM ALM vollständig, Waterkotte fünf Temperaturregister, Stiebel Eltron die Adressierung an einer WPF 15). Die Registerkarten stammen so weit wie möglich aus offizieller Herstellerdokumentation oder einer von der jeweiligen Smart-Home-Plattform offiziell übernommenen Referenzimplementierung:
 
 - **NIBE** (S-Serie, z. B. S1155/S1255/S2125) — Registerkarte aus einer aktiv gepflegten, unabhängigen Referenzbibliothek für NIBE-Wärmepumpen.
-- **Stiebel Eltron** (ISG-Gateway, WPMsystem/WPM3/WPM3i/LWZ) — Registerkarte direkt aus dem offiziellen Stiebel-Eltron-PDF „ISG Modbus"-Bedienungsanleitung.
+- **Stiebel Eltron** (ISG-Gateway, WPMsystem/WPM3/WPM3i/LWZ) — Registerkarte direkt aus dem offiziellen Stiebel-Eltron-PDF „ISG Modbus"-Bedienungsanleitung. Die ISG zählt 1-basiert: auf der Leitung gilt die PDF-Adresse minus 1 (an einer WPF 15 bestätigt); die Werte selbst sind noch nicht gegen das Display geprüft.
 - **LG Therma V** — Registerkarte aus einer community-gepflegten Home-Assistant-Konfiguration, keine offizielle LG-Quelle gefunden.
 - **Samsung EHS** (über das offizielle Zubehör-Modul MIM-B19N) — Registerkarte aus einer Community-Sammlung, die sich auf Samsungs offizielle MIM-B19N-Installationsanleitung beruft. Gilt **nicht** für die RS485/NASA-Route ohne dieses Modul (dafür wäre ein anderes, eigenes Modul nötig).
 - **Waterkotte** (EcoTouch-Regler, eingebaute Modbus/TCP-Schnittstelle) — Registerkarte direkt aus Waterkottes eigenem PDF „Software Technische Information — Modbus/TCP".
@@ -39,6 +41,10 @@ Stand 0.7.2 (21.09.2026) — **bewusst nur lesend** (keine Steuerbefehle) und **
 **Ausgelesen werden aktuell nur Temperaturen** (Außentemperatur, Vorlauf, teils Rücklauf/Warmwasser/Pufferspeicher/Heizzone) — noch keine Leistungs- oder Energiezähler.
 
 Wer eine der sieben Wärmepumpen hat und beim ersten echten Test helfen möchte: sehr willkommen, siehe Formular-Hinweis.
+
+## Sprachen
+
+Das Modul ist zweisprachig (Deutsch/Englisch): Formular, Statusmeldungen, Hinweise und die Namen neuer Variablen folgen der Symcon-Sprache. Die Quelltexte sind englisch, die deutsche Fassung steht in `libs/locale.json` (`php .tools/locale-bauen.php` kopiert sie in beide Modulordner).
 
 ## Verbund
 

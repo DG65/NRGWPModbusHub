@@ -1,5 +1,14 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.8.0 (Build 20) — 05.11.2026
+
+- **Zweisprachig (Deutsch/Englisch).** Formular, Statusmeldungen, Hinweise, Log- und Diagnosetexte, die Herstellerliste, die Vertrauenshinweise der Registerkarten und die Namen neuer Variablen folgen jetzt der Symcon-Sprache. Quelltexte sind englisch (Code und `form.json`), die deutsche Fassung steht in `libs/locale.json`; `php .tools/locale-bauen.php` kopiert sie in beide Modulordner (Symcon liest `locale.json` nur dort). Englische Dokumentation: `README.en.md`.
+- **Übersetzung ohne den Automat-Fehler** (SUITE.md Stolperstein 24): Symcons `Translate()` liest bei jedem Aufruf die `locale.json`. Deshalb fragt `WPMBHUB_Text` jeden Text höchstens einmal je Prozess bei Symcon nach und merkt sich die Antwort; Lesezyklus, Vertragsabfrage (`GetFunctions`) und Formular kosten danach keinen Symcon-Aufruf mehr. Wirft der Übersetzer (z. B. Instanz gelöscht), bleibt der englische Text stehen.
+- Bestehende Variablen behalten ihren Namen, neue Variablen werden in der Symcon-Sprache angelegt. Idents, Properties, Funktionen und der Vertrag mit WPHub/EMS/Dashboard bleiben unverändert.
+- Die Herstellerliste im TCP-Formular kommt aus den Registerkarten (wie schon beim Gateway-Modul) statt doppelt in der `form.json` zu stehen. „Übernehmen erzwingen“ zeigt keinen Fließtext mehr.
+- Hinweistext „Wozu dieses Modul?“ korrigiert: stand noch auf „ungeprüft an echter Hardware“, obwohl IDM und Proxon bestätigt sind. Lizenz-Link zeigt auf `main`.
+- Prüfstand: Block 10 prüft, dass jeder Quelltext eine deutsche Fassung hat, Platzhalter übereinstimmen, keine verwaisten Einträge existieren, das englische Formular (beide Module, alle Zustände) keine deutschen Reste zeigt, das deutsche Dezimalkomma und der englische Punkt stimmen und dass Zyklus, Vertragsabfrage und Formular nach dem ersten Mal keinen `Translate()`-Aufruf mehr auslösen.
+
 ## 0.7.7 (Build 19) — 05.11.2026
 
 - **Fix: Stiebel-Eltron-Registerkarte hatte falsche Adressen.** Mit der Fehlerdiagnose aus 0.7.6 zeigte die Debugausgabe eines Testers (thorsten1, WPF 15 mit ISG, Forum) bei jedem Register „Modbus-Ausnahme 0x02“, also „Adresse nicht vorhanden“. Ursache: Beim Übernehmen der Karte aus dem Stiebel-PDF war der Block-Offset von 500 verloren gegangen (Adresse 6 statt 506), außerdem lag „Vorlauf“ auf einem Heizkreis-2-Wert. Jetzt gilt PDF-Adresse minus 1 (die ISG zählt 1-basiert), bestätigt an Warmwasser-Ist: PDF 522, am Direktzugang des Testers Input-Register 521. Neu: Rücklauftemperatur (PDF 516). Heizkreis-1-Soll liest PDF 510 und weicht bei der WPM 3i auf 509 aus.

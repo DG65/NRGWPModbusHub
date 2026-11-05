@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/../libs/WPMBHUB_Text.php';
 require_once __DIR__ . '/../libs/ModbusTcpClient.php';
 require_once __DIR__ . '/../libs/WPMBHUB_Drivers.php';
 require_once __DIR__ . '/../libs/WPMBHUB_HeatpumpTrait.php';
@@ -57,19 +58,23 @@ class WPModbusHub extends IPSModule
     // Suffix, Wert = Zeilen wie bisher NEWS_ITEMS. newsBanner()/AckNews() zeigen bzw. merken
     // nur die Luecke seit der zuletzt bestaetigten Version (Attribut SeenNews), nicht mehr
     // nur "stimmt die aktuelle Version noch mit dem letzten Eintrag ueberein".
+    // Die Zeilen sind englische Quelltexte, die deutsche Fassung steht in locale.json.
     const NEWS_VERSIONS = [
         '0.7.1' => [
-            'Neue Statuszeile im Bereich „Wärmepumpe“: zeigt live, ob die Wärmepumpe antwortet, wie lange die letzte Aktualisierung her ist und welche Werte gerade ankommen -- oder was fehlt.',
-            'IDM: „Warmwasser“ zeigt jetzt den Speicherfühler oben statt der Zapftemperatur, die es nur mit IDMs Warmwasserstation gibt; neu dazu „Warmwasser unten“ (Speicherfühler unten).',
+            'New status line in the "Heat pump" section: it shows live whether the heat pump answers, how long ago the last update was and which values are arriving -- or what is missing.',
+            'IDM: "Hot water" now shows the tank sensor at the top instead of the tap temperature, which only exists with IDM\'s hot water station; new: "Hot water bottom" (tank sensor at the bottom).',
         ],
         '0.7.4' => [
-            'Das Logging im Symcon-Archiv wird nicht mehr von selbst eingeschaltet. Im Bereich „Allgemein“ gibt es dafür den Knopf „Logging für die Messwerte einschalten“, damit du es bewusst aktivierst (Symcon-Review). Bereits eingeschaltetes Logging bleibt unangetastet.',
+            'Logging in the Symcon archive is no longer switched on automatically. In the "General" section there is the button "Enable logging for the measured values", so you enable it deliberately (Symcon review). Logging that is already enabled stays untouched.',
         ],
         '0.7.6' => [
-            'Wenn die Wärmepumpe nicht antwortet, steht die Ursache jetzt je Register in der Instanz-Debugausgabe (keine Verbindung, Zeitüberschreitung oder Ausnahme des Geräts, z. B. „Adresse nicht vorhanden“). Vorher hieß jeder Fehler nur „antwortet nicht“.',
+            'If the heat pump does not answer, the cause is now shown per register in the instance debug output (no connection, timeout or an exception of the device, e.g. "address not available"). Before, every error was just "does not answer".',
         ],
         '0.7.7' => [
-            'Stiebel Eltron: Die Registeradressen waren falsch (die ISG antwortete mit „Adresse nicht vorhanden“). Jetzt gelten die Adressen aus dem Stiebel-PDF minus 1; neu dazu kommt die Rücklauftemperatur. Nicht vorhandene Werte (Ersatzwert 0x8000) zeigt das Modul nicht mehr als Temperatur an.',
+            'Stiebel Eltron: the register addresses were wrong (the ISG answered with "address not available"). The addresses from the Stiebel PDF minus 1 now apply; the return temperature is new. Values that do not exist (substitute value 0x8000) are no longer shown as a temperature.',
+        ],
+        '0.8.0' => [
+            'The module is now fully bilingual (German/English): form, status messages, notes and the names of new variables follow the Symcon language.',
         ],
     ];
     private const LIBRARY_GUID = '{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}';
@@ -78,6 +83,16 @@ class WPModbusHub extends IPSModule
     // WPModbusHubGateway); Schema-Beschreibung dort.
     const DRIVERS = WPMBHUB_Drivers::DRIVERS;
     const MANUFACTURER_DEFAULT = WPMBHUB_Drivers::MANUFACTURER_DEFAULT;
+
+    public function __construct($InstanceID)
+    {
+        parent::__construct($InstanceID);
+        // Trait, Treiberkarten und Clients uebersetzen ueber WPMBHUB_Text (englische Quelltexte, Deutsch in
+        // locale.json); jeder Text fragt Symcon hoechstens einmal je Prozess (SUITE.md Stolperstein 24).
+        WPMBHUB_Text::setzen(WPMBHUB_Text::mitMerkliste(function (string $text): string {
+            return $this->Translate($text);
+        }));
+    }
 
     public function Create()
     {
@@ -143,11 +158,11 @@ class WPModbusHub extends IPSModule
         $driver = self::DRIVERS[$manufacturer];
         $this->UpdateFormField('Port', 'value', $driver['defaultPort']);
         $this->UpdateFormField('UnitId', 'value', $driver['defaultUnitId']);
-        $this->UpdateFormField('ManufacturerConfidence', 'caption', 'ℹ️ ' . $driver['confidence']);
+        $this->UpdateFormField('ManufacturerConfidence', 'caption', 'ℹ️ ' . WPMBHUB_Text::t($driver['confidence']));
         // Die Statuszeile beschreibt den GESPEICHERTEN Hersteller -- folgt sie der
         // Auswahl nicht, zeigt sie Werte eines Profils, das gar nicht mehr gewählt ist.
         if ($manufacturer !== $this->ReadPropertyString('Manufacturer')) {
-            $this->UpdateFormField('ConnectionStatus', 'caption', 'ℹ️ Hersteller geändert -- erst nach „Übernehmen“ wird mit dem neuen Profil gelesen.');
+            $this->UpdateFormField('ConnectionStatus', 'caption', WPMBHUB_Text::t('ℹ️ Manufacturer changed -- the new profile is only used for reading after "Apply".'));
             $this->UpdateFormField('ConnectionStatus', 'color', -1);
         } else {
             [$line, $color] = $this->statusLine();
@@ -160,26 +175,34 @@ class WPModbusHub extends IPSModule
     {
         return $this->connectionStatusLine(
             $this->ReadPropertyBoolean('WPMBHUB_Active'),
-            trim($this->ReadPropertyString('Host')) === '' ? 'keine IP-Adresse eingetragen' : '',
+            trim($this->ReadPropertyString('Host')) === '' ? WPMBHUB_Text::t('no IP address entered') : '',
             max(30, $this->ReadPropertyInteger('WPMBHUB_Interval')),
-            'IP-Adresse, Port und Unit-ID prüfen.'
+            WPMBHUB_Text::t('Check IP address, port and unit ID.')
         );
     }
 
     public function GetConfigurationForm()
     {
-        $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
+        // Formulartexte der form.json sind englische Quelltexte; die dynamisch gebauten Teile unten
+        // uebersetzen sich selbst (nicht doppelt uebersetzen).
+        $form = WPMBHUB_Text::formular(json_decode(file_get_contents(__DIR__ . '/form.json'), true));
+
+        $options = [];
+        foreach (self::DRIVERS as $key => $driver) {
+            $options[] = ['caption' => WPMBHUB_Text::t($driver['caption']), 'value' => $key];
+        }
+        $this->updateFormElement($form['elements'], 'Manufacturer', ['options' => $options]);
 
         $libraryInfo = @json_decode((string)@file_get_contents(__DIR__ . '/../library.json'), true);
         $libraryVersion = (is_array($libraryInfo) && isset($libraryInfo['version'])) ? (string)$libraryInfo['version'] : '?';
         $this->updateFormElement($form['elements'], 'VersionInfo', [
-            'caption' => 'ℹ️ WPModbusHub Version ' . $libraryVersion . ' -- lokale Modbus-Anbindung fuer Waermepumpen mehrerer Hersteller.',
+            'caption' => WPMBHUB_Text::t('ℹ️ WPModbusHub version %s -- local Modbus connection for heat pumps from several manufacturers.', $libraryVersion),
         ]);
 
         $manufacturer = $this->ReadPropertyString('Manufacturer');
         if (isset(self::DRIVERS[$manufacturer])) {
             $this->updateFormElement($form['elements'], 'ManufacturerConfidence', [
-                'caption' => 'ℹ️ ' . self::DRIVERS[$manufacturer]['confidence'],
+                'caption' => 'ℹ️ ' . WPMBHUB_Text::t(self::DRIVERS[$manufacturer]['confidence']),
             ]);
         }
 
@@ -235,15 +258,15 @@ class WPModbusHub extends IPSModule
         $multi = count($pending) > 1;
         foreach ($pending as $ver => $lines) {
             if ($multi) {
-                $items[] = ['type' => 'Label', 'caption' => 'Version ' . $ver . ':'];
+                $items[] = ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Version %s:', $ver)];
             }
             foreach ($lines as $line) {
-                $items[] = ['type' => 'Label', 'caption' => '• ' . $line];
+                $items[] = ['type' => 'Label', 'caption' => '• ' . WPMBHUB_Text::t($line)];
             }
         }
-        $items[] = ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBHUB_AckNews($id);'];
+        $items[] = ['type' => 'Button', 'caption' => WPMBHUB_Text::t('Understood – do not show again'), 'onClick' => 'WPMBHUB_AckNews($id);'];
         $latest = array_key_last($pending);
-        return ['type' => 'ExpansionPanel', 'name' => 'NewsPanel', 'caption' => '🆕 Neu bis Version ' . $latest, 'expanded' => true, 'items' => $items];
+        return ['type' => 'ExpansionPanel', 'name' => 'NewsPanel', 'caption' => WPMBHUB_Text::t('🆕 New up to version %s', $latest), 'expanded' => true, 'items' => $items];
     }
 
     public function AckNews(): void
@@ -269,11 +292,11 @@ class WPModbusHub extends IPSModule
             'type'     => 'ExpansionPanel',
             'name'     => 'PurposeIntroPanel',
             'expanded' => true,
-            'caption'  => '👋  Wozu dieses Modul?',
+            'caption'  => WPMBHUB_Text::t('👋  What is this module for?'),
             'items'    => [
-                ['type' => 'Label', 'caption' => 'WPModbusHub liest Wärmepumpen mehrerer Hersteller direkt per Modbus TCP im lokalen Netz aus -- ohne Internet, ohne Herstellerkonto. Ergänzt WPHub (Herstellerclouds) und HeishaMon (Panasonic lokal) um Hersteller mit eingebauter oder nachrüstbarer Modbus-Schnittstelle.'],
-                ['type' => 'Label', 'caption' => 'Bewusst nur lesend (keine Steuerbefehle) und Stand heute ungeprüft an echter Hardware -- die Registerkarten stammen aus offiziellen Herstellerdokumenten bzw. aktiv gepflegten Referenzintegrationen, siehe Hinweis beim gewählten Hersteller.'],
-                ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBHUB_AckPurposeIntro($id);'],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('WPModbusHub reads heat pumps from several manufacturers directly via Modbus TCP on the local network -- without internet, without a manufacturer account. It complements WPHub (manufacturer clouds) and HeishaMon (Panasonic, local) with manufacturers that have a built-in or retrofittable Modbus interface.')],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Read-only by design (no control commands). Not every manufacturer is verified on real hardware yet -- the register maps come from official manufacturer documents or actively maintained reference integrations, see the note at the selected manufacturer.')],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('Understood – do not show again'), 'onClick' => 'WPMBHUB_AckPurposeIntro($id);'],
             ],
         ];
     }
@@ -301,11 +324,11 @@ class WPModbusHub extends IPSModule
             'type'     => 'ExpansionPanel',
             'name'     => 'ForumHintPanel',
             'expanded' => true,
-            'caption'  => '💬  Feedback im Symcon-Forum',
+            'caption'  => WPMBHUB_Text::t('💬  Feedback in the Symcon forum'),
             'items'    => [
-                ['type' => 'Label', 'caption' => 'Fragen, Fehler oder Erfahrungsberichte zu NIBE, Stiebel Eltron, LG, Samsung, Waterkotte, IDM oder Proxon -- dafür gibt es den WPModbusHub-Forumsthread.'],
-                ['type' => 'Button', 'caption' => 'Zum Forums-Thread', 'onClick' => "echo '" . self::FORUM_THREAD_URL . "';", 'link' => true],
-                ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBHUB_AckForumHint($id);'],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Questions, bugs or experience reports on NIBE, Stiebel Eltron, LG, Samsung, Waterkotte, IDM or Proxon -- the WPModbusHub forum thread is the place for that.')],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('To the forum thread'), 'onClick' => "echo '" . self::FORUM_THREAD_URL . "';", 'link' => true],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('Understood – do not show again'), 'onClick' => 'WPMBHUB_AckForumHint($id);'],
             ],
         ];
     }
@@ -316,10 +339,8 @@ class WPModbusHub extends IPSModule
         $this->UpdateFormField('ForumHintPanel', 'visible', false);
     }
 
-    // Zeigt auf beta (erster Store-Release-Branch, siehe SUITE.md-Stolperfalle
-    // 01.09.2026: nicht blind auf main verlinken -- main existiert fuer dieses
-    // Repo noch nicht). Aktive Entwicklung bleibt auf ems-integration.
-    private const LICENSE_URL = 'https://github.com/DG65/NRGWPModbusHub/blob/beta/LICENSE';
+    // Seit 27.10.2026 ist main der Release-Branch (beta ist identisch, ems-integration abgeschafft).
+    private const LICENSE_URL = 'https://github.com/DG65/NRGWPModbusHub/blob/main/LICENSE';
     private const PAYPAL_URL = 'https://paypal.me/DietmarGureth';
 
     private function LicenseHint(): array
@@ -327,14 +348,14 @@ class WPModbusHub extends IPSModule
         return [
             'type'     => 'ExpansionPanel',
             'expanded' => false,
-            'caption'  => '🧡  Über dieses Modul',
+            'caption'  => WPMBHUB_Text::t('🧡  About this module'),
             'items'    => [
-                ['type' => 'Label', 'caption' => 'Entstanden aus echter Begeisterung für die eigene Anlage — und ein paar durchgetippten Abenden. Trotzdem: Software-Hobby hin oder her, das hier ist geistiges Eigentum und echte Arbeit steckt drin.'],
-                ['type' => 'Label', 'caption' => 'Lizenz: PolyForm Noncommercial 1.0.0 — privat und nicht-kommerziell frei nutzbar, für den gewerblichen Einsatz braucht es eine gesonderte Lizenz vom Rechteinhaber.'],
-                ['type' => 'Button', 'caption' => 'Lizenztext ansehen', 'onClick' => "echo '" . self::LICENSE_URL . "';", 'link' => true],
-                ['type' => 'Label', 'caption' => 'Gewerbliche Nutzung oder Fragen zur Lizenz? Einfach melden: dietmar@gureth.eu'],
-                ['type' => 'Label', 'caption' => 'Gefällt dir das Modul und du möchtest trotzdem etwas dalassen? Über eine kleine Spende freue ich mich — völlig freiwillig, keine Gegenleistung nötig.'],
-                ['type' => 'Button', 'caption' => '☕  Spenden via PayPal', 'onClick' => "echo '" . self::PAYPAL_URL . "';", 'link' => true],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Born out of genuine enthusiasm for my own installation — and a few evenings of typing. Still: hobby software or not, this is intellectual property and real work went into it.')],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('License: PolyForm Noncommercial 1.0.0 — free for private and non-commercial use; commercial use needs a separate license from the rights holder.')],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('View license text'), 'onClick' => "echo '" . self::LICENSE_URL . "';", 'link' => true],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Commercial use or questions about the license? Just get in touch: dietmar@gureth.eu')],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Do you like the module and still want to leave something? I would be happy about a small donation — completely voluntary, nothing owed in return.')],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('☕  Donate via PayPal'), 'onClick' => "echo '" . self::PAYPAL_URL . "';", 'link' => true],
             ],
         ];
     }
@@ -351,7 +372,7 @@ class WPModbusHub extends IPSModule
         }
         $manufacturer = $this->ReadPropertyString('Manufacturer');
         if (!isset(self::DRIVERS[$manufacturer])) {
-            $this->LogMessage('Unbekannter Hersteller "' . $manufacturer . '".', KL_WARNING);
+            $this->LogMessage(WPMBHUB_Text::t('Unknown manufacturer "%s".', $manufacturer), KL_WARNING);
             return;
         }
         $client = new WPMBHUB_ModbusTcpClient($host, $this->ReadPropertyInteger('Port'), $this->ReadPropertyInteger('UnitId'));
@@ -367,7 +388,7 @@ class WPModbusHub extends IPSModule
 
         $this->SetStatus($reachable ? 102 : 201);
         if (!$reachable) {
-            $this->LogMessage('Wärmepumpe nicht erreichbar (' . $host . ':' . $this->ReadPropertyInteger('Port') . ').', KL_WARNING);
+            $this->LogMessage(WPMBHUB_Text::t('Heat pump not reachable (%s:%d).', $host, $this->ReadPropertyInteger('Port')), KL_WARNING);
         }
     }
 
@@ -382,7 +403,7 @@ class WPModbusHub extends IPSModule
     public function GetFunctions()
     {
         $manufacturer = $this->ReadPropertyString('Manufacturer');
-        $caption = isset(self::DRIVERS[$manufacturer]) ? self::DRIVERS[$manufacturer]['caption'] : 'Wärmepumpe';
+        $caption = WPMBHUB_Text::t(isset(self::DRIVERS[$manufacturer]) ? self::DRIVERS[$manufacturer]['caption'] : 'Heat pump');
         return $this->buildFunctions($caption);
     }
 

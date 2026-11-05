@@ -2,56 +2,56 @@
     "elements": [
         {
             "type": "ExpansionPanel",
-            "caption": "📖 Dokumentation & Hilfe",
+            "caption": "📖 Documentation & help",
             "expanded": false,
             "items": [
                 {
                     "type": "Label",
                     "name": "VersionInfo",
-                    "caption": "ℹ️ WPModbusHubGateway Version -- Wärmepumpen über Symcons ModBus-Gateway auslesen."
+                    "caption": ""
                 },
                 {
                     "type": "Label",
-                    "caption": "Wie WPModbusHub, aber ohne eigene Netzwerkverbindung: die Instanz hängt als Kind an einem ModBus-Gateway aus dem Objektbaum. Damit funktioniert auch RS485/Modbus RTU an einem seriellen Anschluss (Serial Port → ModBus Gateway → diese Instanz). Details: https://github.com/DG65/NRGWPModbusHub"
+                    "caption": "Like WPModbusHub, but without its own network connection: the instance hangs as a child below a ModBus gateway in the object tree. This also makes RS485/Modbus RTU on a serial port work (Serial Port → ModBus Gateway → this instance). Details: https://github.com/DG65/NRGWPModbusHub"
                 },
                 {
                     "type": "Label",
-                    "caption": "Ablauf: 1. ModBus-Gateway einrichten (Geräte-ID = Slave-ID der Wärmepumpe) → 2. Diese Instanz anlegen und oben unter „Gateway“ den ModBus-Gateway wählen → 3. Hersteller wählen → 4. „WPModbusHubGateway aktiv“ einschalten und übernehmen → 5. „Verbindung testen“."
+                    "caption": "Steps: 1. Set up the ModBus gateway (device ID = slave ID of the heat pump) → 2. Create this instance and choose the ModBus gateway at the top under \"Gateway\" → 3. Choose the manufacturer → 4. Switch on \"WPModbusHubGateway active\" and apply → 5. \"Test connection\"."
                 },
                 {
                     "type": "Button",
-                    "caption": "🔄 Übernehmen erzwingen (ohne Formularänderung)",
-                    "confirm": "Wirklich ApplyChanges() erzwingen? Praktisch direkt nach einem Modul-Update über die Modulverwaltung.",
-                    "onClick": "IPS_ApplyChanges($id); echo '✅ ApplyChanges() ausgeführt.';"
+                    "caption": "🔄 Force apply (without a form change)",
+                    "confirm": "Really force ApplyChanges()? Handy right after a module update via the module control.",
+                    "onClick": "IPS_ApplyChanges($id); echo '✅ ApplyChanges()';"
                 }
             ]
         },
         {
             "type": "ExpansionPanel",
             "name": "GeneralPanel",
-            "caption": "🔧 Allgemein",
+            "caption": "🔧 General",
             "expanded": true,
             "items": [
                 {
                     "type": "CheckBox",
                     "name": "WPMBGW_Active",
-                    "caption": "WPModbusHubGateway aktiv"
+                    "caption": "WPModbusHubGateway active"
                 },
                 {
                     "type": "NumberSpinner",
                     "name": "WPMBGW_Interval",
-                    "caption": "Aktualisierungsintervall (Sekunden)",
+                    "caption": "Update interval (seconds)",
                     "minimum": 30,
                     "maximum": 600,
                     "suffix": " s"
                 },
                 {
                     "type": "Label",
-                    "caption": "📈 Archivierung: Das Modul schaltet das Logging im Symcon-Archiv nie von selbst ein. Mit dem Knopf unten aktivierst du es bewusst für alle Messwerte (Fließkomma-Variablen) dieser Instanz, z. B. für Diagramme und Auswertungen. Bereits eingeschaltetes Logging bleibt unangetastet."
+                    "caption": "📈 Archiving: the module never switches on logging in the Symcon archive by itself. With the button below you deliberately enable it for all measured values (floating-point variables) of this instance, e.g. for charts and evaluations. Logging that is already enabled stays untouched."
                 },
                 {
                     "type": "Button",
-                    "caption": "📈 Logging für die Messwerte einschalten",
+                    "caption": "📈 Enable logging for the measured values",
                     "onClick": "echo WPMBGW_EnableArchiving($id);"
                 }
             ]
@@ -59,7 +59,7 @@
         {
             "type": "ExpansionPanel",
             "name": "ConnectionPanel",
-            "caption": "🔌 Wärmepumpe (über ModBus-Gateway)",
+            "caption": "🔌 Heat pump (via ModBus gateway)",
             "expanded": true,
             "items": [
                 {
@@ -70,7 +70,7 @@
                 {
                     "type": "Select",
                     "name": "Manufacturer",
-                    "caption": "Hersteller",
+                    "caption": "Manufacturer",
                     "options": [],
                     "onChange": "WPMBGW_OnChangeManufacturer($id, $Manufacturer);"
                 },
@@ -84,19 +84,19 @@
                     "items": [
                         {
                             "type": "Button",
-                            "caption": "🔍 Verbindung testen",
+                            "caption": "🔍 Test connection",
                             "onClick": "echo WPMBGW_TestConnection($id);"
                         },
                         {
                             "type": "PopupButton",
-                            "caption": "Wo stelle ich Slave-ID, Baudrate und Parität ein?",
+                            "caption": "Where do I set the slave ID, baud rate and parity?",
                             "width": "460px",
                             "popup": {
-                                "caption": "Wo stelle ich Slave-ID, Baudrate und Parität ein?",
+                                "caption": "Where do I set the slave ID, baud rate and parity?",
                                 "items": [
                                     {
                                         "type": "Label",
-                                        "caption": "Nicht in dieser Instanz, sondern im Objektbaum darüber: Die Slave-/Geräte-ID steht als „Geräte-ID“ im ModBus-Gateway (bei RS485: Gateway-Modus „RTU“), Baudrate, Datenbits, Parität und Stoppbits im darunterliegenden Serial Port. Beispiel Proxon: Geräte-ID 41, 19200 Baud, 8 Datenbits, gerade Parität (Even), 1 Stoppbit. Diese Instanz schickt nur Function Code, Adresse und Anzahl der Register an das Gateway."
+                                        "caption": "Not in this instance but in the object tree above it: the slave/device ID is the \"Device ID\" of the ModBus gateway (for RS485: gateway mode \"RTU\"); baud rate, data bits, parity and stop bits are set in the Serial Port below it. Example Proxon: device ID 41, 19200 baud, 8 data bits, even parity, 1 stop bit. This instance only sends the function code, address and number of registers to the gateway."
                                     }
                                 ]
                             }
@@ -110,12 +110,12 @@
         {
             "code": 201,
             "icon": "error",
-            "caption": "Kein ModBus-Gateway verbunden -- oben unter „Gateway“ einen ModBus-Gateway wählen"
+            "caption": "No ModBus gateway connected -- choose a ModBus gateway at the top under \"Gateway\""
         },
         {
             "code": 202,
             "icon": "error",
-            "caption": "Wärmepumpe antwortet nicht -- Geräte-ID, Baudrate/Parität und Verkabelung prüfen („Verbindung testen“)"
+            "caption": "Heat pump does not answer -- check device ID, baud rate/parity and wiring (\"Test connection\")"
         }
     ]
 }

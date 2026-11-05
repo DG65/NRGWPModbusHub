@@ -32,6 +32,7 @@ const KL_WARNING = 10205;
 const KL_NOTIFY  = 10204;
 
 $GLOBALS['ips'] = [
+    'locale'     => json_decode((string)file_get_contents(__DIR__ . '/../libs/locale.json'), true)['translations']['de'],
     'profiles'   => [],
     'variables'  => [],
     'nextVarId'  => 10000,
@@ -126,8 +127,16 @@ class IPSModule
     protected $timers = [];
     public $status = 0;
 
-    public function __construct()
+    public function __construct($InstanceID = 12345)
     {
+    }
+    // Symcons Translate(): liest die locale.json des Moduls; hier die deutsche Tabelle (Standard im Pruefstand)
+    // oder nichts (Englisch, $GLOBALS['ips']['locale'] = []). Zaehlt die Aufrufe: jeder echte Aufruf
+    // kostet in Symcon ein Einlesen der locale.json (SUITE.md Stolperstein 24).
+    protected function Translate(string $text): string
+    {
+        $GLOBALS['ips']['translateCalls'] = ($GLOBALS['ips']['translateCalls'] ?? 0) + 1;
+        return ($GLOBALS['ips']['locale'] ?? [])[$text] ?? $text;
     }
     public function Create()
     {
@@ -319,7 +328,7 @@ class FakeModbusClient extends WPMBHUB_ModbusTcpClient
 echo "Block 1: Lebenszyklus und Status\n";
 // ---------------------------------------------------------------------------
 
-$mod = new WPModbusHub();
+$mod = new WPModbusHub(12345);
 $mod->Create();
 check('Manufacturer-Standard ist NIBE', $GLOBALS['ips']['properties']['Manufacturer'] === 'nibe');
 check('Port-Standard passt zu NIBE (502)', $GLOBALS['ips']['properties']['Port'] === 502);
@@ -654,7 +663,7 @@ check('Forum-Hinweis-Panel verschwindet nach Bestätigen', findFormElement($form
 // -- NEWS_VERSIONS-Banner (SUITE.md "Einheitliche Formular-Optik" Punkt 1,
 // Dashboard/Dietmar 23.09.2026): zeigt nur die Luecke seit SeenNews, merkt die
 // tatsaechlich installierte Bibliotheksversion, nicht nur den letzten Schluessel.
-$newsMod = new WPModbusHub();
+$newsMod = new WPModbusHub(12345);
 $newsMod->Create();
 $formNews = json_decode($newsMod->GetConfigurationForm(), true);
 $newsPanel = findFormElement($formNews['elements'], 'NewsPanel');
@@ -675,7 +684,7 @@ $allVersions = $newsVersionsRef->getValue();
 check('NEWS_VERSIONS-Konstante hat den erwarteten Schluessel 0.7.1', array_key_exists('0.7.1', $allVersions));
 
 $GLOBALS['ips']['libraryVersion'] = '';
-$oldNewsMod = new WPModbusHub();
+$oldNewsMod = new WPModbusHub(12345);
 $oldNewsMod->Create();
 $writeSeenNews = new ReflectionMethod(WPModbusHub::class, 'WriteAttributeString');
 $writeSeenNews->setAccessible(true);
@@ -852,7 +861,7 @@ $GLOBALS['ips']['variables'] = [];
 $GLOBALS['ips']['properties'] = [];
 $GLOBALS['ips']['parent'] = 0;
 unset($GLOBALS['ips']['parentResponder']);
-$gw = new WPModbusHubGateway();
+$gw = new WPModbusHubGateway(12345);
 $gw->Create();
 $gw->ApplyChanges();
 check('Gateway-Modul: inaktiv -> Status 104, kein Timer', $gw->status === 104 && $gw->GetTimerInterval('WPMBGW_UpdateTimer') === 0);
@@ -924,7 +933,7 @@ check('Gateway-Formular: "Über dieses Modul" steht ganz unten', (end($formGw['e
 
 $fnGw = $gw->GetFunctions();
 $GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
-$fnTcp = (new WPModbusHub())->GetFunctions();
+$fnTcp = (new WPModbusHub(12345))->GetFunctions();
 check('Vertrag: Gateway- und TCP-Modul liefern dieselben Vertragsfelder', array_keys($fnGw[0]) === array_keys($fnTcp[0]));
 check('Vertrag: Gateway-Modul Type=heatpump, contractVersion 1.15', ($fnGw[0]['Type'] ?? '') === 'heatpump' && ($fnGw[0]['contractVersion'] ?? '') === '1.15');
 check('Registerkarten sind geteilt (eine Quelle der Wahrheit)', WPModbusHub::DRIVERS === WPModbusHubGateway::DRIVERS && WPModbusHub::DRIVERS === WPMBHUB_Drivers::DRIVERS);
@@ -937,7 +946,7 @@ check('module.json: Klassenname = name, Praefix WPMBGW', ($mj['name'] ?? '') ===
 
 // Gateway-Modul: eigene Kopie des News-Banners verhaelt sich identisch.
 $GLOBALS['ips']['libraryVersion'] = '';
-$gwNews = new WPModbusHubGateway();
+$gwNews = new WPModbusHubGateway(12345);
 $gwNews->Create();
 $formGwNews = json_decode($gwNews->GetConfigurationForm(), true);
 $gwNewsPanel = findFormElement($formGwNews['elements'], 'NewsPanel');
@@ -969,7 +978,7 @@ $GLOBALS['ips']['properties']['Manufacturer'] = 'proxon';
 $GLOBALS['ips']['properties']['WPMBGW_Active'] = false;
 $GLOBALS['ips']['properties']['WPMBGW_Interval'] = 60;
 $GLOBALS['ips']['parent'] = 0;
-$g2 = new WPModbusHubGateway();
+$g2 = new WPModbusHubGateway(12345);
 $g2->Create();
 
 // Die statische form.json darf nicht schon einen Ersatztext tragen: leer ausliefern gilt nicht.
@@ -1011,7 +1020,7 @@ $GLOBALS['ips']['parentResponder'] = makeGatewayResponder(['input:882' => 4650, 
 $g2->Update();
 setAttr($g2, 'LastCycleAt', time() - 1000);
 [$line] = statusOf($g2);
-check('Veraltet: ⚠️ meldet, wenn die letzte Aktualisierung viel zu lange her ist', strpos($line, '⚠️ Die letzte Aktualisierung liegt') === 0 && strpos($line, 'zurück') !== false, $line);
+check('Veraltet: ⚠️ meldet, wenn die letzte Aktualisierung viel zu lange her ist', strpos($line, '⚠️ Die letzte Aktualisierung war vor 16 min') === 0 && strpos($line, 'erwartet wird alle 60 s') !== false, $line);
 
 $GLOBALS['ips']['properties']['WPMBGW_Active'] = false;
 [$line, $color] = statusOf($g2);
@@ -1031,7 +1040,7 @@ $GLOBALS['ips']['variables'] = [];
 $GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
 $GLOBALS['ips']['properties']['Host'] = '';
 $GLOBALS['ips']['properties']['WPMBHUB_Active'] = true;
-$t2 = new WPModbusHub();
+$t2 = new WPModbusHub(12345);
 $t2->Create();
 [$line, $color] = statusOf($t2);
 check('TCP aktiv ohne IP-Adresse: ⛔ rot, nennt die IP-Adresse', strpos($line, '⛔') === 0 && strpos($line, 'IP-Adresse') !== false && $color === 0xFF0000, $line);
@@ -1049,6 +1058,225 @@ check('TCP Erfolg: ✅ mit NIBE-Werten', strpos($line, '✅ ') === 0 && strpos($
 $maintainVars->invoke($t2, [], false);
 [$line] = statusOf($t2);
 check('TCP nicht erreichbar: ⚠️ mit Prüfhinweis zu IP-Adresse/Port/Unit-ID', strpos($line, '⚠️ ') === 0 && strpos($line, 'Unit-ID') !== false, $line);
+
+// ---------------------------------------------------------------------------
+echo "Block 10: Zweisprachigkeit (Deutsch/Englisch) und Translate()-Kosten\n";
+// ---------------------------------------------------------------------------
+
+$libLocale = (string)file_get_contents(__DIR__ . '/../libs/locale.json');
+$deTable = json_decode($libLocale, true)['translations']['de'] ?? [];
+check('locale.json: gültig, deutsche Tabelle vorhanden', count($deTable) > 100);
+check('locale.json der beiden Module = libs/locale.json (php .tools/locale-bauen.php)',
+    file_get_contents(__DIR__ . '/../WPModbusHub/locale.json') === $libLocale && file_get_contents(__DIR__ . '/../WPModbusHubGateway/locale.json') === $libLocale);
+
+// Alle englischen Quelltexte einsammeln: t()-Aufrufe, NEWS, Treiberkarten, Feldnamen, form.json.
+$srcTexts = [];
+$litRe = "('(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\")";
+$unq = function (string $lit): string {
+    return $lit[0] === "'" ? str_replace(["\\'", '\\\\'], ["'", '\\'], substr($lit, 1, -1)) : stripcslashes(substr($lit, 1, -1));
+};
+foreach (array_merge(glob(__DIR__ . '/../libs/*.php'), glob(__DIR__ . '/../WPModbusHub*/module.php')) as $file) {
+    $code = (string)file_get_contents($file);
+    preg_match_all('/WPMBHUB_Text::t\(\s*' . $litRe . '/', $code, $mm);
+    foreach ($mm[1] as $lit) {
+        $srcTexts[$unq($lit)] = basename($file);
+    }
+    preg_match_all('/\?\s*self::DRIVERS\[\$manufacturer\]\[\'caption\'\]\s*:\s*' . $litRe . '/', $code, $mm);
+    foreach ($mm[1] as $lit) {
+        $srcTexts[$unq($lit)] = basename($file);
+    }
+}
+foreach (['WPModbusHub', 'WPModbusHubGateway'] as $cls) {
+    foreach ($cls::NEWS_VERSIONS as $lines) {
+        foreach ($lines as $line) {
+            $srcTexts[$line] = $cls . ' NEWS';
+        }
+    }
+}
+foreach (WPMBHUB_Drivers::DRIVERS as $drv) {
+    $srcTexts[$drv['caption']] = 'Drivers';
+    $srcTexts[$drv['confidence']] = 'Drivers';
+}
+foreach (WPMBHUB_Drivers::FIELD_CAPTIONS as $cap) {
+    $srcTexts[$cap] = 'FIELD_CAPTIONS';
+}
+$walkForm = function ($node, string $src) use (&$walkForm, &$srcTexts): void {
+    foreach ((array)$node as $k => $v) {
+        if (in_array($k, ['caption', 'confirm', 'label'], true) && is_string($v) && $v !== '') {
+            $srcTexts[$v] = $src;
+        } elseif (is_array($v)) {
+            $walkForm($v, $src);
+        }
+    }
+};
+foreach (['WPModbusHub', 'WPModbusHubGateway'] as $dir) {
+    $walkForm(json_decode((string)file_get_contents(__DIR__ . '/../' . $dir . '/form.json'), true), $dir . '/form.json');
+}
+$srcTexts['.'] = 'Text::zahl';
+check('Quelltexte gefunden (t(), NEWS, Treiber, Felder, form.json)', count($srcTexts) > 100, (string)count($srcTexts));
+
+$fehlt = [];
+$platz = [];
+foreach ($srcTexts as $text => $quelle) {
+    if (!isset($deTable[$text])) {
+        $fehlt[] = $quelle . ': ' . $text;
+        continue;
+    }
+    $n1 = preg_match_all('/%(?:\d+\$)?[0-9]*[sdX]/', str_replace('%%', '', (string)$text));
+    $n2 = preg_match_all('/%(?:\d+\$)?[0-9]*[sdX]/', str_replace('%%', '', $deTable[$text]));
+    if ($n1 !== $n2) {
+        $platz[] = $text;
+    }
+}
+check('jeder Quelltext hat eine deutsche Fassung', $fehlt === [], implode(' | ', array_slice($fehlt, 0, 5)) . ' (' . count($fehlt) . ')');
+check('Platzhalter: englischer und deutscher Text haben gleich viele', $platz === [], implode(' | ', array_slice($platz, 0, 5)));
+$ueberzaehlig = array_diff(array_keys($deTable), array_keys($srcTexts));
+check('locale.json hat keine Einträge ohne Quelltext (verwaist)', $ueberzaehlig === [], implode(' | ', array_slice($ueberzaehlig, 0, 5)));
+$deutschImQuelltext = array_filter(array_keys($srcTexts), function ($t) {
+    return preg_match('/[äöüÄÖÜß]/u', $t) === 1;
+});
+check('englische Quelltexte enthalten keine Umlaute', $deutschImQuelltext === [], implode(' | ', array_map(function ($t) { return mb_substr($t, 0, 50); }, array_slice($deutschImQuelltext, 0, 3))));
+
+// --- Deutsch: Formular, Statuszeile, Variablennamen
+$setProps = function (string $manu) {
+    $GLOBALS['ips']['variables'] = [];
+    $GLOBALS['ips']['properties']['Manufacturer'] = $manu;
+    $GLOBALS['ips']['properties']['Host'] = '203.0.113.9';
+    $GLOBALS['ips']['properties']['WPMBHUB_Active'] = true;
+    $GLOBALS['ips']['properties']['WPMBGW_Active'] = true;
+};
+$cycle = function ($mod, array $vals) {
+    $m = new ReflectionMethod($mod, 'maintainDeviceVariables');
+    $m->setAccessible(true);
+    $m->invoke($mod, $vals, true);
+    $r = new ReflectionMethod($mod, 'recordCycle');
+    $r->setAccessible(true);
+    $r->invoke($mod, WPModbusHub::DRIVERS['nibe']['registers'], $vals);
+};
+$vals = ['Aussentemperatur' => 7.5, 'Vorlauftemperatur' => 38.2, 'Warmwasser' => 48.0, 'Zone1Ist' => 21.3];
+
+$GLOBALS['ips']['locale'] = json_decode($libLocale, true)['translations']['de'];
+$setProps('nibe');
+$de = new WPModbusHub(12345);
+$de->Create();
+$cycle($de, $vals);
+check('Deutsch: Variablenname "Außentemperatur", "Erreichbar"', ($GLOBALS['ips']['variables']['Aussentemperatur']['name'] ?? '') === 'Außentemperatur' && ($GLOBALS['ips']['variables']['Erreichbar']['name'] ?? '') === 'Erreichbar');
+$formDe = json_decode($de->GetConfigurationForm(), true);
+$optDe = findFormElement($formDe['elements'], 'Manufacturer')['options'] ?? [];
+check('Deutsch: Herstellerliste aus den Treibern (7 Einträge, deutsche Namen)', count($optDe) === 7 && $optDe[0]['caption'] === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)' && $optDe[6]['value'] === 'proxon', json_encode(array_column($optDe, 'caption'), JSON_UNESCAPED_UNICODE));
+check('Deutsch: Abschnitt "🔧 Allgemein", Knopf "Logging für die Messwerte einschalten"',
+    strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '"🔧 Allgemein"') !== false && strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '📈 Logging für die Messwerte einschalten') !== false);
+check('Deutsch: Statuszeile mit Dezimalkomma', strpos(statusOf($de)[0], 'Außentemperatur 7,5 °C') !== false, statusOf($de)[0]);
+check('Deutsch: GetFunctions-Caption deutsch', $de->GetFunctions()[0]['Caption'] === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)');
+check('Deutsch: "Neu"-Banner zeigt die deutsche Zeile zu 0.8.0', strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), 'Das Modul ist jetzt durchgehend zweisprachig') !== false && strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '🆕 Neu bis Version 0.8.0') !== false);
+$deGw = new WPModbusHubGateway(12345);
+$deGw->Create();
+$formDeGw = json_decode($deGw->GetConfigurationForm(), true);
+$optDeGw = findFormElement($formDeGw['elements'], 'Manufacturer')['options'] ?? [];
+check('Deutsch: Gateway-Herstellerliste deutsch', ($optDeGw[0]['caption'] ?? '') === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)' && ($optDeGw[3]['caption'] ?? '') === 'Samsung EHS (über MIM-B19N-Zubehörmodul)', json_encode(array_column($optDeGw, 'caption'), JSON_UNESCAPED_UNICODE));
+check('Deutsch: Gateway-"Neu"-Banner und Statuszeile deutsch', strpos(json_encode($formDeGw, JSON_UNESCAPED_UNICODE), 'Das Modul ist jetzt durchgehend zweisprachig') !== false && strpos(json_encode($formDeGw, JSON_UNESCAPED_UNICODE), 'Wärmepumpe (über ModBus-Gateway)') !== false);
+
+// --- Englisch: keine deutschen Reste
+$GLOBALS['ips']['locale'] = [];
+$setProps('nibe');
+$en = new WPModbusHub(12345);
+$en->Create();
+$cycle($en, $vals);
+$germanLeft = function (string $text): bool {
+    return preg_match('/[äöüÄÖÜß]|\b(und|nicht|oder|wird|Hersteller|Wärme\w*|Verbindung|Schalter|aktiv|eingeschaltet|Fehler|antwortet|Gateway-Variante)\b/u', $text) === 1;
+};
+check('Englisch: Variablenname "Outdoor temperature", "Reachable"', ($GLOBALS['ips']['variables']['Aussentemperatur']['name'] ?? '') === 'Outdoor temperature' && ($GLOBALS['ips']['variables']['Erreichbar']['name'] ?? '') === 'Reachable');
+$captionsOf = function (array $node) use (&$captionsOf): array {
+    $out = [];
+    foreach ($node as $k => $v) {
+        if (in_array($k, ['caption', 'confirm', 'label'], true) && is_string($v)) {
+            $out[] = $v;
+        } elseif (is_array($v)) {
+            $out = array_merge($out, $captionsOf($v));
+        }
+    }
+    return $out;
+};
+foreach ([['TCP', $en], ['Gateway', new WPModbusHubGateway(12345)]] as [$label, $mod]) {
+    if ($label === 'Gateway') {
+        $mod->Create();
+    }
+    $formEn = json_decode($mod->GetConfigurationForm(), true);
+    $rest = array_values(array_filter($captionsOf($formEn), $germanLeft));
+    check("Englisch: $label-Formular ohne deutsche Reste", $rest === [], implode(' | ', array_map(function ($t) { return mb_substr($t, 0, 70); }, array_slice($rest, 0, 4))));
+    $optEn = findFormElement($formEn['elements'], 'Manufacturer')['options'] ?? [];
+    check("Englisch: $label-Herstellerliste englisch", ($optEn[0]['caption'] ?? '') === 'NIBE (S series, e.g. S1155/S1255/S2125)' && ($optEn[3]['caption'] ?? '') === 'Samsung EHS (via MIM-B19N accessory module)', json_encode(array_column($optEn, 'caption')));
+    check("Englisch: $label-Status-Texte (form.json status) übersetzt/neutral", count(array_filter(array_column($formEn['status'], 'caption'), $germanLeft)) === 0);
+}
+check('Englisch: "Neu"-Banner zeigt die englische Zeile zu 0.8.0', strpos(json_encode(json_decode($en->GetConfigurationForm(), true)), 'The module is now fully bilingual') !== false);
+check('Englisch: Statuszeile mit Dezimalpunkt', strpos(statusOf($en)[0], 'Outdoor temperature 7.5 °C') !== false, statusOf($en)[0]);
+$driversEn = array_filter(array_merge(...array_map(function ($d) { return [$d['caption'], $d['confidence']]; }, array_values(WPMBHUB_Drivers::DRIVERS))), $germanLeft);
+// Herstellernamen/PDF-Titel mit deutschen Wörtern (z. B. "Navigatorregelung", "Software Technische Information") sind Eigennamen.
+$driversEn = array_filter($driversEn, function ($t) { return preg_match('/[äöüÄÖÜß]/u', $t) === 1; });
+check('Englisch: Treiber-Texte enthalten keine Umlaute', $driversEn === [], implode(' | ', array_map(function ($t) { return mb_substr($t, 0, 50); }, $driversEn)));
+check('Englisch: GetFunctions-Caption englisch', $en->GetFunctions()[0]['Caption'] === 'NIBE (S series, e.g. S1155/S1255/S2125)');
+$GLOBALS['ips']['properties']['WPMBHUB_Active'] = false;
+check('Englisch: Statuszeile "Switched off"', strpos(statusOf($en)[0], 'ℹ️ Switched off') === 0, statusOf($en)[0]);
+$GLOBALS['ips']['properties']['WPMBHUB_Active'] = true;
+$GLOBALS['ips']['properties']['Host'] = '';
+check('Englisch: Pflichtangabe fehlt', strpos(statusOf($en)[0], '⛔ Required entry missing: no IP address entered.') === 0, statusOf($en)[0]);
+$GLOBALS['ips']['properties']['Host'] = '203.0.113.9';
+
+// Englisch: Archivierung, Verbindung testen, ReadRaw, Debugzeilen
+$GLOBALS['ips']['archives'] = [];
+$enArchive = $en->EnableArchiving();
+check('Englisch: EnableArchiving-Meldung englisch', !$germanLeft($enArchive) && $enArchive !== '', $enArchive);
+$GLOBALS['ips']['properties']['Manufacturer'] = 'proxon';
+$gwEn = new WPModbusHubGateway(12345);
+$gwEn->Create();
+$GLOBALS['ips']['parent'] = 0;
+$tc = $gwEn->TestConnection();
+check('Englisch: TestConnection ohne Gateway englisch', !$germanLeft($tc) && strpos($tc, '❌ No ModBus gateway connected.') === 0, $tc);
+$rr = $gwEn->ReadRaw(6, 5, 1);
+check('Englisch: ReadRaw lehnt Schreiben englisch ab', strpos($rr, 'Only function 3') === 0, $rr);
+
+// --- Kosten: Symcons Translate() liest bei jedem Aufruf die locale.json -- hoechstens einmal je Text und Prozess
+$GLOBALS['ips']['locale'] = json_decode($libLocale, true)['translations']['de'];
+$setProps('nibe');
+$cost = new WPModbusHub(12345);
+$cost->Create();
+$GLOBALS['ips']['translateCalls'] = 0;
+$fakeClient = new FakeModbusClient('203.0.113.9', 502, 1);
+$fakeClient->values = ['input:1' => 75, 'input:2' => 382, 'input:8' => 480, 'input:116' => 213];
+$readM = new ReflectionMethod($cost, 'readRegisters');
+$readM->setAccessible(true);
+$runCycle = function () use ($cost, $readM, $fakeClient, $cycle) {
+    $v = $readM->invoke($cost, WPModbusHub::DRIVERS['nibe']['registers'], $fakeClient);
+    $cycle($cost, $v ?? []);
+    $cost->GetFunctions();
+};
+$runCycle();
+$afterFirst = $GLOBALS['ips']['translateCalls'];
+for ($i = 0; $i < 20; $i++) {
+    $runCycle();
+}
+check('Translate-Kosten: ein Lesezyklus samt Vertragsabfrage fragt Symcon nur beim ersten Mal', $GLOBALS['ips']['translateCalls'] === $afterFirst && $afterFirst < 20, "erste Runde $afterFirst Aufrufe, nach 21 Runden " . $GLOBALS['ips']['translateCalls']);
+$GLOBALS['ips']['translateCalls'] = 0;
+$cost->GetConfigurationForm();
+$formFirst = $GLOBALS['ips']['translateCalls'];
+$GLOBALS['ips']['translateCalls'] = 0;
+for ($i = 0; $i < 10; $i++) {
+    $cost->GetConfigurationForm();
+}
+check('Translate-Kosten: Formular fragt jeden Text höchstens einmal (danach 0 Aufrufe)', $GLOBALS['ips']['translateCalls'] === 0 && $formFirst <= count($srcTexts), "erstes Formular $formFirst Aufrufe, weitere zehn: " . $GLOBALS['ips']['translateCalls']);
+// Fehlerfall im Zyklus (Debugzeilen mit Platzhaltern) darf die Kosten nicht treiben
+$GLOBALS['ips']['translateCalls'] = 0;
+$fakeClient->fail = ['input:1', 'input:2'];
+$runCycle();
+$errFirst = $GLOBALS['ips']['translateCalls'];
+$GLOBALS['ips']['translateCalls'] = 0;
+for ($i = 0; $i < 10; $i++) {
+    $runCycle();
+}
+check('Translate-Kosten: auch Fehlerzyklen mit Debugzeilen fragen Symcon nur beim ersten Mal', $GLOBALS['ips']['translateCalls'] === 0, "erster Fehlerzyklus $errFirst, danach " . $GLOBALS['ips']['translateCalls']);
+// Ein Uebersetzer, der wirft (Instanz weg), darf den Zyklus nicht abbrechen
+WPMBHUB_Text::setzen(WPMBHUB_Text::mitMerkliste(function (string $t): string { throw new RuntimeException('Instanz weg'); }));
+check('Übersetzer wirft: Quelltext bleibt stehen, nichts bricht ab', WPMBHUB_Text::t('Hot water') === 'Hot water');
 
 // ---------------------------------------------------------------------------
 echo "\n";

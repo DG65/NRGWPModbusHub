@@ -77,7 +77,7 @@ class WPMBHUB_ModbusGatewayClient extends WPMBHUB_ModbusTcpClient
         $this->headerLooksLikePdu = false;
 
         if ($this->noReplyStreak >= self::MAX_CONSECUTIVE_NO_REPLY) {
-            $this->lastError = 'uebersprungen (Regler antwortet nicht)';
+            $this->lastError = WPMBHUB_Text::t('skipped (device does not answer)');
             return null;
         }
 
@@ -98,7 +98,7 @@ class WPMBHUB_ModbusGatewayClient extends WPMBHUB_ModbusTcpClient
 
         if (!is_string($resp) || $resp === '') {
             $this->noReplyStreak++;
-            $this->lastError = 'keine Antwort vom Gateway';
+            $this->lastError = WPMBHUB_Text::t('no answer from the gateway');
             return null;
         }
         $this->noReplyStreak = 0;
@@ -107,11 +107,11 @@ class WPMBHUB_ModbusGatewayClient extends WPMBHUB_ModbusTcpClient
 
         // Modbus-Ausnahmeantwort: Function Code mit gesetztem Bit 7 + Fehlercode.
         if (strlen($resp) === 2 && (ord($resp[0]) & 0x80)) {
-            $this->lastError = sprintf('Modbus-Ausnahme 0x%02X', ord($resp[1]));
+            $this->lastError = WPMBHUB_Text::t('Modbus exception 0x%02X', ord($resp[1]));
             return null;
         }
         if (strlen($resp) < 2 + 2 * $quantity) {
-            $this->lastError = 'Antwort zu kurz (' . strlen($resp) . ' Byte, erwartet ' . (2 + 2 * $quantity) . ')';
+            $this->lastError = WPMBHUB_Text::t('answer too short (%d bytes, expected %d)', strlen($resp), 2 + 2 * $quantity);
             return null;
         }
         $this->headerLooksLikePdu = (ord($resp[0]) === $function) && (ord($resp[1]) === 2 * $quantity);

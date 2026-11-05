@@ -366,3 +366,23 @@ die das Logging für alle Fließkomma-Variablen der Instanz einschaltet, nie etw
 das Ergebnis im Klartext zurückgibt. Schon eingeschaltetes Logging bleibt bei Bestandsinstanzen
 bestehen. Gleiches Muster in allen vier WP-Modulen (WPHub, WPModbusHub samt Gateway, WPBsbLan,
 SamsungEhs). Neue Module: nie `AC_SetLoggingStatus()` ohne Nutzerklick aufrufen.
+
+## Zweisprachig Deutsch/Englisch (0.8.0, 05.11.2026)
+
+Dietmar: „Wir sollten das ganze Modul auf 2 Sprachen umstellen und dabei aufpassen, dass nicht der gleiche Fehler
+wie bei Automat rauskommt.“ Umgesetzt für beide Module (WPModbusHub, WPModbusHubGateway):
+
+- **Quelltexte englisch** (Code und beide `form.json`), Deutsch in `libs/locale.json`; `php .tools/locale-bauen.php` kopiert die
+  Datei in `WPModbusHub/` und `WPModbusHubGateway/` (Symcon liest `locale.json` nur im Modulordner). Die `locale.json` in den Modulordnern
+  nie von Hand ändern, nur `libs/locale.json` und neu bauen (der Prüfstand vergleicht).
+- **`libs/WPMBHUB_Text.php`** (`WPMBHUB_Text::t()`, `::zahl()`, `::formular()`): Trait, Treiberkarten und Modbus-Clients haben
+  kein `$this->Translate()`. Der Konstruktor beider Module setzt den Übersetzer (`mitMerkliste`): Symcon wird je Text **höchstens
+  einmal je Prozess** gefragt (SUITE.md Stolperstein 24: `Translate()` liest bei jedem Aufruf die `locale.json`, bei Automat
+  hunderte Aufrufe je Tick → Timer blieb liegen). Kein eigenes Lesen der `locale.json` (Review: Dateizugriff).
+- **`FIELD_CAPTIONS`, `DRIVERS[..]['caption'|'confidence']` und `NEWS_VERSIONS` sind englische Quelltexte** und werden erst beim
+  Anzeigen übersetzt. Idents (`Aussentemperatur`, …) bleiben deutsch: sie sind der Vertrag mit WPHub/EMS/Dashboard.
+- Neue Texte: englisch in den Code/die `form.json`, deutsche Fassung in `libs/locale.json`, `locale-bauen.php`, Prüfstand Block 10
+  (jeder Quelltext hat Deutsch, Platzhalter gleich, keine verwaisten Einträge, englisches Formular ohne deutsche Reste, Zyklus/Vertrag/Formular
+  fragen nach dem ersten Mal 0-mal bei Symcon nach). Dezimalzeichen: Schlüssel `.` → `,`.
+- **Vor dem Store-Release live messen** (Stolperstein 24): Laufzeit von `WPMBHUB_Update` und `IPS_GetConfigurationForm`, `IPS_GetTimer`
+  mit `NextRun` > 5 s in der Vergangenheit = Alarmzeichen. Englisch nie in einer echten Konsole gesehen (nur Prüfstand).

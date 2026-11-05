@@ -2,56 +2,56 @@
     "elements": [
         {
             "type": "ExpansionPanel",
-            "caption": "📖 Dokumentation & Hilfe",
+            "caption": "📖 Documentation & help",
             "expanded": false,
             "items": [
                 {
                     "type": "Label",
                     "name": "VersionInfo",
-                    "caption": "ℹ️ WPModbusHub Version -- lokale Modbus-Anbindung für Wärmepumpen mehrerer Hersteller."
+                    "caption": ""
                 },
                 {
                     "type": "Label",
-                    "caption": "Liest eine Wärmepumpe direkt per Modbus TCP im lokalen Netz aus -- ohne Internet, ohne Herstellerkonto. Details: https://github.com/DG65/NRGWPModbusHub"
+                    "caption": "Reads a heat pump directly via Modbus TCP on the local network -- without internet, without a manufacturer account. Details: https://github.com/DG65/NRGWPModbusHub"
                 },
                 {
                     "type": "Label",
-                    "caption": "Ablauf: 1. Hersteller wählen → 2. IP-Adresse (bzw. IP des Modbus-Gateways) und Port eintragen → 3. Übernehmen → 4. „WPModbusHub aktiv“ einschalten und erneut übernehmen."
+                    "caption": "Steps: 1. Choose the manufacturer → 2. Enter the IP address (or the IP of the Modbus gateway) and port → 3. Apply → 4. Switch on \"WPModbusHub active\" and apply again."
                 },
                 {
                     "type": "Button",
-                    "caption": "🔄 Übernehmen erzwingen (ohne Formularänderung)",
-                    "confirm": "Wirklich ApplyChanges() erzwingen? Praktisch direkt nach einem Modul-Update über die Modulverwaltung.",
-                    "onClick": "IPS_ApplyChanges($id); echo '✅ ApplyChanges() ausgeführt.';"
+                    "caption": "🔄 Force apply (without a form change)",
+                    "confirm": "Really force ApplyChanges()? Handy right after a module update via the module control.",
+                    "onClick": "IPS_ApplyChanges($id); echo '✅ ApplyChanges()';"
                 }
             ]
         },
         {
             "type": "ExpansionPanel",
             "name": "GeneralPanel",
-            "caption": "🔧 Allgemein",
+            "caption": "🔧 General",
             "expanded": true,
             "items": [
                 {
                     "type": "CheckBox",
                     "name": "WPMBHUB_Active",
-                    "caption": "WPModbusHub aktiv"
+                    "caption": "WPModbusHub active"
                 },
                 {
                     "type": "NumberSpinner",
                     "name": "WPMBHUB_Interval",
-                    "caption": "Aktualisierungsintervall (Sekunden)",
+                    "caption": "Update interval (seconds)",
                     "minimum": 30,
                     "maximum": 600,
                     "suffix": " s"
                 },
                 {
                     "type": "Label",
-                    "caption": "📈 Archivierung: Das Modul schaltet das Logging im Symcon-Archiv nie von selbst ein. Mit dem Knopf unten aktivierst du es bewusst für alle Messwerte (Fließkomma-Variablen) dieser Instanz, z. B. für Diagramme und Auswertungen. Bereits eingeschaltetes Logging bleibt unangetastet."
+                    "caption": "📈 Archiving: the module never switches on logging in the Symcon archive by itself. With the button below you deliberately enable it for all measured values (floating-point variables) of this instance, e.g. for charts and evaluations. Logging that is already enabled stays untouched."
                 },
                 {
                     "type": "Button",
-                    "caption": "📈 Logging für die Messwerte einschalten",
+                    "caption": "📈 Enable logging for the measured values",
                     "onClick": "echo WPMBHUB_EnableArchiving($id);"
                 }
             ]
@@ -59,7 +59,7 @@
         {
             "type": "ExpansionPanel",
             "name": "ConnectionPanel",
-            "caption": "🔌 Wärmepumpe (Modbus TCP)",
+            "caption": "🔌 Heat pump (Modbus TCP)",
             "expanded": true,
             "items": [
                 {
@@ -70,16 +70,8 @@
                 {
                     "type": "Select",
                     "name": "Manufacturer",
-                    "caption": "Hersteller",
-                    "options": [
-                        {"caption": "NIBE (S-Serie, z. B. S1155/S1255/S2125)", "value": "nibe"},
-                        {"caption": "Stiebel Eltron (ISG-Gateway, WPMsystem/WPM3/WPM3i/LWZ)", "value": "stiebeleltron"},
-                        {"caption": "LG Therma V", "value": "lg"},
-                        {"caption": "Samsung EHS (über MIM-B19N-Zubehörmodul)", "value": "samsung"},
-                        {"caption": "Waterkotte (EcoTouch-Regler)", "value": "waterkotte"},
-                        {"caption": "IDM Energiesysteme (Navigatorregelung 2.0, z. B. ALM)", "value": "idm"},
-                        {"caption": "Proxon T300 (Zimmermann, Trinkwasser-Wärmepumpe)", "value": "proxon"}
-                    ],
+                    "caption": "Manufacturer",
+                    "options": [],
                     "onChange": "WPMBHUB_OnChangeManufacturer($id, $Manufacturer);"
                 },
                 {
@@ -93,18 +85,18 @@
                         {
                             "type": "ValidationTextBox",
                             "name": "Host",
-                            "caption": "IP-Adresse (Wärmepumpe bzw. Modbus-Gateway)"
+                            "caption": "IP address (heat pump or Modbus gateway)"
                         },
                         {
                             "type": "PopupButton",
-                            "caption": "Wo finde ich die IP-Adresse?",
+                            "caption": "Where do I find the IP address?",
                             "width": "460px",
                             "popup": {
-                                "caption": "Wo finde ich die IP-Adresse?",
+                                "caption": "Where do I find the IP address?",
                                 "items": [
                                     {
                                         "type": "Label",
-                                        "caption": "Bei NIBE S-Serie, Stiebel Eltron (ISG), Waterkotte (EcoTouch) und IDM (Navigatorregelung) ist das die IP-Adresse der Wärmepumpe/des Reglers selbst im lokalen Netz -- unter „Modbus TCP/IP“ bzw. im Netzwerkmenü des Reglers sichtbar/einstellbar. Bei LG, Samsung und Proxon ist es die IP-Adresse des dazwischengeschalteten Modbus-Gateways (z. B. ein RS485-zu-Ethernet-Adapter im „Modbus TCP zu RTU“-Modus, das offizielle MIM-B19N-Modul, oder bei Proxon ein passender RS485-Gateway vor dem werksseitig seriellen Anschluss)."
+                                        "caption": "For NIBE S series, Stiebel Eltron (ISG), Waterkotte (EcoTouch) and IDM (Navigator control) this is the IP address of the heat pump/controller itself on the local network -- visible/adjustable under \"Modbus TCP/IP\" or in the network menu of the controller. For LG, Samsung and Proxon it is the IP address of the Modbus gateway in between (e.g. an RS485-to-Ethernet adapter in \"Modbus TCP to RTU\" mode, the official MIM-B19N module, or for Proxon a suitable RS485 gateway in front of the factory serial connection)."
                                     }
                                 ]
                             }
@@ -121,7 +113,7 @@
                 {
                     "type": "NumberSpinner",
                     "name": "UnitId",
-                    "caption": "Unit-ID / Slave-ID",
+                    "caption": "Unit ID / slave ID",
                     "minimum": 1,
                     "maximum": 247
                 }
@@ -132,7 +124,7 @@
         {
             "code": 201,
             "icon": "error",
-            "caption": "Wärmepumpe nicht erreichbar -- IP-Adresse/Port/Unit-ID prüfen"
+            "caption": "Heat pump not reachable -- check IP address/port/unit ID"
         }
     ]
 }

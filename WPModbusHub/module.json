@@ -6,7 +6,8 @@
     "vendor": "",
     "aliases": [
         "NRG-Stack WPModbusHub",
-        "Wärmepumpe Modbus (Multi-Hersteller)"
+        "Wärmepumpe Modbus (Multi-Hersteller)",
+        "Heat pump Modbus (multi-manufacturer)"
     ],
     "parentRequirements": [],
     "childRequirements": [],

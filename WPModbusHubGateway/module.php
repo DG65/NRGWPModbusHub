@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/../libs/WPMBHUB_Text.php';
 require_once __DIR__ . '/../libs/ModbusGatewayClient.php';
 require_once __DIR__ . '/../libs/WPMBHUB_Drivers.php';
 require_once __DIR__ . '/../libs/WPMBHUB_HeatpumpTrait.php';
@@ -33,24 +34,37 @@ class WPModbusHubGateway extends IPSModule
 
     // Verbund-Konvention "NEWS_VERSIONS" (SUITE.md "Einheitliche Formular-Optik" Punkt 1,
     // Dashboard/Dietmar 23.09.2026, EMS-Weitergabe) -- siehe WPModbusHub/module.php.
+    // Die Zeilen sind englische Quelltexte, die deutsche Fassung steht in locale.json.
     const NEWS_VERSIONS = [
         '0.7.1' => [
-            'Neue Statuszeile im Bereich „Wärmepumpe“: zeigt live, ob ein ModBus-Gateway verbunden ist, ob die Wärmepumpe antwortet, wie lange die letzte Aktualisierung her ist und welche Werte gerade ankommen -- oder was fehlt.',
-            'IDM: „Warmwasser“ zeigt jetzt den Speicherfühler oben statt der Zapftemperatur, die es nur mit IDMs Warmwasserstation gibt; neu dazu „Warmwasser unten“ (Speicherfühler unten).',
+            'New status line in the "Heat pump" section: it shows live whether a ModBus gateway is connected, whether the heat pump answers, how long ago the last update was and which values are arriving -- or what is missing.',
+            'IDM: "Hot water" now shows the tank sensor at the top instead of the tap temperature, which only exists with IDM\'s hot water station; new: "Hot water bottom" (tank sensor at the bottom).',
         ],
         '0.7.4' => [
-            'Das Logging im Symcon-Archiv wird nicht mehr von selbst eingeschaltet. Im Bereich „Allgemein“ gibt es dafür den Knopf „Logging für die Messwerte einschalten“, damit du es bewusst aktivierst (Symcon-Review). Bereits eingeschaltetes Logging bleibt unangetastet.',
+            'Logging in the Symcon archive is no longer switched on automatically. In the "General" section there is the button "Enable logging for the measured values", so you enable it deliberately (Symcon review). Logging that is already enabled stays untouched.',
         ],
         '0.7.6' => [
-            'Wenn die Wärmepumpe nicht antwortet, steht die Ursache jetzt je Register in der Instanz-Debugausgabe (keine Verbindung, Zeitüberschreitung oder Ausnahme des Geräts, z. B. „Adresse nicht vorhanden“). Vorher hieß jeder Fehler nur „antwortet nicht“.',
+            'If the heat pump does not answer, the cause is now shown per register in the instance debug output (no connection, timeout or an exception of the device, e.g. "address not available"). Before, every error was just "does not answer".',
         ],
         '0.7.7' => [
-            'Stiebel Eltron: Die Registeradressen waren falsch (die ISG antwortete mit „Adresse nicht vorhanden“). Jetzt gelten die Adressen aus dem Stiebel-PDF minus 1; neu dazu kommt die Rücklauftemperatur. Nicht vorhandene Werte (Ersatzwert 0x8000) zeigt das Modul nicht mehr als Temperatur an.',
+            'Stiebel Eltron: the register addresses were wrong (the ISG answered with "address not available"). The addresses from the Stiebel PDF minus 1 now apply; the return temperature is new. Values that do not exist (substitute value 0x8000) are no longer shown as a temperature.',
+        ],
+        '0.8.0' => [
+            'The module is now fully bilingual (German/English): form, status messages, notes and the names of new variables follow the Symcon language.',
         ],
     ];
     private const LIBRARY_GUID = '{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}';
     const DRIVERS = WPMBHUB_Drivers::DRIVERS;
     const MANUFACTURER_DEFAULT = WPMBHUB_Drivers::MANUFACTURER_DEFAULT;
+
+    public function __construct($InstanceID)
+    {
+        parent::__construct($InstanceID);
+        // Siehe WPModbusHub/module.php: englische Quelltexte, jeder Text fragt Symcon hoechstens einmal je Prozess.
+        WPMBHUB_Text::setzen(WPMBHUB_Text::mitMerkliste(function (string $text): string {
+            return $this->Translate($text);
+        }));
+    }
 
     public function Create()
     {
@@ -95,9 +109,9 @@ class WPModbusHubGateway extends IPSModule
         if (!isset(self::DRIVERS[$manufacturer])) {
             return;
         }
-        $this->UpdateFormField('ManufacturerConfidence', 'caption', 'ℹ️ ' . self::DRIVERS[$manufacturer]['confidence']);
+        $this->UpdateFormField('ManufacturerConfidence', 'caption', 'ℹ️ ' . WPMBHUB_Text::t(self::DRIVERS[$manufacturer]['confidence']));
         if ($manufacturer !== $this->ReadPropertyString('Manufacturer')) {
-            $this->UpdateFormField('ConnectionStatus', 'caption', 'ℹ️ Hersteller geändert -- erst nach „Übernehmen“ wird mit dem neuen Profil gelesen.');
+            $this->UpdateFormField('ConnectionStatus', 'caption', WPMBHUB_Text::t('ℹ️ Manufacturer changed -- the new profile is only used for reading after "Apply".'));
             $this->UpdateFormField('ConnectionStatus', 'color', -1);
         } else {
             [$line, $color] = $this->statusLine();
@@ -110,32 +124,34 @@ class WPModbusHubGateway extends IPSModule
     {
         return $this->connectionStatusLine(
             $this->ReadPropertyBoolean('WPMBGW_Active'),
-            $this->hasGatewayParent() ? '' : 'kein ModBus-Gateway verbunden (oben unter „Gateway“ eines wählen)',
+            $this->hasGatewayParent() ? '' : WPMBHUB_Text::t('no ModBus gateway connected (choose one at the top under "Gateway")'),
             max(30, $this->ReadPropertyInteger('WPMBGW_Interval')),
-            'Geräte-ID am ModBus-Gateway, Baudrate/Parität am Serial Port und Verkabelung prüfen („Verbindung testen“).'
+            WPMBHUB_Text::t('Check the device ID at the ModBus gateway, baud rate/parity at the Serial Port and the wiring ("Test connection").')
         );
     }
 
     public function GetConfigurationForm()
     {
-        $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
+        // Formulartexte der form.json sind englische Quelltexte; die dynamisch gebauten Teile unten
+        // uebersetzen sich selbst (nicht doppelt uebersetzen).
+        $form = WPMBHUB_Text::formular(json_decode(file_get_contents(__DIR__ . '/form.json'), true));
 
         $libraryInfo = @json_decode((string)@file_get_contents(__DIR__ . '/../library.json'), true);
         $libraryVersion = (is_array($libraryInfo) && isset($libraryInfo['version'])) ? (string)$libraryInfo['version'] : '?';
         $this->updateFormElement($form['elements'], 'VersionInfo', [
-            'caption' => 'ℹ️ WPModbusHubGateway Version ' . $libraryVersion . ' -- Wärmepumpen über Symcons ModBus-Gateway auslesen.',
+            'caption' => WPMBHUB_Text::t('ℹ️ WPModbusHubGateway version %s -- read heat pumps via Symcon\'s ModBus gateway.', $libraryVersion),
         ]);
 
         $options = [];
         foreach (self::DRIVERS as $key => $driver) {
-            $options[] = ['caption' => $driver['caption'], 'value' => $key];
+            $options[] = ['caption' => WPMBHUB_Text::t($driver['caption']), 'value' => $key];
         }
         $this->updateFormElement($form['elements'], 'Manufacturer', ['options' => $options]);
 
         $manufacturer = $this->ReadPropertyString('Manufacturer');
         if (isset(self::DRIVERS[$manufacturer])) {
             $this->updateFormElement($form['elements'], 'ManufacturerConfidence', [
-                'caption' => 'ℹ️ ' . self::DRIVERS[$manufacturer]['confidence'],
+                'caption' => 'ℹ️ ' . WPMBHUB_Text::t(self::DRIVERS[$manufacturer]['confidence']),
             ]);
         }
 
@@ -185,15 +201,15 @@ class WPModbusHubGateway extends IPSModule
         $multi = count($pending) > 1;
         foreach ($pending as $ver => $lines) {
             if ($multi) {
-                $items[] = ['type' => 'Label', 'caption' => 'Version ' . $ver . ':'];
+                $items[] = ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Version %s:', $ver)];
             }
             foreach ($lines as $line) {
-                $items[] = ['type' => 'Label', 'caption' => '• ' . $line];
+                $items[] = ['type' => 'Label', 'caption' => '• ' . WPMBHUB_Text::t($line)];
             }
         }
-        $items[] = ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBGW_AckNews($id);'];
+        $items[] = ['type' => 'Button', 'caption' => WPMBHUB_Text::t('Understood – do not show again'), 'onClick' => 'WPMBGW_AckNews($id);'];
         $latest = array_key_last($pending);
-        return ['type' => 'ExpansionPanel', 'name' => 'NewsPanel', 'caption' => '🆕 Neu bis Version ' . $latest, 'expanded' => true, 'items' => $items];
+        return ['type' => 'ExpansionPanel', 'name' => 'NewsPanel', 'caption' => WPMBHUB_Text::t('🆕 New up to version %s', $latest), 'expanded' => true, 'items' => $items];
     }
 
     public function AckNews(): void
@@ -216,11 +232,11 @@ class WPModbusHubGateway extends IPSModule
             'type'     => 'ExpansionPanel',
             'name'     => 'PurposeIntroPanel',
             'expanded' => true,
-            'caption'  => '👋  Wozu dieses Modul?',
+            'caption'  => WPMBHUB_Text::t('👋  What is this module for?'),
             'items'    => [
-                ['type' => 'Label', 'caption' => 'WPModbusHubGateway liest Wärmepumpen über Symcons eingebautes ModBus-Gateway aus -- dieselben Herstellerregisterkarten wie WPModbusHub, aber ohne eigene Netzwerkverbindung. Sinnvoll, wenn die Wärmepumpe per RS485 (Modbus RTU) an einem seriellen Anschluss hängt, z. B. einem USB-RS485-Dongle am Symcon-Host.'],
-                ['type' => 'Label', 'caption' => 'Bewusst nur lesend (keine Steuerbefehle). Der Weg über das ModBus-Gateway ist bislang an einer echten Anlage bestätigt (Proxon T300 per USB-RS485), für die übrigen Hersteller über diesen Weg noch nicht -- Rückmeldungen sind sehr willkommen, siehe Hinweis unten.'],
-                ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBGW_AckPurposeIntro($id);'],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('WPModbusHubGateway reads heat pumps via Symcon\'s built-in ModBus gateway -- the same manufacturer register maps as WPModbusHub, but without its own network connection. Useful when the heat pump is connected via RS485 (Modbus RTU) to a serial port, e.g. a USB-RS485 dongle on the Symcon host.')],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Read-only by design (no control commands). The route via the ModBus gateway is so far confirmed on a real system (Proxon T300 via USB-RS485), not yet for the other manufacturers via this route -- feedback is very welcome, see the note below.')],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('Understood – do not show again'), 'onClick' => 'WPMBGW_AckPurposeIntro($id);'],
             ],
         ];
     }
@@ -242,11 +258,11 @@ class WPModbusHubGateway extends IPSModule
             'type'     => 'ExpansionPanel',
             'name'     => 'ForumHintPanel',
             'expanded' => true,
-            'caption'  => '💬  Feedback im Symcon-Forum',
+            'caption'  => WPMBHUB_Text::t('💬  Feedback in the Symcon forum'),
             'items'    => [
-                ['type' => 'Label', 'caption' => 'Fragen, Fehler oder Erfahrungsberichte -- dafür gibt es den WPModbusHub-Forumsthread (gilt auch für diese Gateway-Variante).'],
-                ['type' => 'Button', 'caption' => 'Zum Forums-Thread', 'onClick' => "echo '" . self::FORUM_THREAD_URL . "';", 'link' => true],
-                ['type' => 'Button', 'caption' => 'Verstanden – nicht mehr anzeigen', 'onClick' => 'WPMBGW_AckForumHint($id);'],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Questions, bugs or experience reports -- the WPModbusHub forum thread is the place for that (this also applies to this gateway variant).')],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('To the forum thread'), 'onClick' => "echo '" . self::FORUM_THREAD_URL . "';", 'link' => true],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('Understood – do not show again'), 'onClick' => 'WPMBGW_AckForumHint($id);'],
             ],
         ];
     }
@@ -257,7 +273,7 @@ class WPModbusHubGateway extends IPSModule
         $this->UpdateFormField('ForumHintPanel', 'visible', false);
     }
 
-    private const LICENSE_URL = 'https://github.com/DG65/NRGWPModbusHub/blob/beta/LICENSE';
+    private const LICENSE_URL = 'https://github.com/DG65/NRGWPModbusHub/blob/main/LICENSE';
     private const PAYPAL_URL = 'https://paypal.me/DietmarGureth';
 
     private function LicenseHint(): array
@@ -265,14 +281,14 @@ class WPModbusHubGateway extends IPSModule
         return [
             'type'     => 'ExpansionPanel',
             'expanded' => false,
-            'caption'  => '🧡  Über dieses Modul',
+            'caption'  => WPMBHUB_Text::t('🧡  About this module'),
             'items'    => [
-                ['type' => 'Label', 'caption' => 'Entstanden aus echter Begeisterung für die eigene Anlage — und ein paar durchgetippten Abenden. Trotzdem: Software-Hobby hin oder her, das hier ist geistiges Eigentum und echte Arbeit steckt drin.'],
-                ['type' => 'Label', 'caption' => 'Lizenz: PolyForm Noncommercial 1.0.0 — privat und nicht-kommerziell frei nutzbar, für den gewerblichen Einsatz braucht es eine gesonderte Lizenz vom Rechteinhaber.'],
-                ['type' => 'Button', 'caption' => 'Lizenztext ansehen', 'onClick' => "echo '" . self::LICENSE_URL . "';", 'link' => true],
-                ['type' => 'Label', 'caption' => 'Gewerbliche Nutzung oder Fragen zur Lizenz? Einfach melden: dietmar@gureth.eu'],
-                ['type' => 'Label', 'caption' => 'Gefällt dir das Modul und du möchtest trotzdem etwas dalassen? Über eine kleine Spende freue ich mich — völlig freiwillig, keine Gegenleistung nötig.'],
-                ['type' => 'Button', 'caption' => '☕  Spenden via PayPal', 'onClick' => "echo '" . self::PAYPAL_URL . "';", 'link' => true],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Born out of genuine enthusiasm for my own installation — and a few evenings of typing. Still: hobby software or not, this is intellectual property and real work went into it.')],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('License: PolyForm Noncommercial 1.0.0 — free for private and non-commercial use; commercial use needs a separate license from the rights holder.')],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('View license text'), 'onClick' => "echo '" . self::LICENSE_URL . "';", 'link' => true],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Commercial use or questions about the license? Just get in touch: dietmar@gureth.eu')],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Do you like the module and still want to leave something? I would be happy about a small donation — completely voluntary, nothing owed in return.')],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('☕  Donate via PayPal'), 'onClick' => "echo '" . self::PAYPAL_URL . "';", 'link' => true],
             ],
         ];
     }
@@ -288,7 +304,7 @@ class WPModbusHubGateway extends IPSModule
         }
         $manufacturer = $this->ReadPropertyString('Manufacturer');
         if (!isset(self::DRIVERS[$manufacturer])) {
-            $this->LogMessage('Unbekannter Hersteller "' . $manufacturer . '".', KL_WARNING);
+            $this->LogMessage(WPMBHUB_Text::t('Unknown manufacturer "%s".', $manufacturer), KL_WARNING);
             return;
         }
         $client = $this->gatewayClient();
@@ -303,7 +319,7 @@ class WPModbusHubGateway extends IPSModule
 
         $this->SetStatus($reachable ? 102 : 202);
         if (!$reachable) {
-            $this->LogMessage('Wärmepumpe über das ModBus-Gateway nicht erreichbar (' . $client->lastError . ') -- Geräte-ID, Baudrate/Parität und Verkabelung prüfen.', KL_WARNING);
+            $this->LogMessage(WPMBHUB_Text::t('Heat pump not reachable via the ModBus gateway (%s) -- check device ID, baud rate/parity and wiring.', $client->lastError), KL_WARNING);
         }
     }
 
@@ -316,11 +332,11 @@ class WPModbusHubGateway extends IPSModule
     public function TestConnection(): string
     {
         if (!$this->hasGatewayParent()) {
-            return "❌ Kein ModBus-Gateway verbunden.\nOben unter „Gateway“ einen ModBus-Gateway wählen (Symcon-Objektbaum: Serial Port → ModBus Gateway).";
+            return WPMBHUB_Text::t('❌ No ModBus gateway connected.') . "\n" . WPMBHUB_Text::t('Choose a ModBus gateway at the top under "Gateway" (Symcon object tree: Serial Port → ModBus Gateway).');
         }
         $manufacturer = $this->ReadPropertyString('Manufacturer');
         if (!isset(self::DRIVERS[$manufacturer])) {
-            return '❌ Unbekannter Hersteller "' . $manufacturer . '".';
+            return WPMBHUB_Text::t('❌ Unknown manufacturer "%s".', $manufacturer);
         }
         $registers = self::DRIVERS[$manufacturer]['registers'];
         $ident = isset($registers['Aussentemperatur']) ? 'Aussentemperatur' : array_key_first($registers);
@@ -332,20 +348,20 @@ class WPModbusHubGateway extends IPSModule
         $values = $this->readRegisters([$ident => $def], $client);
 
         $lines = [];
-        $lines[] = 'Hersteller: ' . self::DRIVERS[$manufacturer]['caption'];
-        $lines[] = 'Testregister: ' . $ident . ', Adresse ' . $def['addr'] . ' (Function ' . $function . ', ' . $count . ' Register)';
-        $lines[] = 'Anfrage: ' . $client->lastRequest;
+        $lines[] = WPMBHUB_Text::t('Manufacturer: %s', WPMBHUB_Text::t(self::DRIVERS[$manufacturer]['caption']));
+        $lines[] = WPMBHUB_Text::t('Test register: %s, address %d (function %d, %d register(s))', $ident, $def['addr'], $function, $count);
+        $lines[] = WPMBHUB_Text::t('Request: %s', $client->lastRequest);
         if ($client->lastResponseLen > 0) {
-            $lines[] = 'Antwort: 0x' . $client->lastResponseHex . ' (' . $client->lastResponseLen . ' Byte, Kopf passt zu Function+Bytezahl: ' . ($client->headerLooksLikePdu ? 'ja' : 'nein') . ')';
+            $lines[] = WPMBHUB_Text::t('Answer: 0x%s (%d bytes, header matches function and byte count: %s)', $client->lastResponseHex, $client->lastResponseLen, $client->headerLooksLikePdu ? WPMBHUB_Text::t('yes') : WPMBHUB_Text::t('no'));
         } else {
-            $lines[] = 'Antwort: keine';
+            $lines[] = WPMBHUB_Text::t('Answer: none');
         }
         if ($values !== null && array_key_exists($ident, $values)) {
-            $lines[] = '✅ Ergebnis: ' . $ident . ' = ' . round($values[$ident], 3);
-            $lines[] = 'Plausibel? Sonst Skalierung/Adresse der Registerkarte prüfen und Rückmeldung im Forum geben.';
+            $lines[] = WPMBHUB_Text::t('✅ Result: %s = %s', $ident, round($values[$ident], 3));
+            $lines[] = WPMBHUB_Text::t('Plausible? If not, check scaling/address of the register map and give feedback in the forum.');
         } else {
-            $lines[] = '❌ Fehler: ' . $client->lastError;
-            $lines[] = 'Prüfen: Geräte-ID im ModBus-Gateway (Gateway-Modus RTU für RS485), Baudrate/Parität/Stoppbits im Serial Port, A/B-Leitungen, Gateway und Serial Port aktiv.';
+            $lines[] = WPMBHUB_Text::t('❌ Error: %s', $client->lastError);
+            $lines[] = WPMBHUB_Text::t('Check: device ID in the ModBus gateway (gateway mode RTU for RS485), baud rate/parity/stop bits in the Serial Port, A/B wires, gateway and Serial Port active.');
         }
         $report = implode("\n", $lines);
         $this->SendDebug('TestConnection', $report, 0);
@@ -362,16 +378,16 @@ class WPModbusHubGateway extends IPSModule
     public function ReadRaw(int $Function, int $Address, int $Quantity = 1): string
     {
         if (!in_array($Function, [3, 4], true)) {
-            return 'Nur Function 3 (Holding-Register) und 4 (Input-Register) erlaubt -- dieses Modul liest nur.';
+            return WPMBHUB_Text::t('Only function 3 (holding registers) and 4 (input registers) are allowed -- this module only reads.');
         }
         if (!$this->hasGatewayParent()) {
-            return 'Kein ModBus-Gateway verbunden.';
+            return WPMBHUB_Text::t('No ModBus gateway connected.');
         }
         $Quantity = max(1, min(16, $Quantity));
         $client = $this->gatewayClient();
         $regs = ($Function === 3) ? $client->readHolding($Address, $Quantity) : $client->readInput($Address, $Quantity);
         if ($regs === null) {
-            return 'Fehler: ' . $client->lastError . ($client->lastResponseLen > 0 ? ' (Antwort 0x' . $client->lastResponseHex . ')' : '');
+            return WPMBHUB_Text::t('Error: %s', $client->lastError) . ($client->lastResponseLen > 0 ? ' ' . WPMBHUB_Text::t('(answer 0x%s)', $client->lastResponseHex) : '');
         }
         $unsigned = [];
         $signed = [];
@@ -379,7 +395,7 @@ class WPModbusHubGateway extends IPSModule
             $unsigned[] = $client->u16($regs, $i);
             $signed[] = $client->s16($regs, $i);
         }
-        return 'Function ' . $Function . ', ab Adresse ' . $Address . ': unsigned [' . implode(', ', $unsigned) . '], signed [' . implode(', ', $signed) . '], Antwort 0x' . $client->lastResponseHex;
+        return WPMBHUB_Text::t('Function %d, from address %d: unsigned [%s], signed [%s], answer 0x%s', $Function, $Address, implode(', ', $unsigned), implode(', ', $signed), $client->lastResponseHex);
     }
 
     /**
@@ -389,7 +405,7 @@ class WPModbusHubGateway extends IPSModule
     public function GetFunctions()
     {
         $manufacturer = $this->ReadPropertyString('Manufacturer');
-        $caption = isset(self::DRIVERS[$manufacturer]) ? self::DRIVERS[$manufacturer]['caption'] : 'Wärmepumpe';
+        $caption = WPMBHUB_Text::t(isset(self::DRIVERS[$manufacturer]) ? self::DRIVERS[$manufacturer]['caption'] : 'Heat pump');
         return $this->buildFunctions($caption);
     }
 

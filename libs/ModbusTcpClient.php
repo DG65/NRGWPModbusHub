@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/WPMBHUB_Text.php';
+
 // WPMBHUB_ModbusTcpClient -- gemeinsame Modbus-TCP-Grundfunktionen, portiert
 // aus MeterHub (MHUB_ModbusTcpClient, DG65/NRGMeterHub) mit WPMBHUB_-Praefix
 // (Verbund-Konvention 25.07.2026: globale Klassennamen kollidieren sonst,
@@ -157,11 +159,11 @@ class WPMBHUB_ModbusTcpClient
         if ($rfc & 0x80) {
             // Ausnahmeantwort des Geraets (z. B. 0x02 = Adresse nicht vorhanden): das Geraet
             // antwortet also, nur nicht auf dieses Register.
-            $this->lastError = sprintf('Modbus-Ausnahme 0x%02X', ord($pdu[1]));
+            $this->lastError = WPMBHUB_Text::t('Modbus exception 0x%02X', ord($pdu[1]));
             return null;
         }
         if ($rfc !== $fc) {
-            $this->lastError = 'unerwarteter Funktionscode 0x' . sprintf('%02X', $rfc);
+            $this->lastError = WPMBHUB_Text::t('unexpected function code 0x%02X', $rfc);
             return null;
         }
 

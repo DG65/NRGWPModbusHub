@@ -6,7 +6,8 @@
     "vendor": "",
     "aliases": [
         "NRG-Stack WPModbusHub (ModBus-Gateway)",
-        "Wärmepumpe Modbus über Symcon-Gateway (RS485/RTU)"
+        "Wärmepumpe Modbus über Symcon-Gateway (RS485/RTU)",
+        "Heat pump Modbus via Symcon gateway (RS485/RTU)"
     ],
     "parentRequirements": [
         "{E310B701-4AE7-458E-B618-EC13A1A6F6A8}"
