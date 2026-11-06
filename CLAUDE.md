@@ -68,7 +68,7 @@ Bestätigung/Korrektur aktualisieren, dieselbe Registerkarte in `.tools/test-mod
 
 ## Was bewusst NICHT Teil von v1 ist
 
-- **Keine Steuerbefehle**, mit EINER Ausnahme seit 0.9.1: die beiden Stiebel-Raumsollwerte (`Zone1Komfort`/`Zone1Eco`, Register 1502/1503, Function 6), schreibbar nur im TCP-Modul und erst nach bestätigter Belehrung (Attribut `WriteNoticeAccepted`). Weitere schreibbare Felder immer so: `'write' => [min, max, step]` in der Registerkarte, Belehrung, Rücklesen, 30-s-Abstand.
+- **Keine Steuerbefehle**, mit EINER Ausnahme seit 0.9.1: die beiden Stiebel-Raumsollwerte (`Zone1Komfort`/`Zone1Eco`, Register 1502/1503, ab 0.9.2 zusätzlich `WarmwasserKomfort`/`WarmwasserEco`, Register 1510/1511, Function 6), schreibbar nur im TCP-Modul und erst nach bestätigter Belehrung (Attribut `WriteNoticeAccepted`). Weitere schreibbare Felder immer so: `'write' => [min, max, step]` in der Registerkarte, Belehrung, Rücklesen, 30-s-Abstand.
 - **Energiewerte nur bei Stiebel (seit 0.9.0)** als Variablen, `PowerID`/`EnergyID` bleiben bewusst 0 im Vertrag
   (Stiebel hat per Modbus keine Momentanleistung; die Summen sind eine ISG-Schätzung, ob Konsumenten sie als `EnergyID`
   wollen, ist nicht geklärt). Andere Hersteller liefern weiter nur Temperaturen.
@@ -377,7 +377,7 @@ wie bei Automat rauskommt.“ Umgesetzt für beide Module (WPModbusHub, WPModbus
 - **Quelltexte englisch** (Code und beide `form.json`), Deutsch in `libs/locale.json`; `php .tools/locale-bauen.php` kopiert die
   Datei in `WPModbusHub/` und `WPModbusHubGateway/` (Symcon liest `locale.json` nur im Modulordner). Die `locale.json` in den Modulordnern
   nie von Hand ändern, nur `libs/locale.json` und neu bauen (der Prüfstand vergleicht).
-- **`libs/WPMBHUB_Text.php`** (`WPMBHUB_Text::t()`, `::zahl()`, `::formular()`): Trait, Treiberkarten und Modbus-Clients haben
+- **`libs/WPMBHUB_Text.php`** (`WPMBHUB_Text::t()`, `::zahl()`): Trait, Treiberkarten und Modbus-Clients haben
   kein `$this->Translate()`. Der Konstruktor beider Module setzt den Übersetzer (`mitMerkliste`): Symcon wird je Text **höchstens
   einmal je Prozess** gefragt (SUITE.md Stolperstein 24: `Translate()` liest bei jedem Aufruf die `locale.json`, bei Automat
   hunderte Aufrufe je Tick → Timer blieb liegen). Kein eigenes Lesen der `locale.json` (Review: Dateizugriff).
@@ -405,3 +405,8 @@ EEBUS: erst ISG Connect (nicht ISG web) und nur über die EEBUS-Sitzungen, nicht
 ## Schreibbare Raumsollwerte (0.9.1, 05.11.2026)
 
 thorsten1 wollte „Raum Soll“; Dietmar: „Mache doch beide [Komfort und ECO] und beide sollten auch schreibbar sein“, dann: „meinetwegen erst nach einer Belehrung etc.“ und auf die Rückfrage zu den Variablen: sie sollen erst nach der Belehrung entstehen, aber steuerbar sein. Umsetzung: Trait `activeRegisters()` filtert Felder mit `write` weg, solange `writeSupported()` (nur TCP-Modul) und das Attribut `WriteNoticeAccepted` nicht beides wahr sind; `AcceptWriteNotice()` setzt das Attribut und ruft `Update()` (Variablen sofort); `RevokeWriteNotice()` nimmt `DisableAction` zurück, löscht nichts. `WPMBHUB_ModbusTcpClient::writeHolding()` (Function 6, Echo geprüft). Gateway-Weg bewusst NICHT: das Puffer-Format für Schreib-Functions ist im Verbund nirgends belegt (RLTHub/MeterHub lesen nur), Websuche fand es nicht; erst an einer Quelle verifizieren. Keine LWZ-Entsprechung (Doku 1002/1003) gebaut, weil an keiner LWZ prüfbar. Der Prüfstand testet das Schreiben gegen einen echten Mini-Server (Echo, falsches Echo, ignorierter Wert, Ausnahme).
+
+## 0.9.2 (06.11.2026): Schrittweite und Warmwasser-Sollwerte
+
+thorsten1 (Forum #28): Raumsoll lässt sich setzen, aber 21,5 °C wurde zu 22 gerundet; Warmwasser-Soll nicht änderbar. Ursache: Ich hatte die „Schrittweite“ aus Stiebels Registertabelle (Raum 1, Warmwasser 5) als Gerätegrenze behandelt. Sie ist es nicht (Register = 0,1 °C, Datentyp 2; die Regelung selbst stellt halbe Grad ein). **Lehre: Spalten wie Schrittweite/Min/Max einer Herstellertabelle sind Hinweis, kein Beleg; vor dem Einbau einer Einschränkung gegen echtes Gerät oder Nutzerangabe prüfen.** Jetzt Schritt 0,5, Profile `WPMBHUB.RoomSetpoint` (5–30) und `WPMBHUB.HotWaterSetpoint` (10–60) werden bei jeder Anlage nachgezogen (eigene Profile). Neue Idents `WarmwasserKomfort` (Wire 1509) und `WarmwasserEco` (Wire 1510); `WarmwasserSoll` (523) bleibt der nur lesbare Regelungswert. Offen: ob die Regelung beim Warmwasser halbe Grad annimmt; thorsten1s „1510“ könnte seine Wire-Adresse sein (= Doku 1511 = ECO), Rückfrage im Forum.
+Store-Prüfung Punkt 25: `WPMBHUB_Text::formular()` ist entfernt; statische Texte der form.json übersetzt Symcon, der Prüfstand sichert die Vollständigkeit der locale.json.

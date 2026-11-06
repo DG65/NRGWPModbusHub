@@ -86,6 +86,9 @@ class WPModbusHub extends IPSModule
             '"Heating zone" is now called "Heating circuit" (for newly created variables).',
             'Stiebel Eltron (heat pumps with WPM): the room setpoints comfort and ECO temperature of heating circuit 1 can be read and changed. They stay locked until you have read and confirmed the notice in the form under "Change settings on the device". Writing is not yet tested on real hardware.',
         ],
+        '0.9.2' => [
+            'Stiebel Eltron (heat pumps with WPM): the setpoints can now be set in steps of 0.5 °C (before: whole degrees only, so 21.5 °C became 22 °C). New: the comfort and ECO temperature of hot water can be read and changed as well, after the same notice. Writing the room setpoints was confirmed on a real heat pump, the hot water values are new.',
+        ],
     ];
     private const LIBRARY_GUID = '{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}';
 
@@ -218,10 +221,10 @@ class WPModbusHub extends IPSModule
             'expanded' => !$accepted,
             'caption'  => WPMBHUB_Text::t('⚙️ Change settings on the device'),
             'items'    => [
-                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('⚠️ Reading is harmless, writing changes the settings of your heat pump controller. After you confirm this notice, the two room setpoints (comfort and ECO temperature of heating circuit 1) are available and can be changed in Symcon.')],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('⚠️ Reading is harmless, writing changes the settings of your heat pump controller. After you confirm this notice, the four setpoints (comfort and ECO temperature of heating circuit 1 and of hot water) are available and can be changed in Symcon in steps of 0.5 °C.')],
                 ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Please note: A wrong or constantly changing value affects comfort and energy consumption, and the controller stores settings permanently. Do not write them at short intervals or from automations that run every few seconds. The module writes at most once every 30 seconds per value, checks the range (5 to 30 °C) and reads the value back. You use this function at your own risk; the notes of the manufacturer apply. Writing is not yet tested on real hardware.')],
                 ['type' => 'Label', 'name' => 'WriteNoticeState', 'caption' => $accepted ? WPMBHUB_Text::t('✅ Writing is enabled.') : WPMBHUB_Text::t('🔒 Writing is locked.')],
-                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('I have read and understood this -- enable writing'), 'confirm' => WPMBHUB_Text::t('Really enable writing of the room setpoints on this device?'), 'onClick' => 'WPMBHUB_AcceptWriteNotice($id);'],
+                ['type' => 'Button', 'caption' => WPMBHUB_Text::t('I have read and understood this -- enable writing'), 'confirm' => WPMBHUB_Text::t('Really enable writing of the setpoints on this device?'), 'onClick' => 'WPMBHUB_AcceptWriteNotice($id);'],
                 ['type' => 'Button', 'caption' => WPMBHUB_Text::t('Lock writing again'), 'onClick' => 'WPMBHUB_RevokeWriteNotice($id);'],
             ],
         ];
@@ -230,7 +233,7 @@ class WPModbusHub extends IPSModule
     public function AcceptWriteNotice(): void
     {
         $this->WriteAttributeBoolean('WriteNoticeAccepted', true);
-        $this->LogMessage(WPMBHUB_Text::t('Writing of the room setpoints was enabled by the user in the form.'), KL_NOTIFY);
+        $this->LogMessage(WPMBHUB_Text::t('Writing of the setpoints was enabled by the user in the form.'), KL_NOTIFY);
         $this->UpdateFormField('WriteNoticeState', 'caption', WPMBHUB_Text::t('✅ Writing is enabled.'));
         // Die beiden Variablen sofort anlegen, nicht erst mit dem naechsten Intervall.
         $this->Update();
@@ -239,7 +242,7 @@ class WPModbusHub extends IPSModule
     public function RevokeWriteNotice(): void
     {
         $this->WriteAttributeBoolean('WriteNoticeAccepted', false);
-        $this->LogMessage(WPMBHUB_Text::t('Writing of the room setpoints was locked again by the user.'), KL_NOTIFY);
+        $this->LogMessage(WPMBHUB_Text::t('Writing of the setpoints was locked again by the user.'), KL_NOTIFY);
         $this->UpdateFormField('WriteNoticeState', 'caption', WPMBHUB_Text::t('🔒 Writing is locked.'));
         // Die vorhandenen Variablen bleiben (gehoeren dem Nutzer), verlieren aber ihre Bedienbarkeit und werden nicht mehr gelesen.
         foreach ((self::DRIVERS[$this->ReadPropertyString('Manufacturer')]['registers'] ?? []) as $ident => $def) {
@@ -317,7 +320,7 @@ class WPModbusHub extends IPSModule
     {
         // Formulartexte der form.json sind englische Quelltexte; die dynamisch gebauten Teile unten
         // uebersetzen sich selbst (nicht doppelt uebersetzen).
-        $form = WPMBHUB_Text::formular(json_decode(file_get_contents(__DIR__ . '/form.json'), true));
+        $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
 
         $options = [];
         foreach (self::DRIVERS as $key => $driver) {
@@ -432,7 +435,7 @@ class WPModbusHub extends IPSModule
             'caption'  => WPMBHUB_Text::t('👋  What is this module for?'),
             'items'    => [
                 ['type' => 'Label', 'caption' => WPMBHUB_Text::t('WPModbusHub reads heat pumps from several manufacturers directly via Modbus TCP on the local network -- without internet, without a manufacturer account. It complements WPHub (manufacturer clouds) and HeishaMon (Panasonic, local) with manufacturers that have a built-in or retrofittable Modbus interface.')],
-                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Read-only by default. Only the two room setpoints of Stiebel Eltron heat pumps can be changed, and only after you confirm a notice in the form. Not every manufacturer is verified on real hardware yet -- the register maps come from official manufacturer documents or actively maintained reference integrations, see the note at the selected manufacturer.')],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Read-only by default. Only the setpoints of Stiebel Eltron heat pumps (room temperature and hot water, comfort and ECO) can be changed, and only after you confirm a notice in the form. Not every manufacturer is verified on real hardware yet -- the register maps come from official manufacturer documents or actively maintained reference integrations, see the note at the selected manufacturer.')],
                 ['type' => 'Button', 'caption' => WPMBHUB_Text::t('Understood – do not show again'), 'onClick' => 'WPMBHUB_AckPurposeIntro($id);'],
             ],
         ];

@@ -213,7 +213,7 @@ trait WPMBHUB_HeatpumpTrait
                     $this->SetValue($ident, (int)round($values[$ident]));
                     break;
                 case 'setpoint':
-                    $this->MaintainVariable($ident, $name, VARIABLETYPE_FLOAT, 'WPMBHUB.RoomSetpoint', $pos++, true);
+                    $this->MaintainVariable($ident, $name, VARIABLETYPE_FLOAT, (string)($def['profile'] ?? 'WPMBHUB.RoomSetpoint'), $pos++, true);
                     $this->SetValue($ident, (float)$values[$ident]);
                     if ($this->writeSupported() && isset($def['write'])) {
                         $this->EnableAction($ident);
@@ -441,11 +441,15 @@ trait WPMBHUB_HeatpumpTrait
     {
         // Betriebsart der Stiebel-Karten (nur lesend angezeigt). Die Namen entstehen einmal bei der Anlage des
         // Profils in der Sprache, die Symcon dann hat.
-        if (!IPS_VariableProfileExists('WPMBHUB.RoomSetpoint')) {
-            IPS_CreateVariableProfile('WPMBHUB.RoomSetpoint', VARIABLETYPE_FLOAT);
-            IPS_SetVariableProfileValues('WPMBHUB.RoomSetpoint', 5, 30, 1);
-            IPS_SetVariableProfileText('WPMBHUB.RoomSetpoint', '', ' °C');
-            IPS_SetVariableProfileDigits('WPMBHUB.RoomSetpoint', 1);
+        // Sollwert-Profile (Schieberegler in halben Graden). Eigene Profile des Moduls: Werte werden bei jeder
+        // Anlage nachgezogen, damit auch Profile aus 0.9.1 (Schritt 1) auf 0,5 kommen.
+        foreach (['WPMBHUB.RoomSetpoint' => [5, 30], 'WPMBHUB.HotWaterSetpoint' => [10, 60]] as $profile => $range) {
+            if (!IPS_VariableProfileExists($profile)) {
+                IPS_CreateVariableProfile($profile, VARIABLETYPE_FLOAT);
+                IPS_SetVariableProfileText($profile, '', ' °C');
+                IPS_SetVariableProfileDigits($profile, 1);
+            }
+            IPS_SetVariableProfileValues($profile, $range[0], $range[1], 0.5);
         }
         $modes = [
             'WPMBHUB.StiebelModeWPM' => [0 => WPMBHUB_Text::t('Emergency operation'), 1 => WPMBHUB_Text::t('Standby mode'), 2 => WPMBHUB_Text::t('Programmed operation'),

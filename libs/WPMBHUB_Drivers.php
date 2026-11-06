@@ -33,6 +33,8 @@ class WPMBHUB_Drivers
         'Betriebsart'         => 'Operating mode',
         'Zone1Komfort'        => 'Heating circuit 1 comfort temperature',
         'Zone1Eco'            => 'Heating circuit 1 ECO temperature',
+        'WarmwasserKomfort'   => 'Hot water comfort temperature',
+        'WarmwasserEco'       => 'Hot water ECO temperature',
     ];
 
     // Registerprofile je Hersteller ('caption' und 'confidence' sind englische Quelltexte, uebersetzt
@@ -107,9 +109,13 @@ class WPMBHUB_Drivers
                 'StromWarmwasser'       => ['regType' => 'input', 'addr' => 3514, 'type' => 'kwhmwh', 'kind' => 'energy', 'invalidRaw' => 0x8000],
                 // Block 2 (Holding, nur gelesen): Betriebsart 0 Notbetrieb, 1 Bereitschaft, 2 Programm, 3 Komfort, 4 ECO, 5 Warmwasser.
                 'Betriebsart'           => ['regType' => 'holding', 'addr' => 1500, 'scale' => 1, 'signed' => false, 'kind' => 'enum', 'profile' => 'WPMBHUB.StiebelModeWPM', 'invalidRaw' => 0x8000],
-                // Raumsollwerte Heizkreis 1 (Doku 1502/1503, Holding r/w, 5..30 Grad, Schritt 1): schreibbar, siehe oben.
-                'Zone1Komfort'          => ['regType' => 'holding', 'addr' => 1501, 'scale' => 10, 'signed' => true, 'kind' => 'setpoint', 'invalidRaw' => 0x8000, 'write' => ['min' => 5, 'max' => 30, 'step' => 1]],
-                'Zone1Eco'              => ['regType' => 'holding', 'addr' => 1502, 'scale' => 10, 'signed' => true, 'kind' => 'setpoint', 'invalidRaw' => 0x8000, 'write' => ['min' => 5, 'max' => 30, 'step' => 1]],
+                // Sollwerte (Doku 1502/1503 Heizkreis 1, 1510/1511 Warmwasser, Holding r/w): schreibbar, siehe oben.
+                // Die Schrittweite der Doku-Tabelle (1 bzw. 5) ist keine Geraetegrenze: die Register haben die Aufloesung
+                // 0,1 Grad (Datentyp 2), die Regelung selbst stellt halbe Grade ein (thorsten1, 06.11.2026, WPF 15). Daher 0,5.
+                'Zone1Komfort'          => ['regType' => 'holding', 'addr' => 1501, 'scale' => 10, 'signed' => true, 'kind' => 'setpoint', 'profile' => 'WPMBHUB.RoomSetpoint', 'invalidRaw' => 0x8000, 'write' => ['min' => 5, 'max' => 30, 'step' => 0.5]],
+                'Zone1Eco'              => ['regType' => 'holding', 'addr' => 1502, 'scale' => 10, 'signed' => true, 'kind' => 'setpoint', 'profile' => 'WPMBHUB.RoomSetpoint', 'invalidRaw' => 0x8000, 'write' => ['min' => 5, 'max' => 30, 'step' => 0.5]],
+                'WarmwasserKomfort'     => ['regType' => 'holding', 'addr' => 1509, 'scale' => 10, 'signed' => true, 'kind' => 'setpoint', 'profile' => 'WPMBHUB.HotWaterSetpoint', 'invalidRaw' => 0x8000, 'write' => ['min' => 10, 'max' => 60, 'step' => 0.5]],
+                'WarmwasserEco'         => ['regType' => 'holding', 'addr' => 1510, 'scale' => 10, 'signed' => true, 'kind' => 'setpoint', 'profile' => 'WPMBHUB.HotWaterSetpoint', 'invalidRaw' => 0x8000, 'write' => ['min' => 10, 'max' => 60, 'step' => 0.5]],
             ],
         ],
         // Stiebel Eltron Lueftungsintegralgeraete (LWZ/LWA ueber ISG): EIGENE Registerkarte, Doku Abschnitt 7.

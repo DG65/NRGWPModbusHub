@@ -1,5 +1,11 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.9.2 (Build 23) — 06.11.2026
+
+- **Fehler behoben: Sollwerte nur in ganzen Grad.** Das Modul rundete jeden Wert auf die „Schrittweite 1“ aus Stiebels Registertabelle, aus 21,5 °C wurden 22 °C. Die Tabelle gibt eine Schrittweite an, die keine Geräte­grenze ist: die Register haben 0,1 °C Auflösung (Datentyp 2), die Regelung stellt halbe Grad ein (thorsten1, WPF 15, Forum #28). Jetzt Schritt 0,5 °C (Schieberegler, Rundung, Profil `WPMBHUB.RoomSetpoint`, wird bei bestehenden Anlagen nachgezogen).
+- **Neu: schreibbare Warmwasser-Sollwerte (Stiebel, Wärmepumpen mit WPM)** — Komfort- und ECO-Temperatur Warmwasser (Doku 1510/1511, Holding, Function 6, 10 bis 60 °C, Schritt 0,5, Faktor 10), hinter derselben Belehrung wie die Raumsollwerte, eigenes Profil `WPMBHUB.HotWaterSetpoint`. Bisher gab es nur das nicht schreibbare Ist-Soll (Register 523). Ob die Regelung halbe Grad beim Warmwasser annimmt, ist offen: nimmt sie den Wert nicht, steht das nach dem Rücklesen in der Meldung.
+- **Store-Prüfung (Punkt 25): Formulartexte nicht mehr selbst übersetzt.** `WPMBHUB_Text::formular()` entfällt, die Konsole übersetzt die statischen Texte der `form.json` aus `locale.json` selbst. Variablennamen, Meldungen, Statuszeilen mit Werten und die dynamisch gebauten Abschnitte übersetzt das Modul weiter (mit Merkliste). Der Prüfstand prüft, dass jeder statische Formulartext in `locale.json` steht.
+
 ## 0.9.1 (Build 22) — 05.11.2026
 
 - **Englische Texte gegengelesen und an Stiebels englische Dokumentation angeglichen** (Anlass: Verbundregel zur Zweisprachigkeit, SUITE.md Konvention 9). Die Energievariablen heißen englisch jetzt „Heat energy produced, heating (total)“, „Electrical energy consumed, heating (total)“ usw. statt „Heat quantity …“; die Betriebsarten tragen eindeutige Namen („Standby mode“, „Programmed operation“, „Comfort mode“, „ECO mode“, „Hot water mode“, „Manual mode“), deutsch wie in Stiebels Dokumentation („Bereitschaftsbetrieb“, „Warmwasserbetrieb“ …). Nur Anzeigetexte, keine Kennungen und keine Funktion geändert.

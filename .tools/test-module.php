@@ -1189,8 +1189,28 @@ check('Deutsch: Variablenname "Außentemperatur", "Erreichbar"', ($GLOBALS['ips'
 $formDe = json_decode($de->GetConfigurationForm(), true);
 $optDe = findFormElement($formDe['elements'], 'Manufacturer')['options'] ?? [];
 check('Deutsch: Herstellerliste aus den Treibern (8 Einträge, deutsche Namen)', count($optDe) === 8 && $optDe[0]['caption'] === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)' && $optDe[7]['value'] === 'proxon', json_encode(array_column($optDe, 'caption'), JSON_UNESCAPED_UNICODE));
-check('Deutsch: Abschnitt "🔧 Allgemein", Knopf "Logging für die Messwerte einschalten"',
-    strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '"🔧 Allgemein"') !== false && strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '📈 Logging für die Messwerte einschalten') !== false);
+// Statische Formulartexte (form.json) uebersetzt Symcon selbst (Store-Punkt 25): sie bleiben englischer Quelltext im
+// Formular, und jeder davon muss in locale.json stehen, sonst bliebe er in der deutschen Konsole englisch.
+$staticTexts = function ($node) use (&$staticTexts): array {
+    $found = [];
+    if (is_array($node)) {
+        foreach ($node as $key => $value) {
+            if (is_string($key) && in_array($key, ['caption', 'confirm', 'label'], true) && is_string($value) && $value !== '') {
+                $found[] = $value;
+            } elseif (is_array($value)) {
+                $found = array_merge($found, $staticTexts($value));
+            }
+        }
+    }
+    return $found;
+};
+$localeDe = json_decode((string)file_get_contents(__DIR__ . '/../libs/locale.json'), true)['translations']['de'];
+foreach (['WPModbusHub', 'WPModbusHubGateway'] as $moduleDir) {
+    $missing = array_values(array_filter(array_unique($staticTexts(json_decode((string)file_get_contents(__DIR__ . '/../' . $moduleDir . '/form.json'), true))), fn ($t) => !isset($localeDe[$t])));
+    check('Formular ' . $moduleDir . ': jeder statische Text steht in locale.json (Symcon übersetzt ihn selbst)', $missing === [], json_encode($missing, JSON_UNESCAPED_UNICODE));
+}
+check('Formular: statische Texte bleiben englischer Quelltext (keine eigene Übersetzung)', strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '"🔧 Allgemein"') === false && strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '📈 Logging für die Messwerte einschalten') === false
+    && strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '📈 Enable logging for the measured values') !== false);
 check('Deutsch: Statuszeile mit Dezimalkomma', strpos(statusOf($de)[0], 'Außentemperatur 7,5 °C') !== false, statusOf($de)[0]);
 check('Deutsch: GetFunctions-Caption deutsch', $de->GetFunctions()[0]['Caption'] === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)');
 check('Deutsch: "Neu"-Banner zeigt die deutschen Zeilen zu 0.8.0 und 0.9.0', strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), 'Das Modul ist jetzt durchgehend zweisprachig') !== false && strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), 'neue Karte für Lüftungsintegralgeräte') !== false && strpos(json_encode($formDe, JSON_UNESCAPED_UNICODE), '🆕 Neu bis Version ' . array_key_last(WPModbusHub::NEWS_VERSIONS)) !== false);
@@ -1199,7 +1219,7 @@ $deGw->Create();
 $formDeGw = json_decode($deGw->GetConfigurationForm(), true);
 $optDeGw = findFormElement($formDeGw['elements'], 'Manufacturer')['options'] ?? [];
 check('Deutsch: Gateway-Herstellerliste deutsch', ($optDeGw[0]['caption'] ?? '') === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)' && ($optDeGw[4]['caption'] ?? '') === 'Samsung EHS (über MIM-B19N-Zubehörmodul)', json_encode(array_column($optDeGw, 'caption'), JSON_UNESCAPED_UNICODE));
-check('Deutsch: Gateway-"Neu"-Banner und Statuszeile deutsch', strpos(json_encode($formDeGw, JSON_UNESCAPED_UNICODE), 'Das Modul ist jetzt durchgehend zweisprachig') !== false && strpos(json_encode($formDeGw, JSON_UNESCAPED_UNICODE), 'Wärmepumpe (über ModBus-Gateway)') !== false);
+check('Deutsch: Gateway-"Neu"-Banner deutsch (Abschnittstitel bleibt Quelltext, Symcon übersetzt ihn)', strpos(json_encode($formDeGw, JSON_UNESCAPED_UNICODE), 'Das Modul ist jetzt durchgehend zweisprachig') !== false && strpos(json_encode($formDeGw, JSON_UNESCAPED_UNICODE), '🔌 Heat pump (via ModBus gateway)') !== false);
 
 // --- Englisch: keine deutschen Reste
 $GLOBALS['ips']['locale'] = [];
@@ -1315,7 +1335,7 @@ check('Stiebel: zwei Karten (WPM und LWZ) mit eigenen Adressen', isset(WPModbusH
 $doku = [
     'stiebeleltron' => ['Aussentemperatur' => 507, 'Zone1Ist' => 508, 'Zone1Soll' => 510, 'Vorlauftemperatur' => 515, 'Ruecklauftemperatur' => 516, 'Warmwasser' => 522, 'WarmwasserSoll' => 523,
         'Quellentemperatur' => 536, 'WaermemengeHeizen' => 3502, 'WaermemengeWarmwasser' => 3505, 'StromHeizen' => 3512, 'StromWarmwasser' => 3515, 'Betriebsart' => 1501,
-        'Zone1Komfort' => 1502, 'Zone1Eco' => 1503],
+        'Zone1Komfort' => 1502, 'Zone1Eco' => 1503, 'WarmwasserKomfort' => 1510, 'WarmwasserEco' => 1511],
     'stiebeleltron_lwz' => ['Aussentemperatur' => 7, 'Zone1Ist' => 8, 'Zone1Soll' => 9, 'Vorlauftemperatur' => 12, 'Ruecklauftemperatur' => 13, 'Warmwasser' => 16, 'WarmwasserSoll' => 17,
         'Verdichterstarts' => 31, 'WaermemengeHeizen' => 3002, 'WaermemengeWarmwasser' => 3005, 'StromHeizen' => 3023, 'StromWarmwasser' => 3026, 'Betriebsart' => 1001],
 ];
@@ -1551,7 +1571,7 @@ $arW->setAccessible(true);
 
 check('Vor der Belehrung: die beiden Sollwerte gehören nicht zu den gelesenen Registern', !isset($arW->invoke($wm, 'stiebeleltron')['Zone1Komfort']) && !isset($arW->invoke($wm, 'stiebeleltron')['Zone1Eco']) && isset($arW->invoke($wm, 'stiebeleltron')['Aussentemperatur']));
 $fakeW = new FakeModbusClient('127.0.0.1', 502, 1);
-$fakeW->values = ['input:506' => 45, 'holding:1501' => 215, 'holding:1502' => 180];
+$fakeW->values = ['input:506' => 45, 'holding:1501' => 215, 'holding:1502' => 180, 'holding:1509' => 485, 'holding:1510' => 420];
 $vW = $readW = $rrW->invoke($wm, $arW->invoke($wm, 'stiebeleltron'), $fakeW);
 $mvW->invoke($wm, $vW, true);
 check('Vor der Belehrung: keine Sollwert-Variablen, kein Lesen der Holding-Register 1501/1502', !isset($GLOBALS['ips']['variables']['Zone1Komfort']) && !isset($GLOBALS['ips']['variables']['Zone1Eco']) && !array_key_exists('Zone1Komfort', $vW));
@@ -1579,8 +1599,12 @@ check('Nach der Bestätigung: Sollwerte gehören zu den gelesenen Registern', is
 $vW2 = $rrW->invoke($wm, $arW->invoke($wm, 'stiebeleltron'), $fakeW);
 $mvW->invoke($wm, $vW2, true);
 check('Nach der Bestätigung: beide Variablen entstehen mit Bereichsprofil 5..30 und Aktion', ($GLOBALS['ips']['variables']['Zone1Komfort']['value'] ?? null) === 21.5 && ($GLOBALS['ips']['variables']['Zone1Eco']['value'] ?? null) === 18.0
-    && $GLOBALS['ips']['variables']['Zone1Komfort']['profile'] === 'WPMBHUB.RoomSetpoint' && ($GLOBALS['ips']['profiles']['WPMBHUB.RoomSetpoint']['values'] ?? null) === [5, 30, 1]
+    && $GLOBALS['ips']['variables']['Zone1Komfort']['profile'] === 'WPMBHUB.RoomSetpoint' && ($GLOBALS['ips']['profiles']['WPMBHUB.RoomSetpoint']['values'] ?? null) === [5, 30, 0.5]
     && !empty($GLOBALS['ips']['actions']['Zone1Komfort']) && !empty($GLOBALS['ips']['actions']['Zone1Eco']), json_encode($GLOBALS['ips']['variables']['Zone1Komfort'] ?? null));
+check('Nach der Bestätigung: Warmwasser-Sollwerte entstehen mit Profil 10..60 in Schritten von 0,5 und Aktion', ($GLOBALS['ips']['variables']['WarmwasserKomfort']['value'] ?? null) === 48.5 && ($GLOBALS['ips']['variables']['WarmwasserEco']['value'] ?? null) === 42.0
+    && $GLOBALS['ips']['variables']['WarmwasserKomfort']['profile'] === 'WPMBHUB.HotWaterSetpoint' && ($GLOBALS['ips']['profiles']['WPMBHUB.HotWaterSetpoint']['values'] ?? null) === [10, 60, 0.5]
+    && !empty($GLOBALS['ips']['actions']['WarmwasserKomfort']) && !empty($GLOBALS['ips']['actions']['WarmwasserEco']), json_encode($GLOBALS['ips']['variables']['WarmwasserKomfort'] ?? null));
+check('Nach der Bestätigung: Namen "Warmwasser Komforttemperatur" und "Warmwasser ECO-Temperatur"', ($GLOBALS['ips']['variables']['WarmwasserKomfort']['name'] ?? '') === 'Warmwasser Komforttemperatur' && ($GLOBALS['ips']['variables']['WarmwasserEco']['name'] ?? '') === 'Warmwasser ECO-Temperatur');
 check('Nach der Bestätigung: Variablennamen "Heizkreis 1 Komforttemperatur" und "Heizkreis 1 ECO-Temperatur"', $GLOBALS['ips']['variables']['Zone1Komfort']['name'] === 'Heizkreis 1 Komforttemperatur' && $GLOBALS['ips']['variables']['Zone1Eco']['name'] === 'Heizkreis 1 ECO-Temperatur');
 check('Statuszeile nennt die Sollwerte nicht als Temperaturwerte (nur Messwerte)', (function () use ($wm) {
     $m = new ReflectionMethod($wm, 'lastValuesText');
@@ -1635,7 +1659,10 @@ $clearBuf($wm);
 check('Schreiben: Wert über dem Bereich wird abgelehnt', strpos($tryAction($wm, 'Zone1Komfort', 35), 'außerhalb des erlaubten Bereichs 5 bis 30') !== false);
 check('Schreiben: Wert unter dem Bereich wird abgelehnt', strpos($tryAction($wm, 'Zone1Komfort', 4.9), 'außerhalb') !== false);
 check('Schreiben: Text statt Zahl wird abgelehnt', strpos($tryAction($wm, 'Zone1Komfort', 'warm'), 'keine Zahl') !== false);
-check('Schreiben: Schrittweite 1 (21,6 wird 22)', $tryAction($wm, 'Zone1Komfort', 21.6) === 'ok' && $GLOBALS['ips']['variables']['Zone1Komfort']['value'] === 22.0);
+check('Schreiben: Schrittweite 0,5 (21,5 wird als 215 geschrieben und bleibt 21,5; 21,6 wird 21,5)', $tryAction($wm, 'Zone1Komfort', 21.5) === 'ok' && $GLOBALS['ips']['variables']['Zone1Komfort']['value'] === 21.5);
+$GLOBALS['ips']['debug'] = [];
+check('Schreiben: Warmwasser Komfort 55,5 °C wird in Register 1509 als 555 geschrieben, zurückgelesen und gezeigt', $tryAction($wm, 'WarmwasserKomfort', 55.5) === 'ok' && $GLOBALS['ips']['variables']['WarmwasserKomfort']['value'] === 55.5);
+check('Schreiben: Warmwasser über 60 °C und unter 10 °C wird abgelehnt', strpos($tryAction($wm, 'WarmwasserEco', 61), 'außerhalb des erlaubten Bereichs 10 bis 60') !== false && strpos($tryAction($wm, 'WarmwasserEco', 9.5), 'außerhalb') !== false);
 check('Schreiben: ein Messwert (Aussentemperatur) ist nicht änderbar', strpos($tryAction($wm, 'Aussentemperatur', 5), 'lässt sich nicht ändern') !== false);
 check('Schreiben: der Vorgang steht im Meldungslog mit Name und Wert', count(array_filter($GLOBALS['ips']['log'], fn ($l) => strpos($l, 'per Nutzeraktion auf 22 °C geändert') !== false)) >= 1);
 proc_close($procOk);

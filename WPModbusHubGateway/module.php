@@ -146,7 +146,7 @@ class WPModbusHubGateway extends IPSModule
     {
         // Formulartexte der form.json sind englische Quelltexte; die dynamisch gebauten Teile unten
         // uebersetzen sich selbst (nicht doppelt uebersetzen).
-        $form = WPMBHUB_Text::formular(json_decode(file_get_contents(__DIR__ . '/form.json'), true));
+        $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
 
         $libraryInfo = @json_decode((string)@file_get_contents(__DIR__ . '/../library.json'), true);
         $libraryVersion = (is_array($libraryInfo) && isset($libraryInfo['version'])) ? (string)$libraryInfo['version'] : '?';
