@@ -89,6 +89,9 @@ class WPModbusHub extends IPSModule
         '0.9.2' => [
             'Stiebel Eltron (heat pumps with WPM): the setpoints can now be set in steps of 0.5 °C (before: whole degrees only, so 21.5 °C became 22 °C). New: the comfort and ECO temperature of hot water can be read and changed as well, after the same notice. Writing the room setpoints was confirmed on a real heat pump, the hot water values are new.',
         ],
+        '0.10.0' => [
+            'New card "Kronoterm (BMS Modbus, RS485)" for Kronoterm heat pumps (systems ADAPT, VERSI, WPLV, ETERA, ADAPT MAX): outdoor, flow, return and hot water temperature, current power consumption (also passed on to the NRG-Stack), thermal output, load, COP, operating hours, operating function, fault status and the energy counters. Read-only. A second card shifts all addresses by -1 for BMS versions that count that way. Not yet verified on real hardware.',
+        ],
     ];
     private const LIBRARY_GUID = '{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}';
 
@@ -466,7 +469,7 @@ class WPModbusHub extends IPSModule
             'expanded' => true,
             'caption'  => WPMBHUB_Text::t('💬  Feedback in the Symcon forum'),
             'items'    => [
-                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Questions, bugs or experience reports on NIBE, Stiebel Eltron, LG, Samsung, Waterkotte, IDM or Proxon -- the WPModbusHub forum thread is the place for that.')],
+                ['type' => 'Label', 'caption' => WPMBHUB_Text::t('Questions, bugs or experience reports on NIBE, Stiebel Eltron, LG, Samsung, Waterkotte, IDM, Proxon or Kronoterm -- the WPModbusHub forum thread is the place for that.')],
                 ['type' => 'Button', 'caption' => WPMBHUB_Text::t('To the forum thread'), 'onClick' => "echo '" . self::FORUM_THREAD_URL . "';", 'link' => true],
                 ['type' => 'Button', 'caption' => WPMBHUB_Text::t('Understood – do not show again'), 'onClick' => 'WPMBHUB_AckForumHint($id);'],
             ],

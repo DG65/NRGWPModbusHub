@@ -35,6 +35,22 @@ class WPMBHUB_Drivers
         'Zone1Eco'            => 'Heating circuit 1 ECO temperature',
         'WarmwasserKomfort'   => 'Hot water comfort temperature',
         'WarmwasserEco'       => 'Hot water ECO temperature',
+        // Kronoterm (BMS-Modbus, nur lesend)
+        'Betriebsfunktion'    => 'Current function',
+        'BetriebsartNorm'     => 'Operating mode (normalized)',
+        'Fehlerstatus'        => 'Fault status',
+        'Betriebsrichtung'    => 'Heating/cooling regime',
+        'Abtauen'             => 'Defrost active',
+        'Leistungsaufnahme'   => 'Electrical power consumption',
+        'Heizleistung'        => 'Thermal output',
+        'WPAuslastung'        => 'Heat pump load',
+        'StromGesamt'         => 'Electrical energy consumed, heating and hot water (total)',
+        'WaermemengeGesamt'   => 'Heat energy produced, heating and hot water (total)',
+        'COP'                 => 'COP',
+        'SCOP'                => 'SCOP',
+        'BetriebsstundenKuehlen'     => 'Compressor operating hours, cooling',
+        'BetriebsstundenHeizen'      => 'Compressor operating hours, heating',
+        'BetriebsstundenWarmwasser'  => 'Compressor operating hours, hot water',
     ];
 
     // Registerprofile je Hersteller ('caption' und 'confidence' sind englische Quelltexte, uebersetzt
@@ -55,8 +71,43 @@ class WPMBHUB_Drivers
     // 'write' => ['min','max','step'] ist ein SCHREIBBARER Sollwert (Holding-Register, Function 6,
     // Wert * scale): er wird nur nach der Belehrung im Formular gelesen und angeboten, und nur im
     // WPModbusHub (TCP), nicht ueber das ModBus-Gateway.
+    // Weitere Schluessel (Kronoterm): 'type' => 'u32' liest zwei Register als 32-Bit-Zaehler (erstes Register =
+    // hohes Wort, zweites = niedriges Wort, Wert = (hoch * 65536 + niedrig) / scale). 'kind' => 'power'
+    // (Float, NRG.Watt), 'percent' (Float, NRG.Percent), 'ratio' (Float mit 2 Nachkommastellen), 'hours'
+    // (Ganzzahl in h), 'flag' (Boolean). 'normMap' => [Rohwert => Normwert] bildet ein Enum-Register auf die
+    // normalisierte Betriebsart des Verbunds ab (-1 = unbekannt). Auf Herstellerebene 'addrOffset' => n
+    // verschiebt ALLE Adressen der Karte (Kronoterm: manche BMS zaehlen um 1 niedriger).
     // Ident-Namen bewusst identisch zu WPHub (Aussentemperatur/Warmwasser/…)
     // -- GetFunctions() loest sie genau wie dort ueber contractFieldID() auf.
+    // Kronoterm (BMS-Modbus, Handbuch 17-20-4023-04, Parameter "MA 2000+", Holding-Register Function 3):
+    // eine Registertabelle fuer beide Karten ('kronoterm' wie gedruckt, 'kronoterm_m1' mit Adressversatz -1).
+    // Nur lesend. Umrechnungen aus der Spalte "Conversion" des Handbuchs: Temperaturen x 0,1 Grad, Leistung x 1 W,
+    // COP x 0,01. Die Energiezaehler 2361-2364 tragen im Handbuch die Einheit "x1W" (gemeint ist sehr wahrscheinlich
+    // Wh); angenommen Wh -> kWh (scale 1000), NICHT geprueft und deshalb nicht als EnergyID im Vertrag.
+    const KRONOTERM_REGISTERS = [
+        'Aussentemperatur'    => ['regType' => 'holding', 'addr' => 2103, 'scale' => 10, 'signed' => true],
+        'Vorlauftemperatur'   => ['regType' => 'holding', 'addr' => 2104, 'scale' => 10, 'signed' => true],
+        'Ruecklauftemperatur' => ['regType' => 'holding', 'addr' => 2101, 'scale' => 10, 'signed' => true],
+        'Warmwasser'          => ['regType' => 'holding', 'addr' => 2102, 'scale' => 10, 'signed' => true],
+        'Betriebsfunktion'    => ['regType' => 'holding', 'addr' => 2001, 'scale' => 1, 'signed' => false, 'kind' => 'enum', 'profile' => 'WPMBHUB.KronotermFunction'],
+        // 0 Heizen, 1 Warmwasser, 2 Kuehlen, 3 Poolheizung, 4 therm. Desinfektion, 5 Bereitschaft, 7 Fernabschaltung
+        'BetriebsartNorm'     => ['regType' => 'holding', 'addr' => 2001, 'scale' => 1, 'signed' => false, 'kind' => 'enum', 'profile' => 'WPMBHUB.OperatingModeNorm',
+                                  'normMap' => [0 => 1, 1 => 3, 2 => 2, 3 => -1, 4 => 3, 5 => 0, 7 => 0]],
+        'Fehlerstatus'        => ['regType' => 'holding', 'addr' => 2006, 'scale' => 1, 'signed' => false, 'kind' => 'enum', 'profile' => 'WPMBHUB.KronotermFaultStatus'],
+        'Betriebsrichtung'    => ['regType' => 'holding', 'addr' => 2007, 'scale' => 1, 'signed' => false, 'kind' => 'enum', 'profile' => 'WPMBHUB.KronotermRegime'],
+        'Abtauen'             => ['regType' => 'holding', 'addr' => 2011, 'scale' => 1, 'signed' => false, 'kind' => 'flag'],
+        'Leistungsaufnahme'   => ['regType' => 'holding', 'addr' => 2129, 'scale' => 1, 'signed' => false, 'kind' => 'power'],
+        'Heizleistung'        => ['regType' => 'holding', 'addr' => 2329, 'scale' => 1, 'signed' => true, 'kind' => 'power'],
+        'WPAuslastung'        => ['regType' => 'holding', 'addr' => 2327, 'scale' => 1, 'signed' => false, 'kind' => 'percent'],
+        'StromGesamt'         => ['regType' => 'holding', 'addr' => 2361, 'type' => 'u32', 'scale' => 1000, 'kind' => 'energy'],
+        'WaermemengeGesamt'   => ['regType' => 'holding', 'addr' => 2363, 'type' => 'u32', 'scale' => 1000, 'kind' => 'energy'],
+        'COP'                 => ['regType' => 'holding', 'addr' => 2371, 'scale' => 100, 'signed' => false, 'kind' => 'ratio'],
+        'SCOP'                => ['regType' => 'holding', 'addr' => 2372, 'scale' => 100, 'signed' => false, 'kind' => 'ratio'],
+        'BetriebsstundenKuehlen'    => ['regType' => 'holding', 'addr' => 2089, 'scale' => 1, 'signed' => false, 'kind' => 'hours'],
+        'BetriebsstundenHeizen'     => ['regType' => 'holding', 'addr' => 2090, 'scale' => 1, 'signed' => false, 'kind' => 'hours'],
+        'BetriebsstundenWarmwasser' => ['regType' => 'holding', 'addr' => 2091, 'scale' => 1, 'signed' => false, 'kind' => 'hours'],
+    ];
+
     const DRIVERS = [
         // NIBE S-Serie (S1155/S1255 u.ae., TCP eingebaut) -- Registerkarte
         // aus einer aktiv gepflegten, unabhaengigen Referenzbibliothek fuer
@@ -297,6 +348,27 @@ class WPMBHUB_Drivers
                 'WarmwasserUnten' => ['regType' => 'input',   'addr' => 813,  'scale' => 10,  'signed' => false, 'offset' => -100],
                 'WarmwasserMitte' => ['regType' => 'input',   'addr' => 814,  'scale' => 10,  'signed' => false, 'offset' => -100],
             ],
+        ],
+        // Kronoterm (BMS-Modbus an der KSM-Regelung; Systeme ADAPT, VERSI, WPLV, ETERA, ADAPT MAX). Nach Herstellerdoku,
+        // an keiner echten Anlage geprueft. Vertrag: PowerID = Leistungsaufnahme (2129, Watt), EnergyID bleibt 0, solange
+        // die Einheit der Zaehler 2361-2364 nicht bestaetigt ist.
+        'kronoterm' => [
+            'caption'      => 'Kronoterm (BMS Modbus, RS485)',
+            'confidence'   => 'Register map from the Kronoterm BMS Modbus manual (document 17-20-4023-04, parameters MA 2000+), read-only, not verified on real hardware. The BMS interface speaks Modbus RTU over RS485 (factory unit ID 20, 115200 baud): with a USB-RS485 dongle on the Symcon host use the WPModbusHubGateway module (via Symcon\'s ModBus Gateway), on the Modbus TCP route use an RS485-to-Ethernet gateway in "Modbus TCP to RTU" mode. The manual says that, depending on the BMS, the addresses may be shifted by -1: if values look wrong (e.g. temperatures that clearly belong to another sensor), choose the second Kronoterm card. The unit of the energy counters is not stated clearly in the manual: Wh is assumed (shown in kWh) and the counters are deliberately not passed on as energy in the NRG-Stack contract. Please give feedback in the forum.',
+            'defaultPort'  => 502,
+            'defaultUnitId' => 20,
+            'addrOffset'   => 0,
+            'contractPower' => 'Leistungsaufnahme',
+            'registers'    => self::KRONOTERM_REGISTERS,
+        ],
+        'kronoterm_m1' => [
+            'caption'      => 'Kronoterm (BMS Modbus, addresses shifted by -1)',
+            'confidence'   => 'Same register map as the first Kronoterm card, but every address is shifted by -1 (the manual says that, depending on the BMS, the addresses may be offset by -1). Use this card only if the first one shows wrong or shifted values. Read-only, not verified on real hardware; RS485 as described at the first Kronoterm card.',
+            'defaultPort'  => 502,
+            'defaultUnitId' => 20,
+            'addrOffset'   => -1,
+            'contractPower' => 'Leistungsaufnahme',
+            'registers'    => self::KRONOTERM_REGISTERS,
         ],
     ];
 }

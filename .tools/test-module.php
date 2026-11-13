@@ -646,7 +646,7 @@ function findFormElement(array $items, string $name): ?array
 $GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
 $form = json_decode($mod->GetConfigurationForm(), true);
 $manufacturerSelect = findFormElement($form['elements'], 'Manufacturer');
-check('Formular hat ein Hersteller-Select mit acht Optionen', $manufacturerSelect !== null && count($manufacturerSelect['options']) === 8);
+check('Formular hat ein Hersteller-Select mit zehn Optionen', $manufacturerSelect !== null && count($manufacturerSelect['options']) === 10);
 
 $licenseHint = end($form['elements']);
 check('"Über dieses Modul" steht ganz unten', ($licenseHint['caption'] ?? '') === '🧡  Über dieses Modul');
@@ -694,11 +694,11 @@ $formNews = json_decode($newsMod->GetConfigurationForm(), true);
 $newsPanel = findFormElement($formNews['elements'], 'NewsPanel');
 check('News-Banner erscheint bei leerem SeenNews', $newsPanel !== null);
 check('News-Banner-Caption nennt die hoechste Version', ($newsPanel['caption'] ?? '') === '🆕 Neu bis Version ' . array_key_last(WPModbusHub::NEWS_VERSIONS), $newsPanel['caption'] ?? 'null');
-$GLOBALS['ips']['libraryVersion'] = '0.9.9-beta.3';
+$GLOBALS['ips']['libraryVersion'] = '0.10.9-beta.3';
 $newsMod->AckNews();
 $seenNews = new ReflectionMethod(WPModbusHub::class, 'ReadAttributeString');
 $seenNews->setAccessible(true);
-check('AckNews() speichert die tatsaechlich installierte BASISVERSION "0.9.9" (Beta-Suffix entfernt, NICHT nur den letzten NEWS_VERSIONS-Schluessel 0.7.1)', $seenNews->invoke($newsMod, 'SeenNews') === '0.9.9', $seenNews->invoke($newsMod, 'SeenNews'));
+check('AckNews() speichert die tatsaechlich installierte BASISVERSION "0.10.9" (Beta-Suffix entfernt, NICHT nur den letzten NEWS_VERSIONS-Schluessel 0.10.0)', $seenNews->invoke($newsMod, 'SeenNews') === '0.10.9', $seenNews->invoke($newsMod, 'SeenNews'));
 $GLOBALS['ips']['libraryVersion'] = '';
 $formNewsGone = json_decode($newsMod->GetConfigurationForm(), true);
 check('News-Banner ist nach AckNews() weg (kein neuerer Eintrag)', findFormElement($formNewsGone['elements'], 'NewsPanel') === null);
@@ -952,7 +952,7 @@ check('ReadRaw: Schreib-Function wird abgelehnt (nur lesen)', strpos($gw->ReadRa
 // Formular / Vertrag
 $formGw = json_decode($gw->GetConfigurationForm(), true);
 $selGw = findFormElement($formGw['elements'], 'Manufacturer');
-check('Gateway-Formular: Hersteller-Select aus DRIVERS erzeugt (8 Optionen)', $selGw !== null && count($selGw['options']) === count(WPModbusHub::DRIVERS) && count($selGw['options']) === 8);
+check('Gateway-Formular: Hersteller-Select aus DRIVERS erzeugt (10 Optionen)', $selGw !== null && count($selGw['options']) === count(WPModbusHub::DRIVERS) && count($selGw['options']) === 10);
 check('Gateway-Formular: hat "Verbindung testen"-Knopf', strpos(json_encode($formGw, JSON_UNESCAPED_UNICODE), 'WPMBGW_TestConnection($id)') !== false);
 check('Gateway-Formular: "Über dieses Modul" steht ganz unten', (end($formGw['elements'])['caption'] ?? '') === '🧡  Über dieses Modul');
 
@@ -1188,7 +1188,7 @@ $cycle($de, $vals);
 check('Deutsch: Variablenname "Außentemperatur", "Erreichbar"', ($GLOBALS['ips']['variables']['Aussentemperatur']['name'] ?? '') === 'Außentemperatur' && ($GLOBALS['ips']['variables']['Erreichbar']['name'] ?? '') === 'Erreichbar');
 $formDe = json_decode($de->GetConfigurationForm(), true);
 $optDe = findFormElement($formDe['elements'], 'Manufacturer')['options'] ?? [];
-check('Deutsch: Herstellerliste aus den Treibern (8 Einträge, deutsche Namen)', count($optDe) === 8 && $optDe[0]['caption'] === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)' && $optDe[7]['value'] === 'proxon', json_encode(array_column($optDe, 'caption'), JSON_UNESCAPED_UNICODE));
+check('Deutsch: Herstellerliste aus den Treibern (10 Einträge, deutsche Namen)', count($optDe) === 10 && $optDe[0]['caption'] === 'NIBE (S-Serie, z. B. S1155/S1255/S2125)' && $optDe[7]['value'] === 'proxon' && $optDe[8]['value'] === 'kronoterm', json_encode(array_column($optDe, 'caption'), JSON_UNESCAPED_UNICODE));
 // Statische Formulartexte (form.json) uebersetzt Symcon selbst (Store-Punkt 25): sie bleiben englischer Quelltext im
 // Formular, und jeder davon muss in locale.json stehen, sonst bliebe er in der deutschen Konsole englisch.
 $staticTexts = function ($node) use (&$staticTexts): array {
@@ -1718,6 +1718,175 @@ $panelEn = findFormElement(json_decode($wmEn->GetConfigurationForm(), true)['ele
 $restEn = array_values(array_filter($captionsOf($panelEn), $germanLeft));
 check('Englisch: Belehrung ohne deutsche Reste und mit Bestätigungsknopf', $panelEn !== null && $restEn === [] && strpos(json_encode($panelEn), 'I have read and understood this') !== false, implode(' | ', $restEn));
 $GLOBALS['ips']['locale'] = json_decode((string)file_get_contents(__DIR__ . '/../libs/locale.json'), true)['translations']['de'];
+
+// ---------------------------------------------------------------------------
+echo "Block 13: Kronoterm -- BMS-Modbus-Karte, nur lesend (0.10.0)\n";
+// ---------------------------------------------------------------------------
+
+$GLOBALS['ips']['locale'] = json_decode((string)file_get_contents(__DIR__ . '/../libs/locale.json'), true)['translations']['de'];
+check('Kronoterm: zwei Karten (wie gedruckt und Adressversatz -1) mit derselben Registertabelle', isset(WPModbusHub::DRIVERS['kronoterm'], WPModbusHub::DRIVERS['kronoterm_m1'])
+    && WPModbusHub::DRIVERS['kronoterm']['registers'] === WPModbusHub::DRIVERS['kronoterm_m1']['registers']
+    && WPModbusHub::DRIVERS['kronoterm']['addrOffset'] === 0 && WPModbusHub::DRIVERS['kronoterm_m1']['addrOffset'] === -1
+    && WPModbusHub::DRIVERS['kronoterm']['defaultUnitId'] === 20);
+
+// Alle Adressen gegen die Tabellen des Handbuchs 17-20-4023-04 (Abschnitt 3 "Modbus table" und 4.10-4.12): Ident => MA-Adresse
+$kronoDoku = ['Aussentemperatur' => 2103, 'Vorlauftemperatur' => 2104, 'Ruecklauftemperatur' => 2101, 'Warmwasser' => 2102, 'Betriebsfunktion' => 2001, 'BetriebsartNorm' => 2001,
+    'Fehlerstatus' => 2006, 'Betriebsrichtung' => 2007, 'Abtauen' => 2011, 'Leistungsaufnahme' => 2129, 'Heizleistung' => 2329, 'WPAuslastung' => 2327,
+    'StromGesamt' => 2361, 'WaermemengeGesamt' => 2363, 'COP' => 2371, 'SCOP' => 2372, 'BetriebsstundenKuehlen' => 2089, 'BetriebsstundenHeizen' => 2090, 'BetriebsstundenWarmwasser' => 2091];
+$bad = [];
+foreach ($kronoDoku as $ident => $ma) {
+    $def = WPModbusHub::DRIVERS['kronoterm']['registers'][$ident] ?? null;
+    if ($def === null || $def['addr'] !== $ma || $def['regType'] !== 'holding') {
+        $bad[] = "$ident: " . json_encode($def) . " statt holding $ma";
+    }
+}
+foreach (WPModbusHub::DRIVERS['kronoterm']['registers'] as $ident => $_) {
+    if (!isset($kronoDoku[$ident])) {
+        $bad[] = "$ident nicht in der Doku-Tabelle des Tests";
+    }
+}
+check('Kronoterm: jede Adresse ist die MA-Adresse des Handbuchs (Holding-Register)', $bad === [], implode(' | ', $bad));
+$kronoFactors = ['Aussentemperatur' => 10, 'Vorlauftemperatur' => 10, 'Ruecklauftemperatur' => 10, 'Warmwasser' => 10, 'Leistungsaufnahme' => 1, 'Heizleistung' => 1, 'COP' => 100, 'SCOP' => 100];
+$bad = [];
+foreach ($kronoFactors as $ident => $factor) {
+    if ((WPModbusHub::DRIVERS['kronoterm']['registers'][$ident]['scale'] ?? null) !== $factor) {
+        $bad[] = $ident;
+    }
+}
+check('Kronoterm: Umrechnung wie im Handbuch (Temperaturen x 0,1, Leistung x 1 W, COP x 0,01)', $bad === [], implode(',', $bad));
+$writable = array_filter(WPModbusHub::DRIVERS['kronoterm']['registers'], fn ($d) => isset($d['write']) || ($d['kind'] ?? '') === 'setpoint');
+check('Kronoterm: nur lesend (kein Schreibfeld in der Karte)', $writable === []);
+check('Kronoterm: Energiezähler 2361/2362 und 2363/2364 sind 32-Bit-Paare (u32, Wh -> kWh angenommen)', WPModbusHub::DRIVERS['kronoterm']['registers']['StromGesamt']['type'] === 'u32'
+    && WPModbusHub::DRIVERS['kronoterm']['registers']['StromGesamt']['scale'] === 1000 && WPModbusHub::DRIVERS['kronoterm']['registers']['WaermemengeGesamt']['type'] === 'u32');
+
+// Lesen mit Attrappe
+$GLOBALS['ips']['variables'] = [];
+$GLOBALS['ips']['profiles'] = [];
+$GLOBALS['ips']['properties']['Manufacturer'] = 'kronoterm';
+$GLOBALS['ips']['properties']['Host'] = '203.0.113.20';
+$modKr = new WPModbusHub(12345);
+$modKr->Create();
+$arKr = new ReflectionMethod($modKr, 'activeRegisters');
+$arKr->setAccessible(true);
+$rrKr = new ReflectionMethod($modKr, 'readRegisters');
+$rrKr->setAccessible(true);
+$mvKr = new ReflectionMethod($modKr, 'maintainDeviceVariables');
+$mvKr->setAccessible(true);
+$krValues = ['holding:2103' => 0xFFF6 /* -1,0 */, 'holding:2104' => 385, 'holding:2101' => 330, 'holding:2102' => 485, 'holding:2001' => 1, 'holding:2006' => 2, 'holding:2007' => 1,
+    'holding:2011' => 1, 'holding:2129' => 1234, 'holding:2329' => 3500, 'holding:2327' => 45, 'holding:2361' => 1, 'holding:2362' => 0, 'holding:2363' => 0, 'holding:2364' => 5000,
+    'holding:2371' => 345, 'holding:2372' => 410, 'holding:2089' => 10, 'holding:2090' => 20, 'holding:2091' => 30];
+$fakeKr = new FakeModbusClient('203.0.113.20', 502, 20);
+$fakeKr->values = $krValues;
+$vKr = $rrKr->invoke($modKr, $arKr->invoke($modKr, 'kronoterm'), $fakeKr);
+check('Kronoterm: Temperaturen (auch negativ) und Leistungen korrekt dekodiert', ($vKr['Aussentemperatur'] ?? null) === -1.0 && ($vKr['Vorlauftemperatur'] ?? null) === 38.5 && ($vKr['Ruecklauftemperatur'] ?? null) === 33.0
+    && ($vKr['Warmwasser'] ?? null) === 48.5 && ($vKr['Leistungsaufnahme'] ?? null) === 1234.0 && ($vKr['Heizleistung'] ?? null) === 3500.0 && ($vKr['WPAuslastung'] ?? null) === 45.0, json_encode($vKr));
+check('Kronoterm: 32-Bit-Zähler = hohes Wort * 65536 + niedriges Wort (1/0 -> 65,536 kWh), Wärmemenge 5,0 kWh', ($vKr['StromGesamt'] ?? null) === 65.536 && ($vKr['WaermemengeGesamt'] ?? null) === 5.0, json_encode($vKr));
+$fakeKr->values['holding:2361'] = 0x0001;
+$fakeKr->values['holding:2362'] = 0x86A0; // 34464 -> 1 * 65536 + 34464 = 100000 Wh
+$vKr2 = $rrKr->invoke($modKr, $arKr->invoke($modKr, 'kronoterm'), $fakeKr);
+check('Kronoterm: Zähler 1/0x86A0 = 100000 Wh = 100 kWh', ($vKr2['StromGesamt'] ?? null) === 100.0, json_encode($vKr2['StromGesamt'] ?? null));
+check('Kronoterm: COP 3,45 und SCOP 4,10 (x 0,01), Betriebsstunden und Abtauen', ($vKr['COP'] ?? null) === 3.45 && ($vKr['SCOP'] ?? null) === 4.1 && ($vKr['BetriebsstundenKuehlen'] ?? null) === 10.0
+    && ($vKr['BetriebsstundenHeizen'] ?? null) === 20.0 && ($vKr['BetriebsstundenWarmwasser'] ?? null) === 30.0 && ($vKr['Abtauen'] ?? null) === 1.0);
+check('Kronoterm: Betriebsfunktion 1 (Warmwasser) -> normiert 3, Fehlerstatus 2, Regime 1', ($vKr['Betriebsfunktion'] ?? null) === 1.0 && ($vKr['BetriebsartNorm'] ?? null) === 3.0
+    && ($vKr['Fehlerstatus'] ?? null) === 2.0 && ($vKr['Betriebsrichtung'] ?? null) === 1.0);
+$normCases = [0 => 1.0, 1 => 3.0, 2 => 2.0, 3 => -1.0, 4 => 3.0, 5 => 0.0, 7 => 0.0, 6 => -1.0, 99 => -1.0];
+$badNorm = [];
+foreach ($normCases as $raw => $expected) {
+    $fakeKr->values['holding:2001'] = $raw;
+    $vNorm = $rrKr->invoke($modKr, ['BetriebsartNorm' => WPModbusHub::DRIVERS['kronoterm']['registers']['BetriebsartNorm']], $fakeKr);
+    if (($vNorm['BetriebsartNorm'] ?? null) !== $expected) {
+        $badNorm[] = "$raw -> " . json_encode($vNorm['BetriebsartNorm'] ?? null);
+    }
+}
+check('Kronoterm: Normierung der Betriebsfunktion (0 Heizen, 1 Warmwasser, 2 Kühlen, 5 Standby, unbekannt -1)', $badNorm === [], implode(' | ', $badNorm));
+$fakeKr->values['holding:2001'] = 1;
+
+// Adressversatz -1: zweite Karte liest jede Adresse um 1 niedriger
+$GLOBALS['ips']['properties']['Manufacturer'] = 'kronoterm_m1';
+$modKr1 = new WPModbusHub(12345);
+$modKr1->Create();
+$regsM1 = $arKr->invoke($modKr1, 'kronoterm_m1');
+$badShift = [];
+foreach (WPModbusHub::DRIVERS['kronoterm']['registers'] as $ident => $def) {
+    if (($regsM1[$ident]['addr'] ?? null) !== $def['addr'] - 1) {
+        $badShift[] = $ident;
+    }
+}
+check('Kronoterm -1: jede Adresse der zweiten Karte liegt genau um 1 unter der MA-Adresse', $badShift === [] && WPModbusHub::DRIVERS['kronoterm']['registers']['COP']['addr'] === 2371, implode(',', $badShift));
+$fakeShift = new FakeModbusClient('203.0.113.20', 502, 20);
+foreach ($krValues as $key => $val) {
+    [$type, $addr] = explode(':', $key);
+    $fakeShift->values[$type . ':' . ((int)$addr - 1)] = $val;
+}
+$vShift = $rrKr->invoke($modKr1, $regsM1, $fakeShift);
+check('Kronoterm -1: mit um 1 verschobenen Registern liefert die zweite Karte dieselben Werte', ($vShift['Vorlauftemperatur'] ?? null) === 38.5 && ($vShift['StromGesamt'] ?? null) === 65.536 && ($vShift['COP'] ?? null) === 3.45, json_encode($vShift));
+check('Kronoterm -1: die Registertabelle der ersten Karte wird dabei nicht verändert', WPModbusHub::DRIVERS['kronoterm']['registers']['Aussentemperatur']['addr'] === 2103);
+
+// Variablen, Profile (Stolperstein 29: Profil passend zum Variablentyp) und Vertrag
+$GLOBALS['ips']['variables'] = [];
+$GLOBALS['ips']['profiles'] = [];
+$GLOBALS['ips']['properties']['Manufacturer'] = 'kronoterm';
+$modKr->ApplyChanges();
+$mvKr->invoke($modKr, $vKr, true);
+$varsKr = $GLOBALS['ips']['variables'];
+$profKr = $GLOBALS['ips']['profiles'];
+check('Kronoterm: Leistung (NRG.Watt), Auslastung (NRG.Percent), COP (2 Nachkommastellen), Betriebsstunden (h), Abtauen (Boolean ohne Profil)',
+    ($varsKr['Leistungsaufnahme']['profile'] ?? '') === 'NRG.Watt' && ($varsKr['WPAuslastung']['profile'] ?? '') === 'NRG.Percent' && ($varsKr['COP']['profile'] ?? '') === 'WPMBHUB.Ratio'
+    && ($profKr['WPMBHUB.Ratio']['digits'] ?? null) === 2 && ($varsKr['BetriebsstundenHeizen']['profile'] ?? '') === 'WPMBHUB.Hours' && ($varsKr['BetriebsstundenHeizen']['type'] ?? null) === VARIABLETYPE_INTEGER
+    && ($varsKr['Abtauen']['type'] ?? null) === VARIABLETYPE_BOOLEAN && ($varsKr['Abtauen']['profile'] ?? 'x') === '' && ($varsKr['Abtauen']['value'] ?? null) === true, json_encode($varsKr['Abtauen'] ?? null));
+$badTypes = [];
+foreach ($varsKr as $ident => $v) {
+    if ($v['profile'] === '' || $v['profile'][0] === '~') {
+        continue;
+    }
+    $profileType = $profKr[$v['profile']]['type'] ?? null;
+    if ($profileType === null) {
+        $badTypes[] = "$ident: Profil {$v['profile']} fehlt";
+    } elseif ($profileType !== $v['type']) {
+        $badTypes[] = "$ident: Profiltyp $profileType, Variablentyp {$v['type']}";
+    }
+}
+foreach ($profKr as $name => $profile) {
+    if (($profile['digits'] ?? 0) > 0 && !in_array($profile['type'], [VARIABLETYPE_FLOAT, VARIABLETYPE_INTEGER], true)) {
+        $badTypes[] = "$name: Nachkommastellen an String/Boolean";
+    }
+}
+check('Kronoterm: jedes Profil passt zum Variablentyp (Float/Integer-Profile nur an Float/Integer, Stolperstein 29)', $badTypes === [], implode(' | ', $badTypes));
+check('Kronoterm: Betriebsfunktion/Fehlerstatus/Regime/Norm tragen Assoziationsprofile (Integer) mit Texten',
+    count($profKr['WPMBHUB.KronotermFunction']['associations'] ?? []) === 7 && count($profKr['WPMBHUB.KronotermFaultStatus']['associations'] ?? []) === 4
+    && count($profKr['WPMBHUB.KronotermRegime']['associations'] ?? []) === 3 && count($profKr['WPMBHUB.OperatingModeNorm']['associations'] ?? []) === 7
+    && ($profKr['WPMBHUB.KronotermFaultStatus']['associations'][2] ?? '') === 'Störung');
+check('Kronoterm: keine Variable ist bedienbar (kein EnableAction)', empty($GLOBALS['ips']['actions']));
+$fnKr = $modKr->GetFunctions()[0];
+check('Kronoterm: Vertrag heatpump 1.15 -- PowerID = Leistungsaufnahme, EnergyID bleibt 0 (Einheit der Zähler unbestätigt)',
+    $fnKr['contractVersion'] === '1.15' && $fnKr['PowerID'] === $varsKr['Leistungsaufnahme']['id'] && $fnKr['EnergyID'] === 0, json_encode($fnKr));
+check('Kronoterm: Vertrag -- Außen-, Vor-/Rücklauf-, Warmwassertemperatur und normierte Betriebsart verknüpft',
+    $fnKr['outsideTempID'] === $varsKr['Aussentemperatur']['id'] && $fnKr['mainOutletTempID'] === $varsKr['Vorlauftemperatur']['id'] && $fnKr['mainInletTempID'] === $varsKr['Ruecklauftemperatur']['id']
+    && $fnKr['dhwTempID'] === $varsKr['Warmwasser']['id'] && $fnKr['operatingModeNormID'] === $varsKr['BetriebsartNorm']['id']);
+$lvKr = new ReflectionMethod($modKr, 'lastValuesText');
+$lvKr->setAccessible(true);
+$lvText = $lvKr->invoke($modKr, 'kronoterm');
+check('Kronoterm: Statuszeile nennt nur Temperaturen (keine Leistung, Zähler, Betriebsart)', strpos($lvText, 'Außentemperatur -1,0 °C') !== false && strpos($lvText, 'Vorlauftemperatur 38,5 °C') !== false
+    && strpos($lvText, 'Leistung') === false && strpos($lvText, 'Stromverbrauch') === false, $lvText);
+// Andere Karten bleiben unverändert (PowerID 0, keine Norm-Variable)
+$GLOBALS['ips']['variables'] = [];
+$GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
+$modNibe = new WPModbusHub(12345);
+$modNibe->Create();
+(new ReflectionMethod($modNibe, 'maintainDeviceVariables'))->invoke($modNibe, ['Aussentemperatur' => 7.5], true);
+$fnNibe = $modNibe->GetFunctions()[0];
+check('NIBE: Vertrag unverändert (PowerID 0, keine normierte Betriebsart)', $fnNibe['PowerID'] === 0 && $fnNibe['EnergyID'] === 0 && $fnNibe['operatingModeNormID'] === 0);
+
+// Gateway-Modul: dieselbe Karte, kein Schreiben
+$GLOBALS['ips']['properties']['Manufacturer'] = 'kronoterm_m1';
+$gwKr = new WPModbusHubGateway(12345);
+$gwKr->Create();
+$arGwKr = new ReflectionMethod($gwKr, 'activeRegisters');
+$arGwKr->setAccessible(true);
+$regsGw = $arGwKr->invoke($gwKr, 'kronoterm_m1');
+check('Kronoterm: das Gateway-Modul nutzt dieselbe Karte inklusive Adressversatz', ($regsGw['Aussentemperatur']['addr'] ?? null) === 2102 && count($regsGw) === count(WPModbusHub::DRIVERS['kronoterm']['registers']));
+$GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
+$GLOBALS['ips']['variables'] = [];
 
 // ---------------------------------------------------------------------------
 echo "\n";

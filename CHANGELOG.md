@@ -1,5 +1,12 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.10.0 (Build 24) — 13.11.2026
+
+- **Neu: Kronoterm (BMS-Modbus, nur lesend).** Zwei Karten „Kronoterm (BMS-Modbus, RS485)" und „Kronoterm (BMS-Modbus, Adressen um 1 verschoben)" aus dem Handbuch 17-20-4023-04 (Parameter MA 2000+, Holding-Register, Werks-Geräte-ID 20, 115200 Baud): Außen-/Vorlauf-/Rücklauf-/Warmwassertemperatur (2103/2104/2101/2102), Betriebsfunktion 2001 (roh und normiert), Fehlerstatus 2006, Betriebsrichtung 2007, Abtauung 2011, Leistungsaufnahme 2129 (→ `PowerID` im Wärmepumpen-Vertrag, Watt), thermische Leistung 2329, Auslastung 2327, Energiezähler 2361/2362 und 2363/2364, COP/SCOP 2371/2372, Verdichter-Betriebsstunden 2089–2091. Anlass: Dirk Allard (dallard) mit einer Kronoterm VERSI, Wunsch von Dietmar nach beiden Wegen (Cloud über WPHub, lokal über Modbus). An keiner echten Anlage geprüft.
+- **Neuer Registertyp `u32`** (32-Bit-Zähler aus hohem und niedrigem Wort, hohes Wort zuerst), neue Arten `power`/`percent`/`ratio`/`hours`/`flag`, `normMap` (Enum → normierte Betriebsart des Verbunds, `operatingModeNormID`) und Herstellerschlüssel `addrOffset` (verschiebt alle Adressen einer Karte). Andere Karten sind unverändert.
+- **Bewusst offen:** Die Einheit der Energiezähler steht im Handbuch als „x1W" (gemeint wohl Wh). Angenommen Wh, angezeigt in kWh, aber **nicht** als `EnergyID` im Vertrag, bis ein Nutzer sie an der Anzeige geprüft hat (SUITE.md: lieber keine Größe als eine mit falschem Faktor). Der Adressversatz −1 ist laut Handbuch je nach BMS möglich; deshalb zwei Karten statt einer Annahme.
+- Neue Profile `WPMBHUB.Ratio`, `WPMBHUB.Hours`, `WPMBHUB.KronotermFunction`, `WPMBHUB.KronotermFaultStatus`, `WPMBHUB.KronotermRegime`, `WPMBHUB.OperatingModeNorm`; die gemeinsamen `NRG.Watt` und `NRG.Percent` werden nur angelegt, falls sie fehlen. Prüfstand Block 13.
+
 ## 0.9.2 (Build 23) — 06.11.2026
 
 - **Fehler behoben: Sollwerte nur in ganzen Grad.** Das Modul rundete jeden Wert auf die „Schrittweite 1“ aus Stiebels Registertabelle, aus 21,5 °C wurden 22 °C. Die Tabelle gibt eine Schrittweite an, die keine Geräte­grenze ist: die Register haben 0,1 °C Auflösung (Datentyp 2), die Regelung stellt halbe Grad ein (thorsten1, WPF 15, Forum #28). Jetzt Schritt 0,5 °C (Schieberegler, Rundung, Profil `WPMBHUB.RoomSetpoint`, wird bei bestehenden Anlagen nachgezogen).

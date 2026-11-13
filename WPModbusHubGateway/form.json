@@ -96,7 +96,7 @@
                                 "items": [
                                     {
                                         "type": "Label",
-                                        "caption": "Not in this instance but in the object tree above it: the slave/device ID is the \"Device ID\" of the ModBus gateway (for RS485: gateway mode \"RTU\"); baud rate, data bits, parity and stop bits are set in the Serial Port below it. Example Proxon: device ID 41, 19200 baud, 8 data bits, even parity, 1 stop bit. This instance only sends the function code, address and number of registers to the gateway."
+                                        "caption": "Not in this instance but in the object tree above it: the slave/device ID is the \"Device ID\" of the ModBus gateway (for RS485: gateway mode \"RTU\"); baud rate, data bits, parity and stop bits are set in the Serial Port below it. Example Proxon: device ID 41, 19200 baud, 8 data bits, even parity, 1 stop bit. Example Kronoterm (BMS): device ID 20, 115200 baud, 8 data bits, no parity, 1 stop bit. This instance only sends the function code, address and number of registers to the gateway."
                                     }
                                 ]
                             }

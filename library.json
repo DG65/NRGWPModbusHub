@@ -3,9 +3,9 @@
     "author": "DG65",
     "name": "NRG-Stack WPModbusHub",
     "url": "https://github.com/DG65/NRGWPModbusHub",
-    "version": "0.9.2",
-    "build": 23,
-    "date": 1793923200,
+    "version": "0.10.0",
+    "build": 24,
+    "date": 1794528000,
     "compatibility": {
         "version": "9.0"
     }

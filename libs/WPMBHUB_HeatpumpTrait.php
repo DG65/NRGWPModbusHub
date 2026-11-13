@@ -74,13 +74,24 @@ trait WPMBHUB_HeatpumpTrait
      */
     private function activeRegisters(string $manufacturer): array
     {
-        $registers = WPMBHUB_Drivers::DRIVERS[$manufacturer]['registers'] ?? [];
-        if ($this->writeSupported() && $this->ReadAttributeBoolean('WriteNoticeAccepted')) {
-            return $registers;
+        $driver = WPMBHUB_Drivers::DRIVERS[$manufacturer] ?? [];
+        $registers = $driver['registers'] ?? [];
+        if (!($this->writeSupported() && $this->ReadAttributeBoolean('WriteNoticeAccepted'))) {
+            $registers = array_filter($registers, function ($def) {
+                return !isset($def['write']);
+            });
         }
-        return array_filter($registers, function ($def) {
-            return !isset($def['write']);
-        });
+        // Kronoterm: manche BMS zaehlen die Adressen um 1 niedriger; die zweite Karte verschiebt alle Adressen.
+        $offset = (int)($driver['addrOffset'] ?? 0);
+        if ($offset !== 0) {
+            foreach ($registers as $ident => $def) {
+                $registers[$ident]['addr'] = $def['addr'] + $offset;
+                if (isset($def['altAddr'])) {
+                    $registers[$ident]['altAddr'] = $def['altAddr'] + $offset;
+                }
+            }
+        }
+        return $registers;
     }
 
     private function readRegisterBlock($client, array $def, int $addr, int $count): ?array
@@ -99,7 +110,7 @@ trait WPMBHUB_HeatpumpTrait
             $anyAttempt = true;
             $type = $def['type'] ?? 'int16';
             $isFloat32 = $type === 'float32';
-            $count = ($isFloat32 || $type === 'kwhmwh') ? 2 : 1;
+            $count = ($isFloat32 || $type === 'kwhmwh' || $type === 'u32') ? 2 : 1;
             $regs = $this->readRegisterBlock($client, $def, $def['addr'], $count);
             // Manche Geraete melden "Objekt nicht vorhanden" mit einem festen Ersatzwert (Stiebel ISG:
             // 0x8000, LWZ-Sensoren -60/-50). Der darf nie als Messwert erscheinen; eine Ausweichadresse
@@ -141,6 +152,9 @@ trait WPMBHUB_HeatpumpTrait
                 // direkt in Grad Celsius (siehe floatLE()-Kommentar zur
                 // Wortreihenfolge).
                 $out[$ident] = $client->floatLE($regs, 0);
+            } elseif ($type === 'u32') {
+                // 32-Bit-Zaehler: erstes Register = hohes Wort, zweites = niedriges Wort (Kronoterm).
+                $out[$ident] = ((float)$client->u16($regs, 0) * 65536.0 + (float)$client->u16($regs, 1)) / ($def['scale'] ?? 1);
             } elseif ($type === 'kwhmwh') {
                 // Stiebel-Zaehler: Register 1 = kWh-Teil (0..999), Register 2 = MWh-Teil.
                 $out[$ident] = (float)$client->u16($regs, 1) * 1000.0 + (float)$client->u16($regs, 0);
@@ -151,7 +165,9 @@ trait WPMBHUB_HeatpumpTrait
                 // int/int-Werten sonst wieder einen int zurueck (z.B. 470/10 =
                 // int 47 statt float 47.0) -- MaintainVariable() erwartet einen
                 // durchgehend gleichartigen Typ je Ident.
-                $out[$ident] = (float)$raw / $scale + (float)($def['offset'] ?? 0);
+                $out[$ident] = isset($def['normMap'])
+                    ? (float)($def['normMap'][$raw] ?? -1)
+                    : (float)$raw / $scale + (float)($def['offset'] ?? 0);
             }
         }
         if ($anyAttempt && !$anySuccess) {
@@ -207,6 +223,26 @@ trait WPMBHUB_HeatpumpTrait
                 case 'energy':
                     $this->MaintainVariable($ident, $name, VARIABLETYPE_FLOAT, '~Electricity', $pos++, true);
                     $this->SetValue($ident, (float)$values[$ident]);
+                    break;
+                case 'power':
+                    $this->MaintainVariable($ident, $name, VARIABLETYPE_FLOAT, 'NRG.Watt', $pos++, true);
+                    $this->SetValue($ident, (float)$values[$ident]);
+                    break;
+                case 'percent':
+                    $this->MaintainVariable($ident, $name, VARIABLETYPE_FLOAT, 'NRG.Percent', $pos++, true);
+                    $this->SetValue($ident, (float)$values[$ident]);
+                    break;
+                case 'ratio':
+                    $this->MaintainVariable($ident, $name, VARIABLETYPE_FLOAT, 'WPMBHUB.Ratio', $pos++, true);
+                    $this->SetValue($ident, (float)$values[$ident]);
+                    break;
+                case 'hours':
+                    $this->MaintainVariable($ident, $name, VARIABLETYPE_INTEGER, 'WPMBHUB.Hours', $pos++, true);
+                    $this->SetValue($ident, (int)round($values[$ident]));
+                    break;
+                case 'flag':
+                    $this->MaintainVariable($ident, $name, VARIABLETYPE_BOOLEAN, '', $pos++, true);
+                    $this->SetValue($ident, ((int)round($values[$ident])) !== 0);
                     break;
                 case 'counter':
                     $this->MaintainVariable($ident, $name, VARIABLETYPE_INTEGER, '', $pos++, true);
@@ -400,11 +436,13 @@ trait WPMBHUB_HeatpumpTrait
     private function buildFunctions(string $caption): array
     {
         $reachableID = @$this->GetIDForIdent('Erreichbar');
+        // PowerID nur, wenn die Karte eine Momentanleistung in Watt liefert (Kronoterm: 2129); sonst 0 wie bisher.
+        $powerIdent = (string)(WPMBHUB_Drivers::DRIVERS[$this->ReadPropertyString('Manufacturer')]['contractPower'] ?? '');
         return [[
             'contractVersion'      => '1.15',
             'Type'                 => 'heatpump',
             'Caption'              => $caption,
-            'PowerID'              => 0,
+            'PowerID'              => ($powerIdent === '') ? 0 : $this->contractFieldID($powerIdent),
             'EnergyID'             => 0,
             'Measured'             => false,
             'unit'                 => 'W',
@@ -424,7 +462,7 @@ trait WPMBHUB_HeatpumpTrait
             'quietModeID'          => 0,
             'ecoComfortModeID'     => 0,
             'holidayTimerID'       => 0,
-            'operatingModeNormID'  => 0,
+            'operatingModeNormID'  => $this->contractFieldID('BetriebsartNorm'),
             'operatingModeID'      => 0,
             'managedBy'            => 'wpmbhub',
             'lastSeenAt'           => $this->ReadAttributeInteger('LastSeenAt'),
@@ -469,6 +507,46 @@ trait WPMBHUB_HeatpumpTrait
             IPS_CreateVariableProfile('NRG.Celsius', VARIABLETYPE_FLOAT);
             IPS_SetVariableProfileText('NRG.Celsius', '', ' °C');
             IPS_SetVariableProfileDigits('NRG.Celsius', 1);
+        }
+        // Gemeinsame NRG-Profile (SUITE.md): nur anlegen, wenn sie fehlen, nie ueberschreiben.
+        if (!IPS_VariableProfileExists('NRG.Watt')) {
+            IPS_CreateVariableProfile('NRG.Watt', VARIABLETYPE_FLOAT);
+            IPS_SetVariableProfileText('NRG.Watt', '', ' W');
+            IPS_SetVariableProfileDigits('NRG.Watt', 0);
+        }
+        if (!IPS_VariableProfileExists('NRG.Percent')) {
+            IPS_CreateVariableProfile('NRG.Percent', VARIABLETYPE_FLOAT);
+            IPS_SetVariableProfileText('NRG.Percent', '', ' %');
+            IPS_SetVariableProfileDigits('NRG.Percent', 0);
+            IPS_SetVariableProfileValues('NRG.Percent', 0, 100, 1);
+        }
+        // Eigene Profile des Moduls (Kronoterm).
+        if (!IPS_VariableProfileExists('WPMBHUB.Ratio')) {
+            IPS_CreateVariableProfile('WPMBHUB.Ratio', VARIABLETYPE_FLOAT);
+            IPS_SetVariableProfileDigits('WPMBHUB.Ratio', 2);
+        }
+        if (!IPS_VariableProfileExists('WPMBHUB.Hours')) {
+            IPS_CreateVariableProfile('WPMBHUB.Hours', VARIABLETYPE_INTEGER);
+            IPS_SetVariableProfileText('WPMBHUB.Hours', '', ' h');
+        }
+        $kronoterm = [
+            'WPMBHUB.KronotermFunction' => [0 => WPMBHUB_Text::t('Heating'), 1 => WPMBHUB_Text::t('Hot water'), 2 => WPMBHUB_Text::t('Cooling'),
+                3 => WPMBHUB_Text::t('Pool heating'), 4 => WPMBHUB_Text::t('Thermal disinfection'), 5 => WPMBHUB_Text::t('Standby'),
+                7 => WPMBHUB_Text::t('Remote deactivation')],
+            'WPMBHUB.KronotermFaultStatus' => [0 => WPMBHUB_Text::t('No fault'), 1 => WPMBHUB_Text::t('Warning'), 2 => WPMBHUB_Text::t('Fault'),
+                3 => WPMBHUB_Text::t('Notification')],
+            'WPMBHUB.KronotermRegime' => [0 => WPMBHUB_Text::t('Cooling'), 1 => WPMBHUB_Text::t('Heating'), 2 => WPMBHUB_Text::t('Heating and cooling off')],
+            'WPMBHUB.OperatingModeNorm' => [-1 => WPMBHUB_Text::t('Unknown'), 0 => WPMBHUB_Text::t('Standby'), 1 => WPMBHUB_Text::t('Heating'),
+                2 => WPMBHUB_Text::t('Cooling'), 3 => WPMBHUB_Text::t('Hot water'), 4 => WPMBHUB_Text::t('Heating + hot water'),
+                5 => WPMBHUB_Text::t('Cooling + hot water')],
+        ];
+        foreach ($kronoterm as $profile => $associations) {
+            if (!IPS_VariableProfileExists($profile)) {
+                IPS_CreateVariableProfile($profile, VARIABLETYPE_INTEGER);
+                foreach ($associations as $value => $text) {
+                    IPS_SetVariableProfileAssociation($profile, $value, $text, '', -1);
+                }
+            }
         }
     }
 }

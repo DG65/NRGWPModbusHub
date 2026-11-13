@@ -61,6 +61,9 @@ class WPModbusHubGateway extends IPSModule
             'The update interval can now be set down to 5 seconds. A device that cannot be reached no longer holds up the read cycle: it ends after the first connection error instead of waiting 3 seconds per field.',
             '"Heating zone" is now called "Heating circuit" (for newly created variables).',
         ],
+        '0.10.0' => [
+            'New card "Kronoterm (BMS Modbus, RS485)" for Kronoterm heat pumps (systems ADAPT, VERSI, WPLV, ETERA, ADAPT MAX): outdoor, flow, return and hot water temperature, current power consumption (also passed on to the NRG-Stack), thermal output, load, COP, operating hours, operating function, fault status and the energy counters. Read-only. A second card shifts all addresses by -1 for BMS versions that count that way. Not yet verified on real hardware.',
+        ],
     ];
     private const LIBRARY_GUID = '{E18F40EA-C12C-4D42-9DF0-BFE4F4120B9F}';
     const DRIVERS = WPMBHUB_Drivers::DRIVERS;

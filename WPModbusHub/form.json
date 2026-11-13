@@ -96,7 +96,7 @@
                                 "items": [
                                     {
                                         "type": "Label",
-                                        "caption": "For NIBE S series, Stiebel Eltron (ISG), Waterkotte (EcoTouch) and IDM (Navigator control) this is the IP address of the heat pump/controller itself on the local network -- visible/adjustable under \"Modbus TCP/IP\" or in the network menu of the controller. For LG, Samsung and Proxon it is the IP address of the Modbus gateway in between (e.g. an RS485-to-Ethernet adapter in \"Modbus TCP to RTU\" mode, the official MIM-B19N module, or for Proxon a suitable RS485 gateway in front of the factory serial connection)."
+                                        "caption": "For NIBE S series, Stiebel Eltron (ISG), Waterkotte (EcoTouch) and IDM (Navigator control) this is the IP address of the heat pump/controller itself on the local network -- visible/adjustable under \"Modbus TCP/IP\" or in the network menu of the controller. For LG, Samsung, Proxon and Kronoterm it is the IP address of the Modbus gateway in between (e.g. an RS485-to-Ethernet adapter in \"Modbus TCP to RTU\" mode, the official MIM-B19N module, for Proxon a suitable RS485 gateway in front of the factory serial connection, or for Kronoterm such an adapter at the RS485 BMS connection, unit ID 20)."
                                     }
                                 ]
                             }
