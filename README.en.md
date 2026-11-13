@@ -26,6 +26,10 @@ Two modules in one library, same register maps, same contract, only the transpor
 - **WPModbusHub** — its own Modbus TCP connection (IP address, port, unit ID in the form). For heat pumps with a network connection or an RS485-to-Ethernet adapter in "Modbus TCP to RTU" mode.
 - **WPModbusHubGateway** — hangs as a child below Symcon's built-in **ModBus Gateway**. This also makes **RS485/Modbus RTU directly on a serial port** possible (e.g. a USB-RS485 dongle on the Symcon host): `Serial Port → ModBus Gateway → WPModbusHubGateway`. You set the slave/device ID at the ModBus Gateway, baud rate/parity at the Serial Port. The button "Test connection" and `WPMBGW_ReadRaw($id, $function, $address, $count)` help with commissioning (read-only). **Confirmed on a real system** (Proxon T300 via USB-RS485 dongle, 19 Sep 2026), not yet for the other manufacturers via this route.
 
+## Requirement
+
+**Symcon 9.0 or newer.** With older versions (e.g. 8.1) the Module Store does not show the module and the search reports “No modules found”. Update to Symcon 9.0 first, then search the store for the exact name “NRG-Stack WPModbusHub”.
+
 ## Status
 
 As of 0.9.0 (5 Nov 2026) — **read-only by default** (only exception: two Stiebel setpoints, see below) and **not yet verified on real hardware for most of the seven manufacturers** (confirmed: Proxon T300 completely, IDM ALM completely, five Waterkotte temperature registers, the Stiebel Eltron addressing on a WPF 15). The register maps come, as far as possible, from official manufacturer documentation or from a reference implementation officially adopted by the respective smart-home platform:

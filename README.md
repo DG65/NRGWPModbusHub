@@ -26,6 +26,10 @@ Zwei Module in einer Bibliothek, gleiche Registerkarten, gleicher Vertrag, nur d
 - **WPModbusHub** — eigene Modbus-TCP-Verbindung (IP-Adresse, Port, Unit-ID im Formular). Für Wärmepumpen mit Netzwerkanschluss oder einen RS485-zu-Ethernet-Adapter im Modus „Modbus TCP zu RTU“.
 - **WPModbusHubGateway** — hängt als Kind an Symcons eingebautem **ModBus Gateway**. Damit geht auch **RS485/Modbus RTU direkt an einem seriellen Anschluss** (z. B. USB-RS485-Dongle am Symcon-Host): `Serial Port → ModBus Gateway → WPModbusHubGateway`. Slave-/Geräte-ID stellst du am ModBus Gateway ein, Baudrate/Parität am Serial Port. Knopf „Verbindung testen“ und `WPMBGW_ReadRaw($id, $function, $adresse, $anzahl)` helfen bei der Inbetriebnahme (nur lesend). **An einer echten Anlage bestätigt** (Proxon T300 über USB-RS485-Dongle, 19.09.2026), für die übrigen Hersteller über diesen Weg noch nicht.
 
+## Voraussetzung
+
+**Symcon 9.0 oder neuer.** Mit älteren Versionen (z. B. 8.1) zeigt der Module Store das Modul nicht an, die Suche meldet dann „Keine Module gefunden“. Erst auf Symcon 9.0 aktualisieren, dann im Store nach dem genauen Namen „NRG-Stack WPModbusHub“ suchen.
+
 ## Status
 
 Stand 0.9.0 (05.11.2026) — **standardmäßig nur lesend** (einzige Ausnahme: zwei Stiebel-Sollwerte, siehe unten) und **bei den meisten der sieben Hersteller noch nicht an echter Hardware verifiziert** (bestätigt: Proxon T300 vollständig, IDM ALM vollständig, Waterkotte fünf Temperaturregister, Stiebel Eltron die Adressierung an einer WPF 15). Die Registerkarten stammen so weit wie möglich aus offizieller Herstellerdokumentation oder einer von der jeweiligen Smart-Home-Plattform offiziell übernommenen Referenzimplementierung:
