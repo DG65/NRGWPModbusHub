@@ -102,6 +102,18 @@ function IPS_GetVariable(int $id): array
     }
     return ['VariableType' => -1];
 }
+// Sperre je Instanz (SUITE.md Stolperstein 31): Zaehler und schaltbarer Zugriff
+$GLOBALS['ips']['sem'] = ['enter' => [], 'leave' => [], 'busy' => false];
+function IPS_SemaphoreEnter(string $name, int $ms): bool
+{
+    $GLOBALS['ips']['sem']['enter'][] = [$name, $ms];
+    return !$GLOBALS['ips']['sem']['busy'];
+}
+function IPS_SemaphoreLeave(string $name): bool
+{
+    $GLOBALS['ips']['sem']['leave'][] = $name;
+    return true;
+}
 function IPS_ApplyChanges(int $id): void
 {
     $GLOBALS['ips']['applied'] = true;
@@ -1692,6 +1704,52 @@ $resE = $tryAction($wm, 'Zone1Komfort', 20);
 check('Schreiben: Ausnahme des Geräts (Adresse/Wert abgelehnt) wird mit Ausnahmecode gemeldet', strpos($resE, 'Schreiben fehlgeschlagen') !== false && strpos($resE, 'Modbus-Ausnahme 0x02') !== false, $resE);
 proc_close($procE);
 @unlink($scriptE);
+
+// Sperre je Instanz: Schreiben wartet 20 s, gibt frei, bei belegter Sperre kein Zugriff aufs Geraet
+[$procL, $pipesL, $portL, $scriptL] = startWriteServer('echo');
+$setProp($portL);
+$clearBuf($wm);
+$GLOBALS['ips']['sem'] = ['enter' => [], 'leave' => [], 'busy' => false];
+$resL = $tryAction($wm, 'Zone1Eco', 18);
+check('Sperre: Schreiben nimmt die Sperre WPMBHUB_IO_<ID> mit 20 s Wartezeit und gibt sie wieder frei', $resL === 'ok' && ($GLOBALS['ips']['sem']['enter'][0] ?? null) === ['WPMBHUB_IO_12345', 20000] && count($GLOBALS['ips']['sem']['leave']) === 1, json_encode($GLOBALS['ips']['sem']));
+$clearBuf($wm);
+$GLOBALS['ips']['sem'] = ['enter' => [], 'leave' => [], 'busy' => true];
+$resB = $tryAction($wm, 'Zone1Eco', 19);
+check('Sperre: ist sie belegt, wird nicht geschrieben und der Nutzer bekommt eine verständliche Meldung', strpos($resB, 'beschäftigt') !== false && ($GLOBALS['ips']['variables']['Zone1Eco']['value'] ?? null) === 18.0 && count($GLOBALS['ips']['sem']['leave']) === 0, $resB);
+$GLOBALS['ips']['sem']['busy'] = false;
+proc_close($procL);
+@unlink($scriptL);
+
+// Lesezyklus: Sperre mit 8 s, bei belegter Sperre faellt der Zyklus aus (keine zweite Verbindung)
+$GLOBALS['ips']['properties']['WPMBHUB_Active'] = true;
+$GLOBALS['ips']['properties']['Host'] = '127.0.0.1';
+$GLOBALS['ips']['properties']['Port'] = 1; // niemand hoert zu: jeder Verbindungsversuch scheitert
+$GLOBALS['ips']['sem'] = ['enter' => [], 'leave' => [], 'busy' => true];
+$GLOBALS['ips']['debug'] = [];
+$logBefore = count($GLOBALS['ips']['log']);
+$wm->Update();
+check('Sperre: Lesezyklus bei belegter Sperre wartet 8 s, überspringt den Lauf und öffnet keine Verbindung', ($GLOBALS['ips']['sem']['enter'][0] ?? null) === ['WPMBHUB_IO_12345', 8000]
+    && count($GLOBALS['ips']['log']) === $logBefore && count($GLOBALS['ips']['sem']['leave']) === 0, json_encode($GLOBALS['ips']['sem']));
+$GLOBALS['ips']['sem'] = ['enter' => [], 'leave' => [], 'busy' => false];
+$wm->Update();
+check('Sperre: Lesezyklus mit freier Sperre läuft und gibt sie auch bei nicht erreichbarem Gerät wieder frei', count($GLOBALS['ips']['sem']['enter']) === 1 && count($GLOBALS['ips']['sem']['leave']) === 1);
+$GLOBALS['ips']['properties']['WPMBHUB_Active'] = false;
+
+// Wiederholversuch nur bei Verbindungsproblem
+$GLOBALS['ips']['properties']['Port'] = 1;
+$clearBuf($wm);
+$tRetry = microtime(true);
+$resR = $tryAction($wm, 'Zone1Komfort', 20);
+$dRetry = microtime(true) - $tRetry;
+check('Wiederholversuch: bei Verbindungsfehler gibt es einen zweiten Versuch nach 1,5 s, die Meldung nennt den Grund', strpos($resR, 'Schreiben fehlgeschlagen') !== false && strpos($resR, 'Verbindung') !== false && $dRetry >= 1.4, round($dRetry, 2) . ' s: ' . $resR);
+[$procX, $pipesX, $portX, $scriptX] = startWriteServer('exception');
+$setProp($portX);
+$clearBuf($wm);
+$tNo = microtime(true);
+$resX = $tryAction($wm, 'Zone1Komfort', 20);
+check('Wiederholversuch: lehnt das Gerät den Wert ab (Modbus-Ausnahme), wird NICHT wiederholt', strpos($resX, 'Modbus-Ausnahme') !== false && (microtime(true) - $tNo) < 1.0);
+proc_close($procX);
+@unlink($scriptX);
 
 // Gateway schreibt nie
 $gwClient = new WPMBHUB_ModbusGatewayClient(function (string $json) { return false; });

@@ -137,6 +137,7 @@
             "Where do I find the IP address?": "Wo finde ich die IP-Adresse?",
             "Where do I set the slave ID, baud rate and parity?": "Wo stelle ich Slave-ID, Baudrate und Parität ein?",
             "Writing failed: %s": "Schreiben fehlgeschlagen: %s",
+            "The device is busy (a read cycle is running). Please try again in a moment.": "Das Gerät ist gerade beschäftigt (ein Lesezyklus läuft). Bitte gleich noch einmal versuchen.",
             "Writing is locked. Confirm the notice first in the form under \"Change settings on the device\".": "Schreiben ist gesperrt. Bestätige zuerst im Formular unter „Einstellungen am Gerät ändern“ die Belehrung.",
             "Writing of the setpoints was enabled by the user in the form.": "Das Schreiben der Sollwerte wurde vom Nutzer im Formular freigegeben.",
             "Writing of the setpoints was locked again by the user.": "Das Schreiben der Sollwerte wurde vom Nutzer wieder gesperrt.",

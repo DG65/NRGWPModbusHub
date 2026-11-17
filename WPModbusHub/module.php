@@ -200,6 +200,55 @@ class WPModbusHub extends IPSModule
 
     private const WRITE_MIN_INTERVAL_S = 30;
 
+    // Lesen und Schreiben am selben Geraet gegeneinander sperren (SUITE.md Stolperstein 31,
+    // Vorlage InverterHub 0.86.0). Viele Modbus-Geraete und Gateways nehmen nur EINE
+    // Verbindung an; oeffnet RequestAction (anderer Skript-Thread) eine zweite, waehrend der
+    // Timer liest, weist das Geraet eine davon ab. Lesen wartet kuerzer als Schreiben, ein
+    // Lesezyklus ohne Sperre faellt einfach aus. Eine Sperre, die laenger als LOCK_STALE_SEC
+    // gehalten wird, gilt als verwaist.
+    private const LOCK_WAIT_READ_MS  = 8000;
+    private const LOCK_WAIT_WRITE_MS = 20000;
+    private const LOCK_STALE_SEC     = 45;
+    private const WRITE_RETRY_PAUSE_US = 1500000;
+    private $wpmbLockDepth = 0;
+
+    private function lockName(): string
+    {
+        return 'WPMBHUB_IO_' . $this->InstanceID;
+    }
+
+    private function lockEnter(int $waitMs): bool
+    {
+        if ($this->wpmbLockDepth > 0) {
+            $this->wpmbLockDepth++;
+            return true;
+        }
+        if (!function_exists('IPS_SemaphoreEnter') || !IPS_SemaphoreEnter($this->lockName(), $waitMs)) {
+            return false;
+        }
+        $this->wpmbLockDepth = 1;
+        $this->SetBuffer('IoLockSince', (string)time());
+        return true;
+    }
+
+    private function lockLeave(): void
+    {
+        if ($this->wpmbLockDepth <= 0) {
+            return;
+        }
+        $this->wpmbLockDepth--;
+        if ($this->wpmbLockDepth === 0) {
+            $this->SetBuffer('IoLockSince', '');
+            IPS_SemaphoreLeave($this->lockName());
+        }
+    }
+
+    private function lockIsStale(): bool
+    {
+        $since = (int)$this->GetBuffer('IoLockSince');
+        return $since > 0 && (time() - $since) > self::LOCK_STALE_SEC;
+    }
+
     /** Gibt es beim gewaehlten Hersteller schreibbare Felder? Nur dann zeigt das Formular die Belehrung. */
     private function hasWritableFields(string $manufacturer): bool
     {
@@ -287,12 +336,32 @@ class WPModbusHub extends IPSModule
         if ($host === '') {
             throw new Exception(WPMBHUB_Text::t('no IP address entered'));
         }
-        $client = new WPMBHUB_ModbusTcpClient($host, $this->ReadPropertyInteger('Port'), $this->ReadPropertyInteger('UnitId'));
         $scale = $def['scale'] ?? 1;
-        $written = $client->writeHolding($def['addr'], (int)round($target * $scale));
-        $error = $written ? '' : $this->describeModbusError($client);
-        $back = $written ? $client->readHolding($def['addr'], 1) : null;
-        $client->close();
+        $held = $this->lockEnter(self::LOCK_WAIT_WRITE_MS);
+        if (!$held && function_exists('IPS_SemaphoreEnter') && !$this->lockIsStale()) {
+            throw new Exception(WPMBHUB_Text::t('The device is busy (a read cycle is running). Please try again in a moment.'));
+        }
+        try {
+            // Eine Verbindung, ein Wiederholversuch nach kurzer Pause bei Verbindungsfehler.
+            for ($attempt = 1; $attempt <= 2; $attempt++) {
+                $client = new WPMBHUB_ModbusTcpClient($host, $this->ReadPropertyInteger('Port'), $this->ReadPropertyInteger('UnitId'));
+                $written = $client->writeHolding($def['addr'], (int)round($target * $scale));
+                $error = $written ? '' : $this->describeModbusError($client);
+                $linkProblem = !$written && in_array((string)$client->lastError, ['connect', 'timeout', 'write', 'eof', 'frame'], true);
+                $back = $written ? $client->readHolding($def['addr'], 1) : null;
+                $client->close();
+                // Wiederholt wird nur bei Verbindungsproblemen, nicht wenn das Geraet den Wert ablehnt.
+                if ($written || !$linkProblem || $attempt === 2) {
+                    break;
+                }
+                $this->SendDebug('Modbus', WPMBHUB_Text::t('%s %s register %d: %s', $ident, $def['regType'], $def['addr'], $error) . ' (retry)', 0);
+                usleep(self::WRITE_RETRY_PAUSE_US);
+            }
+        } finally {
+            if ($held) {
+                $this->lockLeave();
+            }
+        }
         if (!$written) {
             $this->SendDebug('Modbus', WPMBHUB_Text::t('%s %s register %d: %s', $ident, $def['regType'], $def['addr'], $error), 0);
             throw new Exception(WPMBHUB_Text::t('Writing failed: %s', $error));
@@ -508,6 +577,22 @@ class WPModbusHub extends IPSModule
         if (!$this->ReadPropertyBoolean('WPMBHUB_Active')) {
             return;
         }
+        $held = $this->lockEnter(self::LOCK_WAIT_READ_MS);
+        if (!$held && function_exists('IPS_SemaphoreEnter') && !$this->lockIsStale()) {
+            $this->SendDebug('Lock', 'Read cycle skipped, a value is being written', 0);
+            return;
+        }
+        try {
+            $this->updateUnlocked();
+        } finally {
+            if ($held) {
+                $this->lockLeave();
+            }
+        }
+    }
+
+    private function updateUnlocked(): void
+    {
         $host = trim($this->ReadPropertyString('Host'));
         if ($host === '') {
             $this->SetStatus(201);

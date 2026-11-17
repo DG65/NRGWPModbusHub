@@ -1,5 +1,12 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.10.1 (Build 25) — 17.11.2026
+
+- **Lesen und Schreiben am selben Gerät gegeneinander gesperrt (SUITE.md Stolperstein 31).** Viele Modbus-Geräte und Gateways nehmen nur **eine** Verbindung gleichzeitig an. Bisher öffneten der Lese-Timer und eine Änderung der Sollwerte (Stiebel Eltron, Raum und Warmwasser) je eine eigene Verbindung, sodass das Gerät eine davon abweisen konnte. Jetzt gibt es eine Sperre je Instanz (`IPS_SemaphoreEnter`): Schreiben wartet bis zu 20 s, ein Lesezyklus bis zu 8 s und fällt bei belegter Sperre einfach aus. Eine verwaiste Sperre (länger als 45 s) wird ignoriert. Ist die Sperre beim Schreiben nicht zu bekommen, meldet das Modul „Gerät beschäftigt“ statt still zu scheitern.
+- **Ein Wiederholversuch beim Schreiben** nach 1,5 s, aber nur bei Verbindungsproblemen (keine Verbindung, Zeitüberschreitung, Abbruch), nicht wenn das Gerät den Wert ablehnt. Der Fehlergrund steht weiterhin in der Fehlermeldung und im Debug.
+- Betrifft nur das TCP-Modul `WPModbusHub`. `WPModbusHubGateway` schreibt nie und läuft über die Verbindung des Symcon-Gateways, die Sperre wird dort vom Gateway gehalten.
+- Prüfstand: sechs neue Prüfungen (Sperre mit Wartezeit, belegte Sperre beim Schreiben und Lesen, Wiederholversuch nur bei Verbindungsfehler), zwei Mutationsproben bestätigt.
+
 ## 0.10.0 (Build 24) — 13.11.2026
 
 - **Neu: Kronoterm (BMS-Modbus, nur lesend).** Zwei Karten „Kronoterm (BMS-Modbus, RS485)" und „Kronoterm (BMS-Modbus, Adressen um 1 verschoben)" aus dem Handbuch 17-20-4023-04 (Parameter MA 2000+, Holding-Register, Werks-Geräte-ID 20, 115200 Baud): Außen-/Vorlauf-/Rücklauf-/Warmwassertemperatur (2103/2104/2101/2102), Betriebsfunktion 2001 (roh und normiert), Fehlerstatus 2006, Betriebsrichtung 2007, Abtauung 2011, Leistungsaufnahme 2129 (→ `PowerID` im Wärmepumpen-Vertrag, Watt), thermische Leistung 2329, Auslastung 2327, Energiezähler 2361/2362 und 2363/2364, COP/SCOP 2371/2372, Verdichter-Betriebsstunden 2089–2091. Anlass: Dirk Allard (dallard) mit einer Kronoterm VERSI, Wunsch von Dietmar nach beiden Wegen (Cloud über WPHub, lokal über Modbus). An keiner echten Anlage geprüft.
