@@ -1,5 +1,9 @@
 # Changelog — NRG-Stack WPModbusHub
 
+## 0.10.2 — unveröffentlicht (vorbereitet 20.11.2026)
+
+- **Vertrag `heatpump` 1.19: `contractType` (Fremdanbindung, SUITE.md).** `GetFunctions()` liefert zusätzlich `contractType => 'heatpump'` (Selbstbeschreibung des Vertrags für fremde Konsumenten wie das EMS), `Type` bleibt als Alias, `contractVersion` ist 1.19. Es ändert sich sonst nichts: dieselben Felder, keine Steuerfelder (kein `failsafeSec`, weil das Modul dem EMS keinen Steuerpunkt anbietet). Prüfstand: neue Prüfung, eine Mutation bestätigt.
+
 ## 0.10.1 (Build 25) — 17.11.2026
 
 - **Lesen und Schreiben am selben Gerät gegeneinander gesperrt (SUITE.md Stolperstein 31).** Viele Modbus-Geräte und Gateways nehmen nur **eine** Verbindung gleichzeitig an. Bisher öffneten der Lese-Timer und eine Änderung der Sollwerte (Stiebel Eltron, Raum und Warmwasser) je eine eigene Verbindung, sodass das Gerät eine davon abweisen konnte. Jetzt gibt es eine Sperre je Instanz (`IPS_SemaphoreEnter`): Schreiben wartet bis zu 20 s, ein Lesezyklus bis zu 8 s und fällt bei belegter Sperre einfach aus. Eine verwaiste Sperre (länger als 45 s) wird ignoriert. Ist die Sperre beim Schreiben nicht zu bekommen, meldet das Modul „Gerät beschäftigt“ statt still zu scheitern.

@@ -593,7 +593,8 @@ check('Aussentemperatur wird NICHT automatisch archiviert (Review 30.10.2026)', 
 
 $functions = $mod->GetFunctions();
 check('GetFunctions() liefert genau einen Eintrag', is_array($functions) && count($functions) === 1);
-check('GetFunctions(): Type=heatpump, contractVersion 1.15', ($functions[0]['Type'] ?? '') === 'heatpump' && ($functions[0]['contractVersion'] ?? '') === '1.15');
+check('GetFunctions(): Type=heatpump, contractVersion 1.19', ($functions[0]['Type'] ?? '') === 'heatpump' && ($functions[0]['contractVersion'] ?? '') === '1.19');
+check('GetFunctions(): contractType = heatpump (1.19, Fremdanbindung), Alias Type bleibt', ($functions[0]['contractType'] ?? '') === 'heatpump' && ($functions[0]['Type'] ?? '') === 'heatpump');
 check('GetFunctions(): outsideTempID zeigt auf die echte Variable', ($functions[0]['outsideTempID'] ?? 0) === $GLOBALS['ips']['variables']['Aussentemperatur']['id']);
 check('GetFunctions(): mainOutletTempID zeigt auf Vorlauftemperatur', ($functions[0]['mainOutletTempID'] ?? 0) === $GLOBALS['ips']['variables']['Vorlauftemperatur']['id']);
 check('GetFunctions(): z1WaterTargetTempID = 0 (NIBE liefert kein Zone1Soll)', ($functions[0]['z1WaterTargetTempID'] ?? -1) === 0);
@@ -972,7 +973,8 @@ $fnGw = $gw->GetFunctions();
 $GLOBALS['ips']['properties']['Manufacturer'] = 'nibe';
 $fnTcp = (new WPModbusHub(12345))->GetFunctions();
 check('Vertrag: Gateway- und TCP-Modul liefern dieselben Vertragsfelder', array_keys($fnGw[0]) === array_keys($fnTcp[0]));
-check('Vertrag: Gateway-Modul Type=heatpump, contractVersion 1.15', ($fnGw[0]['Type'] ?? '') === 'heatpump' && ($fnGw[0]['contractVersion'] ?? '') === '1.15');
+check('Vertrag: Gateway-Modul Type=heatpump, contractVersion 1.19', ($fnGw[0]['Type'] ?? '') === 'heatpump' && ($fnGw[0]['contractVersion'] ?? '') === '1.19');
+check('Vertrag: Gateway-Modul liefert contractType = heatpump', ($fnGw[0]['contractType'] ?? '') === 'heatpump');
 check('Registerkarten sind geteilt (eine Quelle der Wahrheit)', WPModbusHub::DRIVERS === WPModbusHubGateway::DRIVERS && WPModbusHub::DRIVERS === WPMBHUB_Drivers::DRIVERS);
 
 // module.json des Gateway-Moduls: verifizierte Schnittstellen
@@ -1916,8 +1918,8 @@ check('Kronoterm: Betriebsfunktion/Fehlerstatus/Regime/Norm tragen Assoziationsp
     && ($profKr['WPMBHUB.KronotermFaultStatus']['associations'][2] ?? '') === 'Störung');
 check('Kronoterm: keine Variable ist bedienbar (kein EnableAction)', empty($GLOBALS['ips']['actions']));
 $fnKr = $modKr->GetFunctions()[0];
-check('Kronoterm: Vertrag heatpump 1.15 -- PowerID = Leistungsaufnahme, EnergyID bleibt 0 (Einheit der Zähler unbestätigt)',
-    $fnKr['contractVersion'] === '1.15' && $fnKr['PowerID'] === $varsKr['Leistungsaufnahme']['id'] && $fnKr['EnergyID'] === 0, json_encode($fnKr));
+check('Kronoterm: Vertrag heatpump 1.19 -- PowerID = Leistungsaufnahme, EnergyID bleibt 0 (Einheit der Zähler unbestätigt)',
+    $fnKr['contractVersion'] === '1.19' && $fnKr['PowerID'] === $varsKr['Leistungsaufnahme']['id'] && $fnKr['EnergyID'] === 0, json_encode($fnKr));
 check('Kronoterm: Vertrag -- Außen-, Vor-/Rücklauf-, Warmwassertemperatur und normierte Betriebsart verknüpft',
     $fnKr['outsideTempID'] === $varsKr['Aussentemperatur']['id'] && $fnKr['mainOutletTempID'] === $varsKr['Vorlauftemperatur']['id'] && $fnKr['mainInletTempID'] === $varsKr['Ruecklauftemperatur']['id']
     && $fnKr['dhwTempID'] === $varsKr['Warmwasser']['id'] && $fnKr['operatingModeNormID'] === $varsKr['BetriebsartNorm']['id']);

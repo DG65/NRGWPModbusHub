@@ -439,8 +439,10 @@ trait WPMBHUB_HeatpumpTrait
         // PowerID nur, wenn die Karte eine Momentanleistung in Watt liefert (Kronoterm: 2129); sonst 0 wie bisher.
         $powerIdent = (string)(WPMBHUB_Drivers::DRIVERS[$this->ReadPropertyString('Manufacturer')]['contractPower'] ?? '');
         return [[
-            'contractVersion'      => '1.15',
+            'contractVersion'      => '1.19',
             'Type'                 => 'heatpump',
+            // 1.19 (Fremdanbindung, SUITE.md 20.11.2026): Selbstbeschreibung des Vertrags, Alias zu Type
+            'contractType'         => 'heatpump',
             'Caption'              => $caption,
             'PowerID'              => ($powerIdent === '') ? 0 : $this->contractFieldID($powerIdent),
             'EnergyID'             => 0,
